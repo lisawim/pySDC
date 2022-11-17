@@ -151,7 +151,7 @@ def check(cwd='./'):
 
     differences_around_switch(dt_list, problem.__name__, restarts_dict, sweeper.__name__, V_ref)
 
-    differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref, cwd='./')
+    differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref)
 
 
 def differences_around_switch(dt_list, problem, restarts_dict, sweeper, V_ref, cwd='./'):

@@ -94,7 +94,7 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
     f.close()
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', sortby='time')
+    iter_counts = get_sorted(stats, type='niter', recomputed=None, sortby='time')
 
     # compute and print statistics
     f = open('data/battery_out.txt', 'w')
@@ -122,6 +122,7 @@ def check(cwd='./'):
 
     # loop for imex_1st_order sweeper
     for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
+        Path("data/{}".format(problem)).mkdir(parents=True, exist_ok=True)
         for dt_item in dt_list:
             for item in use_switch_estimator:
                 description, stats = run(
@@ -139,22 +140,22 @@ def check(cwd='./'):
                 f.close()
 
                 if item:
-                    restarts_sorted = np.array(get_sorted(stats, type='restart', recomputed=False))[:, 1]
+                    restarts_sorted = np.array(get_sorted(stats, type='restart', recomputed=None))[:, 1]
                     restarts.append(np.sum(restarts_sorted))
                     print("Restarts for dt: ", dt_item, " -- ", np.sum(restarts_sorted))
 
         assert len(dt_list) > 1, 'ERROR: dt_list have to be contained more than one element due to the subplots'
 
-        differences_around_switch(dt_list, restarts, sweeper.__name__, V_ref)
+        differences_around_switch(dt_list, problem.__name__, restarts, sweeper.__name__, V_ref)
 
-        differences_over_time(dt_list, sweeper.__name__, V_ref)
+        differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref)
 
-        iterations_over_time(dt_list, description['step_params']['maxiter'], sweeper.__name__)
+        iterations_over_time(dt_list, description['step_params']['maxiter'], problem.__name__, sweeper.__name__)
 
         restarts = []
 
 
-def differences_around_switch(dt_list, restarts, sweeper, V_ref, cwd='./'):
+def differences_around_switch(dt_list, problem, restarts, sweeper, V_ref, cwd='./'):
     """
     Routine to plot the differences before, at, and after the switch. Produces the diffs_estimation_<sweeper_class>.png file
     """
@@ -212,11 +213,11 @@ def differences_around_switch(dt_list, restarts, sweeper, V_ref, cwd='./'):
     lines = pos1 + pos2 + pos3 + restarts_plt
     labels = [l.get_label() for l in lines]
     ax_around.legend(lines, labels, frameon=False, fontsize=8, loc='center right')
-    fig_around.savefig('data/diffs_estimation_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
+    fig_around.savefig('data/{}/diffs_estimation_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_around)
 
 
-def differences_over_time(dt_list, sweeper, V_ref, cwd='./'):
+def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     """
     Routine to plot the differences in time using the switch estimator or not. Produces the difference_estimation_<sweeper_class>.png file
     """
@@ -263,14 +264,14 @@ def differences_over_time(dt_list, sweeper, V_ref, cwd='./'):
 
         count_ax += 1
 
-    fig_diffs.savefig('data/difference_estimation_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
+    fig_diffs.savefig('data/{}/difference_estimation_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_diffs)
 
 
 # def error_over_time(dt_list, cwd='./'):
 
 
-def iterations_over_time(dt_list, maxiter, sweeper, cwd='./'):
+def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
     """
     Routine  to plot the number of iterations over time using switch estimator or not. Produces the iters_<sweeper_class>.png file
     """
@@ -327,7 +328,7 @@ def iterations_over_time(dt_list, maxiter, sweeper, cwd='./'):
 
             ax_iter_all[row, col].legend(frameon=False, fontsize=6, loc='upper right')
     plt_helper.plt.tight_layout()
-    fig_iter_all.savefig('data/iters_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
+    fig_iter_all.savefig('data/{}/iters_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_iter_all)
 
 

@@ -269,7 +269,7 @@ def differences_around_switch(dt_list, problem, restarts_dict, sweeper, V_ref, c
     labels = [l.get_label() for l in lines]
     ax_around[1].legend(lines, labels, frameon=False, fontsize=8, loc='center right')
 
-    fig_around.savefig('data/{}/diffs_estimation_{}_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
+    fig_around.savefig('data/{}/diffs_estimation_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_around)
 
 
@@ -335,10 +335,10 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
 
         count_ax += 1
 
-    fig_diffs1.savefig('data/{}/difference_estimation_vC1_{}_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
+    fig_diffs1.savefig('data/{}/difference_estimation_vC1_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_diffs1)
 
-    fig_diffs2.savefig('data/{}/difference_estimation_vC2_{}_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
+    fig_diffs2.savefig('data/{}/difference_estimation_vC2_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_diffs2)
 
 

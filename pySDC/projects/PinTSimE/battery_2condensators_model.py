@@ -52,15 +52,14 @@ class log_data(hooks):
             type='voltage C2',
             value=L.uend[2],
         )
-        self.increment_stats(
+        self.add_to_stats(
             process=step.status.slot,
             time=L.time,
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
             type='restart',
-            value=1,
-            initialize=0,
+            value=int(step.status.get('restart')),
         )
 
 
@@ -145,7 +144,7 @@ def main(use_switch_estimator=True):
     f.close()
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', sortby='time')
+    iter_counts = get_sorted(stats, type='niter', recomputed=None, sortby='time')
 
     # compute and print statistics
     min_iter = 20

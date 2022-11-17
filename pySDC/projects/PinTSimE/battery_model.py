@@ -52,15 +52,14 @@ class log_data(hooks):
             type='k',
             value=step.status.iter,
         )
-        self.increment_stats(
+        self.add_to_stats(
             process=step.status.slot,
             time=L.time,
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
             type='restart',
-            value=1,
-            initialize=0,
+            value=int(step.status.get('restart')),
         )
 
 

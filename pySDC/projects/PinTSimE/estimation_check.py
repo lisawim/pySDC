@@ -1,5 +1,6 @@
 import numpy as np
 import dill
+import glob
 from pathlib import Path
 
 from pySDC.helpers.stats_helper import get_sorted
@@ -41,7 +42,7 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
     problem_params['C'] = 1.0
     problem_params['R'] = 1.0
     problem_params['L'] = 1.0
-    problem_params['alpha'] = 5.0
+    problem_params['alpha'] = 1.2
     problem_params['V_ref'] = V_ref
     problem_params['set_switch'] = np.array([False], dtype=bool)
     problem_params['t_switch'] = np.zeros(1)
@@ -75,7 +76,7 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
 
     # set time parameters
     t0 = 0.0
-    Tend = 2.0
+    Tend = 0.5
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -112,7 +113,7 @@ def check(cwd='./'):
     """
 
     V_ref = 1.0
-    dt_list = [1e-1, 1e-2]  # [4e-1, 4e-2, 4e-3]
+    dt_list = [1e-2]  # [4e-1, 4e-2, 4e-3]
     use_switch_estimator = [True, False]
     restarts = []
 
@@ -122,7 +123,7 @@ def check(cwd='./'):
 
     # loop for imex_1st_order sweeper
     for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
-        Path("data/{}".format(problem)).mkdir(parents=True, exist_ok=True)
+        Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
         for dt_item in dt_list:
             for item in use_switch_estimator:
                 description, stats = run(
@@ -144,13 +145,15 @@ def check(cwd='./'):
                     restarts.append(np.sum(restarts_sorted))
                     print("Restarts for dt: ", dt_item, " -- ", np.sum(restarts_sorted))
 
-        assert len(dt_list) > 1, 'ERROR: dt_list have to be contained more than one element due to the subplots'
+        # assert len(dt_list) > 1, 'ERROR: dt_list have to be contained more than one element due to the subplots'
 
         differences_around_switch(dt_list, problem.__name__, restarts, sweeper.__name__, V_ref)
 
         differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref)
 
         iterations_over_time(dt_list, description['step_params']['maxiter'], problem.__name__, sweeper.__name__)
+
+        #error_over_time(dt_list, problem.__name__, sweeper.__name__)
 
         restarts = []
 
@@ -188,7 +191,7 @@ def differences_around_switch(dt_list, problem, restarts, sweeper, V_ref, cwd='.
                 diffs_true.append(diff_true[m])
 
         for m in range(1, len(times_false)):
-            if times_false[m - 1] < t_switch < times_false[m]:
+            if times_false[m - 1] <= t_switch <= times_false[m]:
                 diffs_false_before.append(diff_false[m - 1])
                 diffs_false_after.append(diff_false[m])
 
@@ -222,10 +225,16 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     Routine to plot the differences in time using the switch estimator or not. Produces the difference_estimation_<sweeper_class>.png file
     """
 
-    setup_mpl()
-    fig_diffs, ax_diffs = plt_helper.plt.subplots(
-        1, len(dt_list), figsize=(2 * len(dt_list), 2), sharex='col', sharey='row'
-    )
+    if len(dt_list) > 1:
+        setup_mpl()
+        fig_diffs, ax_diffs = plt_helper.plt.subplots(
+            1, len(dt_list), figsize=(2 * len(dt_list), 2), sharex='col', sharey='row'
+        )
+
+    else:
+        setup_mpl()
+        fig_diffs, ax_diffs = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+
     count_ax = 0
     for dt_item in dt_list:
         f1 = open(cwd + 'data/battery_dt{}_USETrue_{}.dat'.format(dt_item, sweeper), 'rb')
@@ -246,21 +255,34 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
         diff_true, diff_false = [v[1] - V_ref for v in vC_true], [v[1] - V_ref for v in vC_false]
         times_true, times_false = [v[0] for v in vC_true], [v[0] for v in vC_false]
 
-        ax_diffs[count_ax].set_title('dt={}'.format(dt_item))
-        ax_diffs[count_ax].plot(times_true, diff_true, label='SE=True', color='#ff7f0e')
-        ax_diffs[count_ax].plot(times_false, diff_false, label='SE=False', color='#1f77b4')
-        ax_diffs[count_ax].axvline(x=t_switch, linestyle='--', color='k', label='Switch')
-        ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='lower left')
-        ax_diffs[count_ax].set_yscale('symlog', linthresh=1e-5)
-        ax_diffs[count_ax].set_xlabel('Time', fontsize=6)
-        if count_ax == 0:
-            ax_diffs[count_ax].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
+        if len(dt_list) > 1:
+            ax_diffs[count_ax].set_title('dt={}'.format(dt_item))
+            ax_diffs[count_ax].plot(times_true, diff_true, label='SE=True', color='#ff7f0e')
+            ax_diffs[count_ax].plot(times_false, diff_false, label='SE=False', color='#1f77b4')
+            ax_diffs[count_ax].axvline(x=t_switch, linestyle='--', color='k', label='Switch')
+            ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='lower left')
+            ax_diffs[count_ax].set_yscale('symlog', linthresh=1e-5)
+            ax_diffs[count_ax].set_xlabel('Time', fontsize=6)
+            if count_ax == 0:
+                ax_diffs[count_ax].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
 
-        if count_ax == 0 or count_ax == 1:
-            ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='center right')
+            if count_ax == 0 or count_ax == 1:
+                ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='center right')
+
+            else:
+                ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='upper right')
 
         else:
-            ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='upper right')
+            ax_diffs.set_title('dt={}'.format(dt_item))
+            ax_diffs.plot(times_true, diff_true, label='SE=True', color='#ff7f0e')
+            ax_diffs.plot(times_false, diff_false, label='SE=False', color='#1f77b4')
+            ax_diffs.axvline(x=t_switch, linestyle='--', color='k', label='Switch')
+            ax_diffs.legend(frameon=False, fontsize=6, loc='lower left')
+            ax_diffs.set_yscale('symlog', linthresh=1e-5)
+            ax_diffs.set_xlabel('Time', fontsize=6)
+            ax_diffs.set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
+            ax_diffs.legend(frameon=False, fontsize=6, loc='center right')
+            ax_diffs.legend(frameon=False, fontsize=6, loc='upper right')
 
         count_ax += 1
 
@@ -268,7 +290,118 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     plt_helper.plt.close(fig_diffs)
 
 
-# def error_over_time(dt_list, cwd='./'):
+def error_over_time(dt_list, problem, sweeper, cwd='./'):
+    """
+    Routine to read the data from cluster and plot the error of the reference solution and the numerical solution over time
+    """
+
+    if sweeper == 'imex_1st_order':
+        datfiles = glob.glob("data/battery_dt1e-08_USETrue_SDC_IMEX_*.dat")
+    else:
+        datfiles = glob.glob("data/battery_dt1e-08_USETrue_IE_*.dat")
+    stats_ref = dict()
+    for file in datfiles:
+        f = open(cwd + file, 'rb')
+        stats = dill.load(f)
+        f.close()
+
+        stats_ref.update(stats)
+
+    vC_ref_val = get_sorted(stats_ref, type='voltage C', recomputed=None, sortby='time')
+
+    vC_ref = [v[1] for v in vC_ref_val]
+    times_ref = [v[0] for v in vC_ref_val]
+
+    diffs_false = []
+    diffs_true = []
+    times_all_false = []
+    times_all_true = []
+    for dt_item in dt_list:
+        diff_false = []
+        diff_true = []
+
+        f1 = open(cwd + 'data/battery_dt{}_USETrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_true = dill.load(f1)
+        f1.close()
+
+        f2 = open(cwd + 'data/battery_dt{}_USEFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_false = dill.load(f2)
+        f2.close()
+
+        val_switch = get_sorted(stats_true, type='switch1', sortby='time')
+        t_switch = [v[0] for v in val_switch]
+        t_switch = t_switch[0]  # battery has only one single switch
+
+        vC_true_val = get_sorted(stats_true, type='voltage C', recomputed=None, sortby='time')
+        vC_false_val = get_sorted(stats_false, type='voltage C', sortby='time')
+
+        times_true = [v[0] for v in vC_true_val]
+        times_false = [v[0] for v in vC_false_val]
+
+        times_all_false.append(times_false)
+        times_all_true.append(times_true)
+
+        vC_true = [v[1] for v in vC_true_val]
+        vC_false = [v[1] for v in vC_false_val]
+
+        for m_ref in range(len(times_ref)):
+            for m in range(len(times_false)):
+                print(dt_item, m_ref, m)
+                if round(times_false[m], 15) == round(times_ref[m_ref], 15):
+                    diff_false.append(vC_ref[m_ref] - vC_false[m])
+
+        for m_ref in range(len(times_ref)):
+            for m in range(len(times_true)):
+                if round(times_true[m], 15) == round(times_ref[m_ref], 15):
+                    diff_true.append(vC_ref[m_ref] - vC_true[m])
+
+        diffs_false.append(diff_false)
+        diffs_true.append(diff_true)
+
+    if len(dt_list) > 1:
+        setup_mpl()
+        fig_err, ax_err = plt_helper.plt.subplots(
+            nrows=2, ncols=len(dt_list), figsize=(2 * len(dt_list) - 1, 3), sharex='col', sharey='row'
+        )
+        for row in range(2):
+            for col in range(len(dt_list)):
+                print(row, col)
+                if row == 0:
+                    # SE = False
+                    ax_err[row, col].plot(times_all_false[col], diffs_false[col], label='SE=False')
+                    ax_err[row, col].set_title('dt={}'.format(dt_list[col]))
+                    # ax_err[row, col].set_ylim(1, maxiter)
+
+                else:
+                    # SE = True
+                    ax_err[row, col].plot(times_all_true[col], diffs_true[col], label='SE=True')
+                    ax_err[row, col].set_xlabel('Time', fontsize=6)
+                    #ax_err[row, col].set_ylim(1, maxiter)
+
+                if col == 0:
+                    ax_err[row, col].set_ylabel('Error', fontsize=6)
+
+                ax_err[row, col].legend(frameon=False, fontsize=6, loc='upper right')
+    else:
+        setup_mpl()
+        fig_err, ax_err = plt_helper.plt.subplots(nrows=2, ncols=1, figsize=(3, 3))
+        for row in range(2):
+            if row == 0:
+                # SE = False
+                ax_err[row].plot(times_all_false[0], diffs_false[0], label='SE=False')
+                ax_err[row].set_title('dt={}'.format(dt_list[0]))
+
+            else:
+                # SE = True
+                ax_err[row].plot(times_all_true[0], diffs_true[0], label='SE=True')
+                ax_err[row].set_xlabel('Time', fontsize=6)
+
+        ax_err[row].set_ylabel('Error', fontsize=6)
+        ax_err[row].legend(frameon=False, fontsize=6, loc='upper right')
+
+    plt_helper.plt.tight_layout()
+    fig_err.savefig('data/{}/errors_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig_err)
 
 
 def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
@@ -304,29 +437,51 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         t_switch = [v[0] for v in val_switch]
         t_switches.append(t_switch[0])
 
-    setup_mpl()
-    fig_iter_all, ax_iter_all = plt_helper.plt.subplots(
-        nrows=2, ncols=len(dt_list), figsize=(2 * len(dt_list) - 1, 3), sharex='col', sharey='row'
-    )
-    for row in range(2):
-        for col in range(len(dt_list)):
+    if len(dt_list) > 1:
+        setup_mpl()
+        fig_iter_all, ax_iter_all = plt_helper.plt.subplots(
+            nrows=2, ncols=len(dt_list), figsize=(2 * len(dt_list) - 1, 3), sharex='col', sharey='row'
+        )
+        for row in range(2):
+            for col in range(len(dt_list)):
+                if row == 0:
+                    # SE = False
+                    ax_iter_all[row, col].plot(times_false[col], iters_time_false[col], label='SE=False')
+                    ax_iter_all[row, col].set_title('dt={}'.format(dt_list[col]))
+                    ax_iter_all[row, col].set_ylim(1, maxiter)
+
+                else:
+                    # SE = True
+                    ax_iter_all[row, col].plot(times_true[col], iters_time_true[col], label='SE=True')
+                    ax_iter_all[row, col].axvline(x=t_switches[col], linestyle='--', color='r', label='Switch')
+                    ax_iter_all[row, col].set_xlabel('Time', fontsize=6)
+                    ax_iter_all[row, col].set_ylim(1, maxiter)
+
+                if col == 0:
+                    ax_iter_all[row, col].set_ylabel('Number iterations', fontsize=6)
+
+                ax_iter_all[row, col].legend(frameon=False, fontsize=6, loc='upper right')
+    else:
+        setup_mpl()
+        fig_iter_all, ax_iter_all = plt_helper.plt.subplots(nrows=2, ncols=1, figsize=(3, 3), sharex='col', sharey='row')
+
+        for row in range(2):
             if row == 0:
                 # SE = False
-                ax_iter_all[row, col].plot(times_false[col], iters_time_false[col], label='SE=False')
-                ax_iter_all[row, col].set_title('dt={}'.format(dt_list[col]))
-                ax_iter_all[row, col].set_ylim(1, maxiter)
+                ax_iter_all[row].plot(times_false[0], iters_time_false[0], label='SE=False')
+                ax_iter_all[row].set_title('dt={}'.format(dt_list[0]))
+                ax_iter_all[row].set_ylim(1, maxiter)
 
             else:
                 # SE = True
-                ax_iter_all[row, col].plot(times_true[col], iters_time_true[col], label='SE=True')
-                ax_iter_all[row, col].axvline(x=t_switches[col], linestyle='--', color='r', label='Switch')
-                ax_iter_all[row, col].set_xlabel('Time', fontsize=6)
-                ax_iter_all[row, col].set_ylim(1, maxiter)
+                ax_iter_all[row].plot(times_true[0], iters_time_true[0], label='SE=True')
+                ax_iter_all[row].axvline(x=t_switches[0], linestyle='--', color='r', label='Switch')
+                ax_iter_all[row].set_xlabel('Time', fontsize=6)
+                ax_iter_all[row].set_ylim(1, maxiter)
 
-            if col == 0:
-                ax_iter_all[row, col].set_ylabel('Number iterations', fontsize=6)
+            ax_iter_all[row].set_ylabel('Number iterations', fontsize=6)
+            ax_iter_all[row].legend(frameon=False, fontsize=6, loc='upper right')
 
-            ax_iter_all[row, col].legend(frameon=False, fontsize=6, loc='upper right')
     plt_helper.plt.tight_layout()
     fig_iter_all.savefig('data/{}/iters_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_iter_all)

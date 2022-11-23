@@ -105,11 +105,11 @@ class SwitchEstimator(ConvergenceController):
                         tol = self.dt_initial / r
 
                         if not np.isclose(self.t_switch - L.time, L.dt, atol=tol):
-                            L.status.dt_new = self.t_switch - L.time
+                            dt_search = self.t_switch - L.time
 
                         else:
                             print('Switch located at time: {}'.format(self.t_switch))
-                            L.status.dt_new = self.t_switch - L.time
+                            dt_search = self.t_switch - L.time
                             L.prob.params.set_switch[self.count_switches] = self.switch_detected
                             L.prob.params.t_switch[self.count_switches] = self.t_switch
                             controller.hooks.add_to_stats(
@@ -123,6 +123,9 @@ class SwitchEstimator(ConvergenceController):
                             )
                             # self.switch_detected_step = self.switch_detected
                             self.switch_detected_step = True
+
+                        dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
+                        L.status.dt_new = min([dt_planned, dt_search])
 
                     else:
                         self.switch_detected = False
@@ -140,6 +143,7 @@ class SwitchEstimator(ConvergenceController):
 
     def post_step_processing(self, controller, S):
         L = S.levels[0]
+        print(L.dt)
 
         if self.switch_detected_step:
             if L.prob.params.set_switch[self.count_switches] and L.time + L.dt > self.t_switch:

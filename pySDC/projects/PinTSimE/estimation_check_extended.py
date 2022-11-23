@@ -129,7 +129,7 @@ def check(cwd='./'):
     problem = battery_2condensators
     sweeper = imex_1st_order
 
-    Path("data/{}".format(problem)).mkdir(parents=True, exist_ok=True)
+    Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
     for dt_item in dt_list:
         for item in use_switch_estimator:
             stats, description = run(

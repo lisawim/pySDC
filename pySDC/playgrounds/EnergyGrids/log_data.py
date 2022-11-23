@@ -13,7 +13,7 @@ class log_data(hooks):
 
         self.add_to_stats(
             process=step.status.slot,
-            time=L.time,
+            time=L.time + L.dt,
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
@@ -22,7 +22,7 @@ class log_data(hooks):
         )
         self.add_to_stats(
             process=step.status.slot,
-            time=L.time,
+            time=L.time + L.dt,
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
@@ -31,10 +31,19 @@ class log_data(hooks):
         )
         self.add_to_stats(
             process=step.status.slot,
-            time=L.time,
+            time=L.time + L.dt,
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
             type='p3',
             value=L.uend[2],
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='restart',
+            value=int(step.status.get('restart')),
         )

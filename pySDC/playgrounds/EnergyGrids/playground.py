@@ -2,10 +2,11 @@ import numpy as np
 import dill
 
 from pySDC.helpers.stats_helper import get_sorted
-from pySDC.implementations.collocations import Collocation
+from pySDC.core.Collocation import CollBase as Collocation
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.problem_classes.Piline import piline
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
+from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
 
 # from pySDC.implementations.sweeper_classes.generic_LU import generic_LU
 from pySDC.playgrounds.EnergyGrids.log_data import log_data
@@ -17,9 +18,13 @@ def main():
     A simple test program to do PFASST runs for the heat equation
     """
 
+    # initialize adaptivity parameters
+    adaptivity_params = dict()
+    adaptivity_params['e_tol'] = 1e-8
+
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-10
+    level_params['restol'] = -1
     level_params['dt'] = 0.25
 
     # initialize sweeper parameters
@@ -41,12 +46,17 @@ def main():
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 50
+    step_params['maxiter'] = 6
 
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 20
     controller_params['hook_class'] = log_data
+    controller_params['mssdc_jac'] = False
+
+    # initialize convergence controller parameters
+    convergence_controllers = dict()
+    convergence_controllers[Adaptivity] = adaptivity_params
 
     # fill description dictionary for easy step instantiation
     description = dict()
@@ -56,6 +66,7 @@ def main():
     description['sweeper_params'] = sweeper_params  # pass sweeper parameters
     description['level_params'] = level_params  # pass level parameters
     description['step_params'] = step_params  # pass step parameters
+    description['convergence_controllers'] = convergence_controllers  # pass convergence controller parameters
 
     # set time parameters
     t0 = 0.0
@@ -75,6 +86,8 @@ def main():
     f = open(fname, 'wb')
     dill.dump(stats, f)
     f.close()
+
+    plot_voltages()
 
 
 def plot_voltages(cwd='./'):
@@ -100,4 +113,3 @@ def plot_voltages(cwd='./'):
 
 if __name__ == "__main__":
     main()
-    plot_voltages()

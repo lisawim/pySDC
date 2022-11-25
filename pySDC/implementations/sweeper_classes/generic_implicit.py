@@ -1,3 +1,5 @@
+import numpy as np
+
 from pySDC.core.Sweeper import sweeper
 
 
@@ -131,3 +133,45 @@ class generic_implicit(sweeper):
                 L.uend += L.tau[-1]
 
         return None
+
+    def get_sweeper_mats(self):
+        """
+        Return the two matrices Q, QI which define the sweeper
+        """
+        Q = self.coll.Qmat[1:, 1:]
+        QI = self.QI[1:, 1:]
+        return Q, QI
+
+    def get_scalar_problems_sweeper_mats(self, lambdas=None):
+        """
+        This function returns the corresponding matrices of an fully-implicit SDC sweep in matrix formulation
+
+        Based on Ruprecht & Speck, Spectral deferred corrections with fast-wave slow-wave splitting, 2016.
+
+        Args:
+            lambdas (float): lambda of the Dahlquist equation
+        """
+        Q, QI = self.get_sweeper_mats()
+        if lambdas is None:
+            pass
+            raise NotImplementedError("At the moment, the value for lambda has to be provided")
+
+        nnodes = self.coll.num_nodes
+        dt = self.level.dt
+        LHS = np.eye(nnodes) - dt * lambdas * QI
+        RHS = dt * (lambdas * Q - lambdas * QI)
+        return LHS, RHS
+
+    def get_scalar_problems_manysweep_mat(self, nsweeps, lambdas=None):
+        """
+        For a scalar problem, K sweeps of fully implicit SDC can be written in matrix form.
+        Args:
+            nsweeps (int): number of sweeps
+            lambdas (float): lambda of the Dahlquist equation
+        """
+        LHS, RHS = self.get_scalar_problems_sweeper_mats(lambdas=lambdas)
+        Pinv = np.linalg.inv(LHS)
+        Mat_sweep = np.linalg.matrix_power(Pinv.dot(RHS), nsweeps)
+        for k in range(nsweeps):
+            Mat_sweep += np.linalg.matrix_power(Pinv.dot(RHS), k).dot(Pinv)
+        return Mat_sweep

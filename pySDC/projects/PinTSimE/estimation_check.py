@@ -41,7 +41,7 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
     problem_params['C'] = 1.0
     problem_params['R'] = 1.0
     problem_params['L'] = 1.0
-    problem_params['alpha'] = 5.0
+    problem_params['alpha'] = 1.2
     problem_params['V_ref'] = V_ref
     problem_params['set_switch'] = np.array([False], dtype=bool)
     problem_params['t_switch'] = np.zeros(1)
@@ -75,7 +75,7 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
 
     # set time parameters
     t0 = 0.0
-    Tend = 2.0
+    Tend = 0.3
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -112,7 +112,7 @@ def check(cwd='./'):
     """
 
     V_ref = 1.0
-    dt_list = [1e-1, 1e-2]  # [4e-1, 4e-2, 4e-3]
+    dt_list = [1e-2, 1e-3, 1e-4]  # [4e-1, 4e-2, 4e-3]
     use_switch_estimator = [True, False]
     restarts = []
 

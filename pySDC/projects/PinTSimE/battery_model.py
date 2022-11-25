@@ -124,7 +124,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
 
     # set time parameters
     t0 = 0.0
-    Tend = 2.0
+    Tend = 0.5
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)

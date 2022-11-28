@@ -123,7 +123,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
 
     # set time parameters
     t0 = 0.0
-    Tend = 2.0
+    Tend = 0.3
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -143,7 +143,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
     max_iter = 0
 
     Path("data").mkdir(parents=True, exist_ok=True)
-    fname = 'data/battery_{}.dat'.format(sweeper.__name__)
+    fname = 'data/battery_{}_USE{}.dat'.format(sweeper.__name__, use_switch_estimator)
     f = open(fname, 'wb')
     dill.dump(stats, f)
     f.close()
@@ -156,7 +156,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
     for item in iter_counts:
         out = 'Number of iterations for time %4.2f: %1i' % item
         f.write(out + '\n')
-        print(out)
+        # print(out)
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
 
@@ -172,15 +172,15 @@ def run():
     as <problem_class>_model_solution_<sweeper_class>.png
     """
 
-    problem_classes = [battery, battery_implicit]
-    restolerances = [1e-12, 1e-8]
-    sweeper_classes = [imex_1st_order, generic_implicit]
-    use_switch_estimator = [True, True]
+    problem_classes = [battery, battery] # [battery, battery_implicit]
+    restolerances = [1e-12, 1e-12] # [1e-12, 1e-8]
+    sweeper_classes = [imex_1st_order, imex_1st_order] # [imex_1st_order, generic_implicit]
+    use_switch_estimator = [True, False] # [True, True]
 
     for problem, restol, sweeper, use_SE in zip(problem_classes, restolerances, sweeper_classes, use_switch_estimator):
         description = main(problem=problem, restol=restol, sweeper=sweeper, use_switch_estimator=use_SE)
-
-        plot_voltages(description, problem.__name__, sweeper.__name__, use_SE)
+    print(use_SE)
+    plot_voltages(description, battery.__name__, imex_1st_order.__name__, True)
 
 
 def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./'):
@@ -188,27 +188,38 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./')
     Routine to plot the numerical solution of the model
     """
 
-    f = open(cwd + 'data/battery_{}.dat'.format(sweeper), 'rb')
-    stats = dill.load(f)
+    f = open('data/battery_{}_USETrue.dat'.format(sweeper), 'rb')
+    stats_true = dill.load(f)
+    f.close()
+
+    f = open('data/battery_{}_USEFalse.dat'.format(sweeper), 'rb')
+    stats_false = dill.load(f)
     f.close()
 
     # convert filtered statistics to list of iterations count, sorted by process
-    cL = get_sorted(stats, type='current L', sortby='time')
-    vC = get_sorted(stats, type='voltage C', sortby='time')
+    cL_true = get_sorted(stats_true, type='current L', recomputed=True, sortby='time')
+    vC_true = get_sorted(stats_true, type='voltage C', recomputed=True, sortby='time')
 
-    times = [v[0] for v in cL]
+    cL_false = get_sorted(stats_false, type='current L', recomputed=True, sortby='time')
+    vC_false = get_sorted(stats_false, type='voltage C', recomputed=True, sortby='time')
+
+    #times = [v[0] for v in cL]
 
     setup_mpl()
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
     ax.set_title('Simulation of {} using {}'.format(problem, sweeper), fontsize=10)
-    ax.plot(times, [v[1] for v in cL], label=r'$i_L$')
-    ax.plot(times, [v[1] for v in vC], label=r'$v_C$')
+    #ax.plot(times, [v[1] for v in cL], label=r'$i_L$')
+    #ax.plot(times, [v[1] for v in vC], label=r'$v_C$')
+    ax.plot([v[1] for v in vC_true], label='SE=True')
+    ax.plot([v[1] for v in vC_false], label='SE=False')
 
-    if use_switch_estimator:
-        val_switch = get_sorted(stats, type='switch1', sortby='time')
-        t_switch = [v[0] for v in val_switch]
-        ax.axvline(x=t_switch[0], linestyle='--', color='k', label='Switch')
+    #if use_switch_estimator:
+    #    val_switch = get_sorted(stats_true, type='switch1', sortby='time')
+    #    t_switch = [v[0] for v in val_switch]
+    #    ax.axvline(x=t_switch[0], linestyle='--', color='k', label='Switch')
 
+    ax.axhline(y=1.0, linestyle='--', color='k', label='$V_{ref}$')
+    ax.set_ylim(0.99, 1.01)
     ax.legend(frameon=False, fontsize=12, loc='upper right')
 
     ax.set_xlabel('Time')

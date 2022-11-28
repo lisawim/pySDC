@@ -143,7 +143,6 @@ class SwitchEstimator(ConvergenceController):
 
     def post_step_processing(self, controller, S):
         L = S.levels[0]
-        print(L.dt)
 
         if self.switch_detected_step:
             if L.prob.params.set_switch[self.count_switches] and L.time + L.dt > self.t_switch:

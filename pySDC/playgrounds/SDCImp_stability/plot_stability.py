@@ -1,5 +1,7 @@
 import numpy as np
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from pySDC.core.Step import step
 from pySDC.implementations.problem_classes.TestEquation_0D import testequation0d
@@ -10,7 +12,7 @@ import pySDC.helpers.plot_helper as plt_helper
 
 
 
-def compute_stability():
+def compute_stability(K=5, M=3):
     """
     Routine to compute the stability domains of different configurations of a fully-implicit SDC
     Returns:
@@ -19,8 +21,8 @@ def compute_stability():
         int: number of iterations
         numpy.ndarray: stability numbers
     """
-    x = np.linspace(-8, 8, 300)
-    y = np.linspace(-8, 8, 300)
+    x = np.linspace(-10, 10, 400)
+    y = np.linspace(-10, 10, 400)
 
     X, Y = np.meshgrid(x, y)
 
@@ -34,7 +36,8 @@ def compute_stability():
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'LOBATTO'
-    sweeper_params['num_nodes'] = 3
+    sweeper_params['num_nodes'] = M
+
     sweeper_params['do_coll_update'] = True
 
     # initialize level parameters
@@ -50,8 +53,8 @@ def compute_stability():
     description['level_params'] = level_params
     description['step_params'] = dict()
 
-    # set number of iterations
-    K = 3
+    # create folders for different nodes
+    Path("M={}".format(sweeper_params['num_nodes'])).mkdir(parents=True, exist_ok=True)
 
     # instantiate step
     S = step(description=description)
@@ -84,11 +87,11 @@ def compute_stability():
 
             stab[i, j] = stab_fh
 
-    plot_stability(lambdas, sweeper_params['num_nodes'], K, stab)
+    plot_stability(x, y, lambdas, sweeper_params['num_nodes'], K, stab)
 
     return sweeper_params['num_nodes'], K, stab
 
-def plot_stability(lambdas, num_nodes, K, stab):
+def plot_stability(x, y, lambdas, num_nodes, K, stab):
     """
     Plotting routine of the stability domains
     Args:
@@ -98,17 +101,18 @@ def plot_stability(lambdas, num_nodes, K, stab):
         stab (numpy.ndarray): stability numbers
     """
 
-    x = np.linspace(-8, 8, 300)
-    y = np.linspace(-8, 8, 300)
-
     setup_mpl()
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
-    ax.plot([-8, 8], [0, 0], 'k--', linewidth=0.5)
-    ax.plot([0, 0], [-8, 8], 'k--', linewidth=0.5)
-    ax.contour(x, y, stab, [1.0], colors='r', linestyles='dashed', linewidths=0.5)
+    ax.plot([min(x), max(x)], [0, 0], 'k--', linewidth=0.5)
+    ax.plot([0, 0], [min(y), max(y)], 'k--', linewidth=0.5)
+    #ax.contour(x, y, np.absolute(stab), [0.5], colors='g', linestyles='dashed', linewidths=0.5)
+    CS = ax.contour(x, y, np.absolute(stab), [0.0, 0.25, 0.5, 0.75, 1.0], cmap='rainbow', linestyles='dashed', linewidths=0.5)
+    zc = CS.collections[4]
+    plt.setp(zc, linewidth=0.5)
+    ax.clabel(CS, fontsize=9, inline=1)
     ax.set_xlabel(r'$Re(\lambda)$', fontsize=8)
     ax.set_ylabel(r'$Im(\lambda)$', fontsize=8)
-    fig.savefig("plot_stability-M{}-K{}.png".format(num_nodes, K), dpi=300, bbox_inches='tight')
+    fig.savefig("M={}/plot_stability-M{}-K{}.png".format(num_nodes, num_nodes, K), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 

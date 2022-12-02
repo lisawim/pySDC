@@ -44,15 +44,6 @@ class log_data(hooks):
             value=L.uend[1],
         )
         self.add_to_stats(
-            process=-1,
-            time=L.time,
-            level=-1,
-            iter=-1,
-            sweep=-1,
-            type='k',
-            value=step.status.iter,
-        )
-        self.add_to_stats(
             process=step.status.slot,
             time=L.time,
             level=L.level_index,
@@ -63,7 +54,7 @@ class log_data(hooks):
         )
 
 
-def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estimator=True):
+def main(dt, problem, restol, sweeper, use_switch_estimator):
     """
     A simple test program to do SDC/PFASST runs for the battery drain model
     """
@@ -71,7 +62,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
     # initialize level parameters
     level_params = dict()
     level_params['restol'] = restol
-    level_params['dt'] = 1e-2
+    level_params['dt'] = dt
 
     # initialize sweeper parameters
     sweeper_params = dict()
@@ -123,7 +114,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
 
     # set time parameters
     t0 = 0.0
-    Tend = 0.3
+    Tend = 0.5
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -143,6 +134,7 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
     max_iter = 0
 
     Path("data").mkdir(parents=True, exist_ok=True)
+    Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
     fname = 'data/battery_{}_USE{}.dat'.format(sweeper.__name__, use_switch_estimator)
     f = open(fname, 'wb')
     dill.dump(stats, f)
@@ -156,11 +148,14 @@ def main(problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estim
     for item in iter_counts:
         out = 'Number of iterations for time %4.2f: %1i' % item
         f.write(out + '\n')
-        # print(out)
+        print(out)
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
-
-    assert np.mean(niters) <= 5, "Mean number of iterations is too high, got %s" % np.mean(niters)
+    times = [item[0] for item in iter_counts]
+    for m in range(len(times)):
+        if niters[m] == step_params['maxiter']:
+            print(times[m])
+    assert np.mean(niters) <= 9, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
 
     return description
@@ -172,20 +167,61 @@ def run():
     as <problem_class>_model_solution_<sweeper_class>.png
     """
 
-    problem_classes = [battery, battery] # [battery, battery_implicit]
-    restolerances = [1e-12, 1e-12] # [1e-12, 1e-8]
-    sweeper_classes = [imex_1st_order, imex_1st_order] # [imex_1st_order, generic_implicit]
-    use_switch_estimator = [True, False] # [True, True]
+    dt = 1e-4
+    problem_classes = [battery_implicit]  # [battery, battery_implicit]
+    restolerances = [5e-8]  # [1e-12, 1e-8]
+    sweeper_classes = [generic_implicit]  # [imex_1st_order, generic_implicit]
+    use_switch_estimator = [False]  # [True, False]
 
-    for problem, restol, sweeper, use_SE in zip(problem_classes, restolerances, sweeper_classes, use_switch_estimator):
-        description = main(problem=problem, restol=restol, sweeper=sweeper, use_switch_estimator=use_SE)
-    print(use_SE)
-    plot_voltages(description, battery.__name__, imex_1st_order.__name__, True)
+    for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
+        for use_SE in use_switch_estimator:
+            description = main(dt=dt, problem=problem, restol=restol, sweeper=sweeper, use_switch_estimator=use_SE)
+
+            plot_voltages(description, problem.__name__, sweeper.__name__, use_SE)
+
+        plot_comparison(description, problem.__name__, sweeper.__name__)
 
 
 def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./'):
     """
-    Routine to plot the numerical solution of the model
+    Routine to plot the numerical solution of the model alone
+    """
+
+    f = open('data/battery_{}_USE{}.dat'.format(sweeper, use_switch_estimator), 'rb')
+    stats = dill.load(f)
+    f.close()
+
+    # convert filtered statistics to list of iterations count, sorted by process
+    cL_val = get_sorted(stats, type='current L', recomputed=True, sortby='time')
+    vC_val = get_sorted(stats, type='voltage C', recomputed=True, sortby='time')
+
+    times = [v[0] for v in vC_val]
+
+    setup_mpl()
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+    ax.set_title('Simulation of {} using {}'.format(problem, sweeper), fontsize=10)
+    ax.plot(times, [v[1] for v in cL_val], label=r'$i_L$')
+    ax.plot(times, [v[1] for v in vC_val], label=r'$v_C$')
+
+    if use_switch_estimator:
+        val_switch = get_sorted(stats, type='switch1', sortby='time')
+        t_switch = [v[0] for v in val_switch]
+        ax.axvline(x=t_switch[0], linestyle='--', color='k', label='Switch')
+        print("t_switch=", t_switch)
+
+    ax.axhline(y=1.0, linestyle='--', color='k', label='$V_{ref}$')
+    ax.legend(frameon=False, fontsize=12, loc='upper right')
+
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Energy')
+
+    fig.savefig('data/{}/{}_model_solution_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
+
+
+def plot_comparison(description, problem, sweeper, cwd='./'):
+    """
+    Routine to plot the numerical solutions of the model using SE or not together with error to V_ref
     """
 
     f = open('data/battery_{}_USETrue.dat'.format(sweeper), 'rb')
@@ -197,35 +233,50 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./')
     f.close()
 
     # convert filtered statistics to list of iterations count, sorted by process
-    cL_true = get_sorted(stats_true, type='current L', recomputed=True, sortby='time')
-    vC_true = get_sorted(stats_true, type='voltage C', recomputed=True, sortby='time')
+    vC_true_val = get_sorted(stats_true, type='voltage C', recomputed=True, sortby='time')
+    vC_false_val = get_sorted(stats_false, type='voltage C', sortby='time')
 
-    cL_false = get_sorted(stats_false, type='current L', recomputed=True, sortby='time')
-    vC_false = get_sorted(stats_false, type='voltage C', recomputed=True, sortby='time')
+    val_switch = get_sorted(stats_true, type='switch1', sortby='time')
+    t_switch = [v[0] for v in val_switch]
 
-    #times = [v[0] for v in cL]
+    times_true = [v[0] for v in vC_true_val]
+    times_false = [v[0] for v in vC_false_val]
+
+    vC_true = [v[1] for v in vC_true_val]
+    vC_false = [v[1] for v in vC_false_val]
+
+    diff_true = []
+    for i in range(len(vC_true)):
+        diff_true.append((1 - vC_true[i]))
+
+    diff_false = []
+    for i in range(len(vC_false)):
+        diff_false.append((1 - vC_false[i]))
 
     setup_mpl()
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax.set_title('Simulation of {} using {}'.format(problem, sweeper), fontsize=10)
-    #ax.plot(times, [v[1] for v in cL], label=r'$i_L$')
-    #ax.plot(times, [v[1] for v in vC], label=r'$v_C$')
-    ax.plot([v[1] for v in vC_true], label='SE=True')
-    ax.plot([v[1] for v in vC_false], label='SE=False')
+    fig, ax = plt_helper.plt.subplots(3, 1, figsize=(6, 6))
 
-    #if use_switch_estimator:
-    #    val_switch = get_sorted(stats_true, type='switch1', sortby='time')
-    #    t_switch = [v[0] for v in val_switch]
-    #    ax.axvline(x=t_switch[0], linestyle='--', color='k', label='Switch')
+    ax[0].plot(times_true, vC_true, label='SE=True')
+    ax[0].plot(times_false, vC_false, label='SE=False')
+    ax[0].axhline(y=1.0, linestyle='--', color='k', label='$V_{ref}$')
+    ax[0].set_ylim(0.995, 1.0025)
+    ax[0].legend(frameon=False, fontsize=6, loc='upper right')
+    ax[0].set_ylabel('Energy', fontsize=6)
 
-    ax.axhline(y=1.0, linestyle='--', color='k', label='$V_{ref}$')
-    ax.set_ylim(0.99, 1.01)
-    ax.legend(frameon=False, fontsize=12, loc='upper right')
+    ax[1].plot(times_false, diff_false, label='SE=False')
+    ax[1].set_yscale('symlog', linthresh=1e-5)
+    ax[1].legend(frameon=False, fontsize=6, loc='upper right')
+    ax[1].set_ylabel('Error', fontsize=6)
 
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Energy')
+    ax[2].plot(times_true, diff_true, label='SE=True')
+    ax[2].axvline(x=t_switch[0], linestyle='--', color='r', label='Switch')
+    ax[2].set_yscale('symlog', linthresh=1e-5)
+    ax[2].legend(frameon=False, fontsize=6, loc='upper right')
+    ax[2].set_xlabel('Time', fontsize=6)
+    ax[2].set_ylabel('Error', fontsize=6)
 
-    fig.savefig('data/{}_model_solution_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
+    plt_helper.plt.tight_layout()
+    fig.savefig('data/{}/{}_model_comparison_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 

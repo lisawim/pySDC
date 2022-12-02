@@ -7,7 +7,7 @@ from pySDC.core.Collocation import CollBase as Collocation
 from pySDC.implementations.problem_classes.Battery_2Condensators import battery_2condensators
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.implementations.transfer_classes.TransferMesh import mesh_to_mesh
+# from pySDC.implementations.transfer_classes.TransferMesh import mesh_to_mesh
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
 import pySDC.helpers.plot_helper as plt_helper
 from pySDC.core.Hooks import hooks
@@ -63,14 +63,14 @@ class log_data(hooks):
         )
 
 
-def main(use_switch_estimator=True):
+def main(problem, restol, sweeper, use_switch_estimator):
     """
     A simple test program to do SDC/PFASST runs for the battery drain model using 2 condensators
     """
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-13
+    level_params['restol'] = restol
     level_params['dt'] = 1e-2
 
     # initialize sweeper parameters
@@ -110,13 +110,13 @@ def main(use_switch_estimator=True):
 
     # fill description dictionary for easy step instantiation
     description = dict()
-    description['problem_class'] = battery_2condensators  # pass problem class
+    description['problem_class'] = problem  # pass problem class
     description['problem_params'] = problem_params  # pass problem parameters
-    description['sweeper_class'] = imex_1st_order  # pass sweeper
+    description['sweeper_class'] = sweeper  # pass sweeper
     description['sweeper_params'] = sweeper_params  # pass sweeper parameters
     description['level_params'] = level_params  # pass level parameters
     description['step_params'] = step_params
-    description['space_transfer_class'] = mesh_to_mesh  # pass spatial transfer class
+    # description['space_transfer_class'] = mesh_to_mesh  # pass spatial transfer class
 
     if use_switch_estimator:
         description['convergence_controllers'] = convergence_controllers
@@ -138,7 +138,8 @@ def main(use_switch_estimator=True):
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
     Path("data").mkdir(parents=True, exist_ok=True)
-    fname = 'data/battery_2condensators.dat'
+    Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
+    fname = 'data/battery_2condensators_{}_USE{}.dat'.format(sweeper.__name__, use_switch_estimator)
     f = open(fname, 'wb')
     dill.dump(stats, f)
     f.close()
@@ -168,17 +169,35 @@ def main(use_switch_estimator=True):
     assert np.mean(niters) <= 10, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
 
-    plot_voltages(description, use_switch_estimator)
-
-    return np.mean(niters)
+    return description
 
 
-def plot_voltages(description, use_switch_estimator, cwd='./'):
+def run():
+    """
+    Executes the simulation for the battery 2condesators model using two different sweepers and plot the results
+    as <problem_class>_model_solution_<sweeper_class>.png
+    """
+
+    problem_classes = [battery_2condensators]
+    restolerances = [1e-12]
+    sweeper_classes = [imex_1st_order]
+    use_switch_estimator = [True, False]
+
+    for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
+        for use_SE in use_switch_estimator:
+            description = main(problem=problem, restol=restol, sweeper=sweeper, use_switch_estimator=use_SE)
+
+            plot_voltages(description, problem.__name__, sweeper.__name__, use_SE)
+
+        plot_comparison(description, problem.__name__, sweeper.__name__)
+
+
+def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./'):
     """
     Routine to plot the numerical solution of the model
     """
 
-    f = open(cwd + 'data/battery_2condensators.dat', 'rb')
+    f = open(cwd + 'data/battery_2condensators_{}_USE{}.dat'.format(sweeper, use_switch_estimator), 'rb')
     stats = dill.load(f)
     f.close()
 
@@ -211,6 +230,53 @@ def plot_voltages(description, use_switch_estimator, cwd='./'):
     plt_helper.plt.close(fig)
 
 
+def plot_comparison(description, problem, sweeper, cwd='./'):
+    """
+    Routine to plot the numerical solution of the model alone
+    """
+
+    f1 = open(cwd + 'data/battery_2condensators_{}_USETrue.dat'.format(sweeper), 'rb')
+    stats_true = dill.load(f1)
+    f1.close()
+
+    f2 = open(cwd + 'data/battery_2condensators_{}_USEFalse.dat'.format(sweeper), 'rb')
+    stats_false = dill.load(f2)
+    f2.close()
+
+    # convert filtered statistics to list of iterations count, sorted by process
+    vC1_true_val = get_sorted(stats_true, type='voltage C1', recomputed=True, sortby='time')
+    vC2_true_val = get_sorted(stats_true, type='voltage C2', recomputed=True, sortby='time')
+
+    vC1_false_val = get_sorted(stats_false, type='voltage C1', sortby='time')
+    vC2_false_val = get_sorted(stats_false, type='voltage C2', sortby='time')
+
+    times_true1 = [v[0] for v in vC1_true_val]
+    times_true2 = [v[0] for v in vC2_true_val]
+
+    times_false1 = [v[0] for v in vC1_false_val]
+    times_false2 = [v[0] for v in vC2_false_val]
+
+    vC1_true = [v[1] for v in vC1_true_val]
+    vC2_true = [v[1] for v in vC2_true_val]
+
+    vC1_false = [v[1] for v in vC1_false_val]
+    vC2_false = [v[1] for v in vC2_false_val]
+
+    setup_mpl()
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+
+    ax.plot(times_true1, vC1_true, 'r--', label='SE=True /w Switch1')
+    ax.plot(times_true2, vC2_true, 'b--', label='SE=True /w Switch2')
+    ax.plot(times_false1, vC1_false, 'r', label='SE=False')
+    ax.plot(times_false2, vC2_false, 'b', label='SE=False')
+    ax.axhline(y=1.0, linestyle='--', color='k', label='$V_{ref}$')
+    ax.set_ylim(0.95, 1.055)
+    ax.legend(frameon=False, fontsize=6, loc='upper right')
+    ax.set_ylabel('Energy', fontsize=6)
+
+    fig.savefig('data/{}/{}_model_comparison_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
+
 def proof_assertions_description(description, problem_params):
     """
     Function to proof the assertions (function to get cleaner code)
@@ -237,4 +303,4 @@ def proof_assertions_description(description, problem_params):
 
 
 if __name__ == "__main__":
-    main()
+    run()

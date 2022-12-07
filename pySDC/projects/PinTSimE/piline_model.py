@@ -186,6 +186,8 @@ def setup_mpl(fontsize=8):
         "axes.xmargin": 0.03,
         "axes.ymargin": 0.03,
         "lines.linewidth": 1,  # Make the plot lines a little smaller
+        "xtick.labelsize": 6,
+        "ytick.labelsize": 6,
     }
 
     mpl.rcParams.update(style_options)

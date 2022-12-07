@@ -1,6 +1,5 @@
 import numpy as np
 import dill
-import glob
 from pathlib import Path
 
 from pySDC.helpers.stats_helper import get_sorted
@@ -9,28 +8,95 @@ from pySDC.implementations.problem_classes.Battery import battery, battery_impli
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
+from pySDC.implementations.convergence_controller_classes.estimate_embedded_error import EstimateEmbeddedErrorNonMPI
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
-from pySDC.projects.PinTSimE.battery_model import log_data, proof_assertions_description
+from pySDC.projects.PinTSimE.battery_model import get_unsorted, proof_assertions_description
+from pySDC.projects.PinTSimE.battery_model import log_data as log_data_battery
 import pySDC.helpers.plot_helper as plt_helper
+from pySDC.core.Hooks import hooks
 
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
+from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
+process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='current L',
+            value=L.uend[0],
+
+class log_data(hooks):
+    def post_step(self, step, level_number):
+
+        super(log_data, self).post_step(step, level_number)
+
+        # some abbreviations
+        L = step.levels[level_number]
+
+        L.sweep.compute_end_point()
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='current L',
+            value=L.uend[0],
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='voltage C',
+            value=L.uend[1],
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='restart',
+            value=int(step.status.get('restart')),
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='dt',
+            value=L.dt,
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='e_embedded',
+            value=L.status.error_embedded_estimate,
+        )
 
 
-def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_estimator=True, V_ref=1.0):
+def run(dt, problem, restol, sweeper, use_switch_estimator, use_adaptivity, V_ref):
     """
     A simple test program to do SDC/PFASST runs for the battery drain model
     """
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = restol
+    level_params['restol'] = -1
     level_params['dt'] = dt
 
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
-    sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
+    # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
     sweeper_params['initial_guess'] = 'zero'
 
     # initialize problem parameters
@@ -49,16 +115,27 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 10
+    step_params['maxiter'] = 4
 
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 20
-    controller_params['hook_class'] = log_data
+    if not use_adaptivity:
+        controller_params['hook_class'] = log_data_battery
+    else:
+        controller_params['hook_class'] = log_data
+    controller_params['mssdc_jac'] = False
 
     # convergence controllers
-    switch_estimator_params = {}
-    convergence_controllers = {SwitchEstimator: switch_estimator_params}
+    convergence_controllers = dict()
+    if use_switch_estimator:
+        switch_estimator_params = dict()
+        convergence_controllers.update({SwitchEstimator: switch_estimator_params})
+
+    if use_adaptivity:
+        adaptivity_params = dict()
+        adaptivity_params['e_tol'] = 1e-12
+        convergence_controllers.update({Adaptivity: adaptivity_params})
 
     # fill description dictionary for easy step instantiation
     description = dict()
@@ -69,14 +146,14 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
     description['level_params'] = level_params  # pass level parameters
     description['step_params'] = step_params
 
-    if use_switch_estimator:
+    if use_switch_estimator or use_adaptivity:
         description['convergence_controllers'] = convergence_controllers
 
     proof_assertions_description(description, problem_params)
 
     # set time parameters
     t0 = 0.0
-    Tend = 0.5
+    Tend = 0.3
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -95,11 +172,23 @@ def run(dt, problem=battery, restol=1e-12, sweeper=imex_1st_order, use_switch_es
     f.close()
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', recomputed=None, sortby='time')
+    iter_counts = get_sorted(stats, type='niter', recomputed=False, sortby='time')
+
+    min_iter = 10
+    max_iter = 0
 
     # compute and print statistics
     f = open('data/battery_out.txt', 'w')
     niters = np.array([item[1] for item in iter_counts])
+    out = '   Mean number of iterations: %4.2f' % np.mean(niters)
+    f.write(out + '\n')
+    print(out)
+    for item in iter_counts:
+        out = 'Number of iterations for time %4.2f: %1i' % item
+        f.write(out + '\n')
+        print(out)
+        min_iter = min(min_iter, item[1])
+        max_iter = max(max_iter, item[1])
 
     assert np.mean(niters) <= 11, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
@@ -113,109 +202,288 @@ def check(cwd='./'):
     """
 
     V_ref = 1.0
-    dt_list = [1e-2]  # [4e-1, 4e-2, 4e-3]
+    dt_list = [1e-2, 1e-3, 1e-4]  # [4e-1, 4e-2, 4e-3]
     use_switch_estimator = [True, False]
-    restarts = []
+    use_adaptivity = [True, False]
+    restarts_true = []
+    restarts_false_adapt = []
+    restarts_true_adapt = []
 
-    problem_classes = [battery, battery_implicit]
-    restolerances = [1e-12, 1e-8]
-    sweeper_classes = [imex_1st_order, generic_implicit]
+    problem_classes = [battery_implicit]  # [battery, battery_implicit]
+    restolerances = [1e-15]  # [1e-15, 5e-8]
+    sweeper_classes = [generic_implicit]  # [imex_1st_order, generic_implicit]
 
-    # loop for imex_1st_order sweeper
     for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
         Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
         for dt_item in dt_list:
-            for item in use_switch_estimator:
-                description, stats = run(
-                    dt=dt_item,
-                    problem=problem,
-                    restol=restol,
-                    sweeper=sweeper,
-                    use_switch_estimator=item,
-                    V_ref=V_ref,
-                )
+            for use_SE in use_switch_estimator:
+                for use_A in use_adaptivity:
+                    description, stats = run(
+                        dt=dt_item,
+                        problem=problem,
+                        restol=restol,
+                        sweeper=sweeper,
+                        use_switch_estimator=use_SE,
+                        use_adaptivity=use_A,
+                        V_ref=V_ref,
+                    )
 
-                fname = 'data/battery_dt{}_USE{}_{}.dat'.format(dt_item, item, sweeper.__name__)
-                f = open(fname, 'wb')
-                dill.dump(stats, f)
-                f.close()
+                    fname = 'data/battery_dt{}_USE{}_USA{}_{}.dat'.format(dt_item, use_SE, use_A, sweeper.__name__)
+                    f = open(fname, 'wb')
+                    dill.dump(stats, f)
+                    f.close()
 
-                if item:
-                    restarts_sorted = np.array(get_sorted(stats, type='restart', recomputed=None))[:, 1]
-                    restarts.append(np.sum(restarts_sorted))
-                    print("Restarts for dt: ", dt_item, " -- ", np.sum(restarts_sorted))
+                    if use_SE or use_A:
+                        restarts_sorted = np.array(get_sorted(stats, type='restart', recomputed=None))[:, 1]
+                        print('Restarts for dt={}: {}'.format(dt_item, np.sum(restarts_sorted)))
+                        if use_SE and not use_A:
+                            restarts_true.append(np.sum(restarts_sorted))
 
-        # assert len(dt_list) > 1, 'ERROR: dt_list have to be contained more than one element due to the subplots'
+                        elif not use_SE and use_A:
+                            restarts_false_adapt.append(np.sum(restarts_sorted))
 
-        differences_around_switch(dt_list, problem.__name__, restarts, sweeper.__name__, V_ref)
+                        elif use_SE and use_A:
+                            restarts_true_adapt.append(np.sum(restarts_sorted))
+
+        accuracy_check(dt_list, problem.__name__, sweeper.__name__, V_ref)
+
+        differences_around_switch(
+            dt_list,
+            problem.__name__,
+            restarts_true,
+            restarts_false_adapt,
+            restarts_true_adapt,
+            sweeper.__name__,
+            V_ref,
+        )
 
         differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref)
 
         iterations_over_time(dt_list, description['step_params']['maxiter'], problem.__name__, sweeper.__name__)
 
-        #error_over_time(dt_list, problem.__name__, sweeper.__name__)
+        restarts_true = []
+        restarts_false_adapt = []
+        restarts_true_adapt = []
 
-        restarts = []
 
+def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
+    """
+    Routine to check accuracy for different step sizes in case of using adaptivity
+    """
 
-def differences_around_switch(dt_list, problem, restarts, sweeper, V_ref, cwd='./'):
+    if len(dt_list) > 1:
+        setup_mpl()
+        fig_acc, ax_acc = plt_helper.plt.subplots(
+            1, len(dt_list), figsize=(3 * len(dt_list), 3), sharex='col', sharey='row'
+        )
+
+    else:
+        setup_mpl()
+        fig_acc, ax_acc = plt_helper.plt.subplots(
+            1, 1, figsize=(3, 3), sharex='col', sharey='row'
+        )
+
+    count_ax = 0
+    for dt_item in dt_list:
+        f3 = open(cwd + 'data/battery_dt{}_USETrue_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TT = dill.load(f3)
+        f3.close()
+
+        f4 = open(cwd + 'data/battery_dt{}_USEFalse_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FT = dill.load(f4)
+        f4.close()
+
+        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[0] for v in val_switch_TT]
+        t_switch_adapt = t_switch_adapt[-1]
+
+        dt_TT_val = get_sorted(stats_TT, type='dt', recomputed=False)
+        dt_FT_val = get_sorted(stats_FT, type='dt', recomputed=False)
+
+        e_emb_TT_val = get_sorted(stats_TT, type='e_embedded', recomputed=False)
+        e_emb_FT_val = get_sorted(stats_FT, type='e_embedded', recomputed=False)
+
+        times_TT = [v[0] for v in e_emb_TT_val]
+        times_FT = [v[0] for v in e_emb_FT_val]
+
+        e_emb_TT = [v[1] for v in e_emb_TT_val]
+        e_emb_FT = [v[1] for v in e_emb_FT_val]
+
+        if len(dt_list) > 1:
+            ax_acc[count_ax].set_title(r'$\Delta t$={}'.format(dt_item))
+            dt1 = ax_acc[count_ax].plot([v[0] for v in dt_TT_val], [v[1] for v in dt_TT_val], 'ko-', label='SE+A - $\Delta t$')
+            dt2 = ax_acc[count_ax].plot([v[0] for v in dt_FT_val], [v[1] for v in dt_FT_val], 'g-', label='A - $\Delta t$')
+            dt3 = ax_acc[count_ax].axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
+            ax_acc[count_ax].set_xlabel('Time', fontsize=6)
+            if count_ax == 0:
+                ax_acc[count_ax].set_ylabel(r'$\Delta t_{adapted}$', fontsize=6)
+
+            e_ax = ax_acc[count_ax].twinx()
+            e_plt1 = e_ax.plot(times_TT, e_emb_TT, 'k--', label=r'SE+A - $\epsilon_{emb}$')
+            e_plt2 = e_ax.plot(times_FT, e_emb_FT, 'g--', label=r'A - $\epsilon_{emb}$')
+            e_ax.set_yscale('log', base=10)
+            e_ax.set_ylim(1e-16, 1e-7)
+            e_ax.tick_params(labelsize=6)
+
+            lines = dt1 + e_plt1 + dt2 + e_plt2
+            labels = [l.get_label() for l in lines]
+
+            ax_acc[count_ax].legend(lines, labels, frameon=False, fontsize=6, loc='upper left')
+
+        else:
+            ax_acc.set_title(r'$\Delta t$={}'.format(dt_item))
+            dt1 = ax_acc.plot([v[0] for v in dt_TT_val], [v[1] for v in dt_TT_val], 'ko-', label='SE+A - $\Delta t$')
+            dt2 = ax_acc.plot([v[0] for v in dt_FT_val], [v[1] for v in dt_FT_val], 'go-', label='A - $\Delta t$')
+            dt3 = ax_acc.axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
+            ax_acc.set_xlabel('Time', fontsize=6)
+            ax_acc.set_ylabel(r'$Delta t_{adapted}$', fontsize=6)
+
+            e_ax = ax_acc.twinx()
+            e_plt1 = e_ax.plot(times_TT, e_emb_TT, 'k--', label=r'SE+A - $\epsilon_{emb}$')
+            e_plt2 = e_ax.plot(times_FT, e_emb_FT, 'g--', label=r'A - $\epsilon_{emb}$')
+            e_ax.set_yscale('log', base=10)
+            e_ax.tick_params(labelsize=6)
+
+            lines = dt1 + e_plt1 + dt2 + e_plt2
+            labels = [l.get_label() for l in lines]
+
+            ax_acc.legend(lines, labels, frameon=False, fontsize=6, loc='upper left')
+
+        count_ax += 1
+
+    fig_acc.savefig('data/{}/embedded_error_adaptivity_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig_acc)
+
+def differences_around_switch(dt_list, problem, restarts_true, restarts_false_adapt, restarts_true_adapt, sweeper, V_ref, cwd='./'):
     """
     Routine to plot the differences before, at, and after the switch. Produces the diffs_estimation_<sweeper_class>.png file
     """
 
-    diffs_true = []
+    diffs_true_at = []
     diffs_false_before = []
     diffs_false_after = []
 
+    diffs_true_at_adapt = []
+    diffs_true_before_adapt = []
+    diffs_true_after_adapt = []
+
+    diffs_false_before_adapt = []
+    diffs_false_after_adapt = []
     for dt_item in dt_list:
-        f1 = open(cwd + 'data/battery_dt{}_USETrue_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_true = dill.load(f1)
+        f1 = open(cwd + 'data/battery_dt{}_USETrue_USAFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TF = dill.load(f1)
         f1.close()
 
-        f2 = open(cwd + 'data/battery_dt{}_USEFalse_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_false = dill.load(f2)
+        f2 = open(cwd + 'data/battery_dt{}_USEFalse_USAFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FF = dill.load(f2)
         f2.close()
 
-        val_switch = get_sorted(stats_true, type='switch1', sortby='time')
-        t_switch = [v[0] for v in val_switch]
-        t_switch = t_switch[0]  # battery has only one single switch
+        f3 = open(cwd + 'data/battery_dt{}_USETrue_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TT = dill.load(f3)
+        f3.close()
 
-        vC_true = get_sorted(stats_true, type='voltage C', recomputed=False, sortby='time')
-        vC_false = get_sorted(stats_false, type='voltage C', sortby='time')
+        f4 = open(cwd + 'data/battery_dt{}_USEFalse_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FT = dill.load(f4)
+        f4.close()
 
-        diff_true, diff_false = [v[1] - V_ref for v in vC_true], [v[1] - V_ref for v in vC_false]
-        times_true, times_false = [v[0] for v in vC_true], [v[0] for v in vC_false]
+        val_switch_TF = get_unsorted(stats_TF, type='switch1', sortby='time')
+        t_switch = [v[0] for v in val_switch_TF]
+        t_switch = t_switch[-1]  # battery has only one single switch
 
-        for m in range(len(times_true)):
-            if np.round(times_true[m], 15) == np.round(t_switch, 15):
-                diffs_true.append(diff_true[m])
+        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[0] for v in val_switch_TT]
+        t_switch_adapt = t_switch_adapt[-1]
 
-        for m in range(1, len(times_false)):
-            if times_false[m - 1] <= t_switch <= times_false[m]:
-                diffs_false_before.append(diff_false[m - 1])
-                diffs_false_after.append(diff_false[m])
+        vC_TF = get_sorted(stats_TF, type='voltage C', recomputed=False, sortby='time')
+        vC_FT = get_sorted(stats_FT, type='voltage C', recomputed=False, sortby='time')
+        vC_TT = get_sorted(stats_TT, type='voltage C', recomputed=False, sortby='time')
+        vC_FF = get_sorted(stats_FF, type='voltage C', sortby='time')
+
+        diff_TF, diff_FF = [v[1] - V_ref for v in vC_TF], [v[1] - V_ref for v in vC_FF]
+        times_TF, times_FF = [v[0] for v in vC_TF], [v[0] for v in vC_FF]
+
+        diff_FT, diff_TT = [v[1] - V_ref for v in vC_FT], [v[1] - V_ref for v in vC_TT]
+        times_FT, times_TT = [v[0] for v in vC_FT], [v[0] for v in vC_TT]
+
+        for m in range(len(times_TF)):
+            if np.round(times_TF[m], 15) == np.round(t_switch, 15):
+                diffs_true_at.append(diff_TF[m])
+
+        for m in range(1, len(times_FF)):
+            if times_FF[m - 1] <= t_switch <= times_FF[m]:
+                diffs_false_before.append(diff_FF[m - 1])
+                diffs_false_after.append(diff_FF[m])
+
+        for m in range(len(times_TT)):
+            if np.round(times_TT[m], 13) == np.round(t_switch_adapt, 13):
+                diffs_true_at_adapt.append(diff_TT[m])
+                diffs_true_before_adapt.append(diff_TT[m - 1])
+                diffs_true_after_adapt.append(diff_TT[m + 1])
+
+        for m in range(len(times_FT)):
+            if times_FT[m - 1] <= t_switch <= times_FT[m]:
+                diffs_false_before_adapt.append(diff_FT[m - 1])
+                diffs_false_after_adapt.append(diff_FT[m])
 
     setup_mpl()
-    fig_around, ax_around = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
-    ax_around.set_title("Difference $v_{C}-V_{ref}$")
-    pos1 = ax_around.plot(dt_list, diffs_false_before, 'rs-', label='SE=False - before switch')
-    pos2 = ax_around.plot(dt_list, diffs_false_after, 'bd--', label='SE=False - after switch')
-    pos3 = ax_around.plot(dt_list, diffs_true, 'kd--', label='SE=True')
-    # ax.legend(frameon=False, fontsize=8, loc='center right')
-    ax_around.set_xticks(dt_list)
-    ax_around.set_xticklabels(dt_list)
-    ax_around.set_xscale('log', base=10)
-    ax_around.set_yscale('symlog', linthresh=1e-8)
-    ax_around.set_ylim(-1, 1)
-    ax_around.set_xlabel(r'$\Delta t$', fontsize=6)
+    fig_around, ax_around = plt_helper.plt.subplots(1, 3, figsize=(9, 3), sharex='col', sharey='row')
+    ax_around[0].set_title("Using SE")
+    pos11 = ax_around[0].plot(dt_list, diffs_false_before, 'rs-', label='before switch')
+    pos12 = ax_around[0].plot(dt_list, diffs_false_after, 'bd--', label='after switch')
+    pos13 = ax_around[0].plot(dt_list, diffs_true_at, 'ko--', label='at switch')
+    ax_around[0].set_xticks(dt_list)
+    ax_around[0].set_xticklabels(dt_list)
+    ax_around[0].set_xscale('log', base=10)
+    ax_around[0].set_yscale('symlog', linthresh=1e-8)
+    ax_around[0].set_ylim(-1, 1)
+    ax_around[0].set_xlabel(r'$\Delta t$', fontsize=6)
+    ax_around[0].set_ylabel(r'$v_{C}-V_{ref}$', fontsize=6)
 
-    restart_ax = ax_around.twinx()
-    restarts_plt = restart_ax.plot(dt_list, restarts, 'cs--', label='Restarts')
-    restart_ax.set_label('Restarts')
+    restart_ax0 = ax_around[0].twinx()
+    restarts_plt0 = restart_ax0.plot(dt_list, restarts_true, 'cs--', label='Restarts')
+    restart_ax0.tick_params(labelsize=6)
 
-    lines = pos1 + pos2 + pos3 + restarts_plt
+    lines = pos11 + pos12 + pos13 + restarts_plt0
     labels = [l.get_label() for l in lines]
-    ax_around.legend(lines, labels, frameon=False, fontsize=8, loc='center right')
+    ax_around[0].legend(lines, labels, frameon=False, fontsize=6, loc='lower right')
+
+    ax_around[1].set_title("Using Adaptivity")
+    pos21 = ax_around[1].plot(dt_list, diffs_false_before_adapt, 'rs-', label='before switch')
+    pos22 = ax_around[1].plot(dt_list, diffs_false_after_adapt, 'bd--', label='after switch')
+    ax_around[1].set_xticks(dt_list)
+    ax_around[1].set_xticklabels(dt_list)
+    ax_around[1].set_xscale('log', base=10)
+    ax_around[1].set_yscale('symlog', linthresh=1e-8)
+    ax_around[1].set_ylim(-1, 1)
+    ax_around[1].set_xlabel(r'$\Delta t$', fontsize=6)
+
+    restart_ax1 = ax_around[1].twinx()
+    restarts_plt1 = restart_ax1.plot(dt_list, restarts_false_adapt, 'cs--', label='Restarts')
+    restart_ax1.tick_params(labelsize=6)
+
+    lines = pos21 + pos22 + restarts_plt1
+    labels = [l.get_label() for l in lines]
+    ax_around[1].legend(lines, labels, frameon=False, fontsize=6, loc='lower right')
+
+    ax_around[2].set_title("Using SE + Adaptivity")
+    pos31 = ax_around[2].plot(dt_list, diffs_true_before_adapt, 'rs-', label='before switch')
+    pos32 = ax_around[2].plot(dt_list, diffs_true_after_adapt, 'bd--', label='after switch')
+    pos33 = ax_around[2].plot(dt_list, diffs_true_at_adapt, 'ko--', label='at switch')
+    ax_around[2].set_xticks(dt_list)
+    ax_around[2].set_xticklabels(dt_list)
+    ax_around[2].set_xscale('log', base=10)
+    ax_around[2].set_yscale('symlog', linthresh=1e-8)
+    ax_around[2].set_ylim(-1, 1)
+    ax_around[2].set_xlabel(r'$\Delta t$', fontsize=6)
+
+    restart_ax2 = ax_around[2].twinx()
+    restarts_plt2 = restart_ax2.plot(dt_list, restarts_true_adapt, 'cs--', label='Restarts')
+    restart_ax2.tick_params(labelsize=6)
+
+    lines = pos31 + pos32 + pos33 + restarts_plt2
+    labels = [l.get_label() for l in lines]
+    ax_around[2].legend(frameon=False, fontsize=6, loc='lower right')
+
     fig_around.savefig('data/{}/diffs_estimation_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_around)
 
@@ -237,29 +505,50 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
 
     count_ax = 0
     for dt_item in dt_list:
-        f1 = open(cwd + 'data/battery_dt{}_USETrue_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_true = dill.load(f1)
+        f1 = open(cwd + 'data/battery_dt{}_USETrue_USAFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TF = dill.load(f1)
         f1.close()
 
-        f2 = open(cwd + 'data/battery_dt{}_USEFalse_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_false = dill.load(f2)
+        f2 = open(cwd + 'data/battery_dt{}_USEFalse_USAFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FF = dill.load(f2)
         f2.close()
 
-        val_switch = get_sorted(stats_true, type='switch1', sortby='time')
-        t_switch = [v[0] for v in val_switch]
-        t_switch = t_switch[0]  # battery has only one single switch
+        f3 = open(cwd + 'data/battery_dt{}_USETrue_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TT = dill.load(f3)
+        f3.close()
 
-        vC_true = get_sorted(stats_true, type='voltage C', recomputed=False, sortby='time')
-        vC_false = get_sorted(stats_false, type='voltage C', sortby='time')
+        f4 = open(cwd + 'data/battery_dt{}_USEFalse_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FT = dill.load(f4)
+        f4.close()
 
-        diff_true, diff_false = [v[1] - V_ref for v in vC_true], [v[1] - V_ref for v in vC_false]
-        times_true, times_false = [v[0] for v in vC_true], [v[0] for v in vC_false]
+        val_switch_TF = get_unsorted(stats_TF, type='switch1', sortby='time')
+        t_switch_TF = [v[0] for v in val_switch_TF]
+        t_switch_TF = t_switch_TF[-1]  # battery has only one single switch
+
+        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[0] for v in val_switch_TT]
+        t_switch_adapt = t_switch_adapt[-1]
+
+        vC_TF = get_sorted(stats_TF, type='voltage C', recomputed=False, sortby='time')
+        vC_FT = get_sorted(stats_FT, type='voltage C', recomputed=False, sortby='time')
+        vC_TT = get_sorted(stats_TT, type='voltage C', recomputed=False, sortby='time')
+        vC_FF = get_sorted(stats_FF, type='voltage C', sortby='time')
+
+        diff_TF, diff_FF = [v[1] - V_ref for v in vC_TF], [v[1] - V_ref for v in vC_FF]
+        times_TF, times_FF = [v[0] for v in vC_TF], [v[0] for v in vC_FF]
+
+        diff_FT, diff_TT = [v[1] - V_ref for v in vC_FT], [v[1] - V_ref for v in vC_TT]
+        times_FT, times_TT = [v[0] for v in vC_FT], [v[0] for v in vC_TT]
 
         if len(dt_list) > 1:
             ax_diffs[count_ax].set_title('dt={}'.format(dt_item))
-            ax_diffs[count_ax].plot(times_true, diff_true, label='SE=True', color='#ff7f0e')
-            ax_diffs[count_ax].plot(times_false, diff_false, label='SE=False', color='#1f77b4')
-            ax_diffs[count_ax].axvline(x=t_switch, linestyle='--', color='k', label='Switch')
+            ax_diffs[count_ax].plot(times_TF, diff_TF, label='SE=True, A=False', color='#ff7f0e')
+            ax_diffs[count_ax].plot(times_FF, diff_FF, label='SE=False, A=False', color='#1f77b4')
+            ax_diffs[count_ax].plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
+            ax_diffs[count_ax].plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='--')
+            ax_diffs[count_ax].axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
+            # if t_switch_adapt != t_switch_TF:
+            #    ax_diffs[count_ax].axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='k', label='Switch')
             ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='lower left')
             ax_diffs[count_ax].set_yscale('symlog', linthresh=1e-5)
             ax_diffs[count_ax].set_xlabel('Time', fontsize=6)
@@ -274,15 +563,18 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
 
         else:
             ax_diffs.set_title('dt={}'.format(dt_item))
-            ax_diffs.plot(times_true, diff_true, label='SE=True', color='#ff7f0e')
-            ax_diffs.plot(times_false, diff_false, label='SE=False', color='#1f77b4')
-            ax_diffs.axvline(x=t_switch, linestyle='--', color='k', label='Switch')
+            ax_diffs.plot(times_TF, diff_TF, label='SE=True', color='#ff7f0e')
+            ax_diffs.plot(times_FF, diff_FF, label='SE=False', color='#1f77b4')
+            ax_diffs.plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
+            ax_diffs.plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='--')
+            ax_diffs.axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
+            if t_switch_adapt != t_switch_TF:
+                ax_diffs.axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='k', label='Switch')
             ax_diffs.legend(frameon=False, fontsize=6, loc='lower left')
             ax_diffs.set_yscale('symlog', linthresh=1e-5)
             ax_diffs.set_xlabel('Time', fontsize=6)
             ax_diffs.set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
             ax_diffs.legend(frameon=False, fontsize=6, loc='center right')
-            ax_diffs.legend(frameon=False, fontsize=6, loc='upper right')
 
         count_ax += 1
 
@@ -290,197 +582,103 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     plt_helper.plt.close(fig_diffs)
 
 
-def error_over_time(dt_list, problem, sweeper, cwd='./'):
-    """
-    Routine to read the data from cluster and plot the error of the reference solution and the numerical solution over time
-    """
-
-    if sweeper == 'imex_1st_order':
-        datfiles = glob.glob("data/battery_dt1e-08_USETrue_SDC_IMEX_*.dat")
-    else:
-        datfiles = glob.glob("data/battery_dt1e-08_USETrue_IE_*.dat")
-    stats_ref = dict()
-    for file in datfiles:
-        f = open(cwd + file, 'rb')
-        stats = dill.load(f)
-        f.close()
-
-        stats_ref.update(stats)
-
-    vC_ref_val = get_sorted(stats_ref, type='voltage C', recomputed=None, sortby='time')
-
-    vC_ref = [v[1] for v in vC_ref_val]
-    times_ref = [v[0] for v in vC_ref_val]
-
-    diffs_false = []
-    diffs_true = []
-    times_all_false = []
-    times_all_true = []
-    for dt_item in dt_list:
-        diff_false = []
-        diff_true = []
-
-        f1 = open(cwd + 'data/battery_dt{}_USETrue_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_true = dill.load(f1)
-        f1.close()
-
-        f2 = open(cwd + 'data/battery_dt{}_USEFalse_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_false = dill.load(f2)
-        f2.close()
-
-        val_switch = get_sorted(stats_true, type='switch1', sortby='time')
-        t_switch = [v[0] for v in val_switch]
-        t_switch = t_switch[0]  # battery has only one single switch
-
-        vC_true_val = get_sorted(stats_true, type='voltage C', recomputed=None, sortby='time')
-        vC_false_val = get_sorted(stats_false, type='voltage C', sortby='time')
-
-        times_true = [v[0] for v in vC_true_val]
-        times_false = [v[0] for v in vC_false_val]
-
-        times_all_false.append(times_false)
-        times_all_true.append(times_true)
-
-        vC_true = [v[1] for v in vC_true_val]
-        vC_false = [v[1] for v in vC_false_val]
-
-        for m_ref in range(len(times_ref)):
-            for m in range(len(times_false)):
-                print(dt_item, m_ref, m)
-                if round(times_false[m], 15) == round(times_ref[m_ref], 15):
-                    diff_false.append(vC_ref[m_ref] - vC_false[m])
-
-        for m_ref in range(len(times_ref)):
-            for m in range(len(times_true)):
-                if round(times_true[m], 15) == round(times_ref[m_ref], 15):
-                    diff_true.append(vC_ref[m_ref] - vC_true[m])
-
-        diffs_false.append(diff_false)
-        diffs_true.append(diff_true)
-
-    if len(dt_list) > 1:
-        setup_mpl()
-        fig_err, ax_err = plt_helper.plt.subplots(
-            nrows=2, ncols=len(dt_list), figsize=(2 * len(dt_list) - 1, 3), sharex='col', sharey='row'
-        )
-        for row in range(2):
-            for col in range(len(dt_list)):
-                print(row, col)
-                if row == 0:
-                    # SE = False
-                    ax_err[row, col].plot(times_all_false[col], diffs_false[col], label='SE=False')
-                    ax_err[row, col].set_title('dt={}'.format(dt_list[col]))
-                    # ax_err[row, col].set_ylim(1, maxiter)
-
-                else:
-                    # SE = True
-                    ax_err[row, col].plot(times_all_true[col], diffs_true[col], label='SE=True')
-                    ax_err[row, col].set_xlabel('Time', fontsize=6)
-                    #ax_err[row, col].set_ylim(1, maxiter)
-
-                if col == 0:
-                    ax_err[row, col].set_ylabel('Error', fontsize=6)
-
-                ax_err[row, col].legend(frameon=False, fontsize=6, loc='upper right')
-    else:
-        setup_mpl()
-        fig_err, ax_err = plt_helper.plt.subplots(nrows=2, ncols=1, figsize=(3, 3))
-        for row in range(2):
-            if row == 0:
-                # SE = False
-                ax_err[row].plot(times_all_false[0], diffs_false[0], label='SE=False')
-                ax_err[row].set_title('dt={}'.format(dt_list[0]))
-
-            else:
-                # SE = True
-                ax_err[row].plot(times_all_true[0], diffs_true[0], label='SE=True')
-                ax_err[row].set_xlabel('Time', fontsize=6)
-
-        ax_err[row].set_ylabel('Error', fontsize=6)
-        ax_err[row].legend(frameon=False, fontsize=6, loc='upper right')
-
-    plt_helper.plt.tight_layout()
-    fig_err.savefig('data/{}/errors_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig_err)
-
-
 def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
     """
     Routine  to plot the number of iterations over time using switch estimator or not. Produces the iters_<sweeper_class>.png file
     """
 
-    iters_time_true = []
-    iters_time_false = []
-    times_true = []
-    times_false = []
-    t_switches = []
+    iters_time_TF = []
+    iters_time_FF = []
+    iters_time_TT = []
+    iters_time_FT = []
+    times_TF = []
+    times_FF = []
+    times_TT = []
+    times_FT = []
+    t_switches_TF = []
+    t_switches_adapt = []
 
     for dt_item in dt_list:
-        f1 = open(cwd + 'data/battery_dt{}_USETrue_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_true = dill.load(f1)
+        f1 = open(cwd + 'data/battery_dt{}_USETrue_USAFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TF = dill.load(f1)
         f1.close()
 
-        f2 = open(cwd + 'data/battery_dt{}_USEFalse_{}.dat'.format(dt_item, sweeper), 'rb')
-        stats_false = dill.load(f2)
+        f2 = open(cwd + 'data/battery_dt{}_USEFalse_USAFalse_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FF = dill.load(f2)
         f2.close()
 
-        iter_counts_true_val = get_sorted(stats_true, type='niter', recomputed=False, sortby='time')
-        iter_counts_false_val = get_sorted(stats_false, type='niter', sortby='time')
+        f3 = open(cwd + 'data/battery_dt{}_USETrue_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_TT = dill.load(f3)
+        f3.close()
 
-        iters_time_true.append([v[1] for v in iter_counts_true_val])
-        iters_time_false.append([v[1] for v in iter_counts_false_val])
+        f4 = open(cwd + 'data/battery_dt{}_USEFalse_USATrue_{}.dat'.format(dt_item, sweeper), 'rb')
+        stats_FT = dill.load(f4)
+        f4.close()
 
-        times_true.append([v[0] for v in iter_counts_true_val])
-        times_false.append([v[0] for v in iter_counts_false_val])
+        iter_counts_TF_val = get_sorted(stats_TF, type='niter', recomputed=False, sortby='time')
+        iter_counts_TT_val = get_sorted(stats_TT, type='niter', recomputed=False, sortby='time')
+        iter_counts_FT_val = get_sorted(stats_FT, type='niter', recomputed=False, sortby='time')
+        iter_counts_FF_val = get_sorted(stats_FF, type='niter', recomputed=False, sortby='time')
 
-        val_switch = get_sorted(stats_true, type='switch1', sortby='time')
-        t_switch = [v[0] for v in val_switch]
-        t_switches.append(t_switch[0])
+        iters_time_TF.append([v[1] for v in iter_counts_TF_val])
+        iters_time_TT.append([v[1] for v in iter_counts_TT_val])
+        iters_time_FT.append([v[1] for v in iter_counts_FT_val])
+        iters_time_FF.append([v[1] for v in iter_counts_FF_val])
+
+        times_TF.append([v[0] for v in iter_counts_TF_val])
+        times_TT.append([v[0] for v in iter_counts_TT_val])
+        times_FT.append([v[0] for v in iter_counts_FT_val])
+        times_FF.append([v[0] for v in iter_counts_FF_val])
+
+        val_switch_TF = get_unsorted(stats_TF, type='switch1', sortby='time')
+        t_switch_TF = [v[0] for v in val_switch_TF]
+        t_switches_TF.append(t_switch_TF[-1])
+
+        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[0] for v in val_switch_TT]
+        t_switches_adapt.append(t_switch_adapt[-1])
 
     if len(dt_list) > 1:
         setup_mpl()
         fig_iter_all, ax_iter_all = plt_helper.plt.subplots(
-            nrows=2, ncols=len(dt_list), figsize=(2 * len(dt_list) - 1, 3), sharex='col', sharey='row'
+            nrows=1, ncols=len(dt_list), figsize=(2 * len(dt_list) - 1, 3), sharex='col', sharey='row'
         )
-        for row in range(2):
-            for col in range(len(dt_list)):
-                if row == 0:
-                    # SE = False
-                    ax_iter_all[row, col].plot(times_false[col], iters_time_false[col], label='SE=False')
-                    ax_iter_all[row, col].set_title('dt={}'.format(dt_list[col]))
-                    ax_iter_all[row, col].set_ylim(1, maxiter)
+        for col in range(len(dt_list)):
+            # SE = False
+            ax_iter_all[col].plot(times_FF[col], iters_time_FF[col], label='SE=F, A=F')
+            ax_iter_all[col].plot(times_TF[col], iters_time_TF[col], label='SE=T, A=F')
+            ax_iter_all[col].plot(times_TT[col], iters_time_TT[col], '--', label='SE=T, A=T')
+            ax_iter_all[col].plot(times_FT[col], iters_time_FT[col], '--', label='SE=F, A=T')
+            ax_iter_all[col].axvline(x=t_switches_TF[col], linestyle='--', linewidth=0.5, color='k', label='Switch')
+            if t_switches_adapt[col] != t_switches_TF[col]:
+                ax_iter_all[col].axvline(x=t_switches_adapt[col], linestyle='--', linewidth=0.5, color='k', label='Switch')
+            ax_iter_all[col].set_title('dt={}'.format(dt_list[col]))
+            ax_iter_all[col].set_ylim(0, maxiter + 2)
+            ax_iter_all[col].set_xlabel('Time', fontsize=6)
 
-                else:
-                    # SE = True
-                    ax_iter_all[row, col].plot(times_true[col], iters_time_true[col], label='SE=True')
-                    ax_iter_all[row, col].axvline(x=t_switches[col], linestyle='--', color='r', label='Switch')
-                    ax_iter_all[row, col].set_xlabel('Time', fontsize=6)
-                    ax_iter_all[row, col].set_ylim(1, maxiter)
+            if col == 0:
+                ax_iter_all[col].set_ylabel('Number iterations', fontsize=6)
 
-                if col == 0:
-                    ax_iter_all[row, col].set_ylabel('Number iterations', fontsize=6)
-
-                ax_iter_all[row, col].legend(frameon=False, fontsize=6, loc='upper right')
+            ax_iter_all[col].legend(frameon=False, fontsize=6, loc='upper right')
     else:
         setup_mpl()
-        fig_iter_all, ax_iter_all = plt_helper.plt.subplots(nrows=2, ncols=1, figsize=(3, 3), sharex='col', sharey='row')
+        fig_iter_all, ax_iter_all = plt_helper.plt.subplots(
+            nrows=1, ncols=1, figsize=(3, 3)
+        )
 
-        for row in range(2):
-            if row == 0:
-                # SE = False
-                ax_iter_all[row].plot(times_false[0], iters_time_false[0], label='SE=False')
-                ax_iter_all[row].set_title('dt={}'.format(dt_list[0]))
-                ax_iter_all[row].set_ylim(1, maxiter)
+        ax_iter_all.plot(times_FF[0], iters_time_FF[0], label='SE=False')
+        ax_iter_all.plot(times_TF[0], iters_time_TF[0], label='SE=True')
+        ax_iter_all.plot(times_TT[0], iters_time_TT[0], '--', label='SE=T, A=T')
+        ax_iter_all.plot(times_FT[0], iters_time_FT[0], '--', label='SE=F, A=T')
+        ax_iter_all.axvline(x=t_switches_TF[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
+        if t_switches_adapt[0] != t_switches_TF[0]:
+            ax_iter_all.axvline(x=t_switches_adapt[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
+        ax_iter_all.set_title('dt={}'.format(dt_list[0]))
+        ax_iter_all.set_ylim(0, maxiter + 2)
+        ax_iter_all.set_xlabel('Time', fontsize=6)
 
-            else:
-                # SE = True
-                ax_iter_all[row].plot(times_true[0], iters_time_true[0], label='SE=True')
-                ax_iter_all[row].axvline(x=t_switches[0], linestyle='--', color='r', label='Switch')
-                ax_iter_all[row].set_xlabel('Time', fontsize=6)
-                ax_iter_all[row].set_ylim(1, maxiter)
-
-            ax_iter_all[row].set_ylabel('Number iterations', fontsize=6)
-            ax_iter_all[row].legend(frameon=False, fontsize=6, loc='upper right')
+        ax_iter_all.set_ylabel('Number iterations', fontsize=6)
+        ax_iter_all.legend(frameon=False, fontsize=6, loc='upper right')
 
     plt_helper.plt.tight_layout()
     fig_iter_all.savefig('data/{}/iters_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')

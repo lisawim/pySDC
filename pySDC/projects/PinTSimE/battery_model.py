@@ -2,7 +2,7 @@ import numpy as np
 import dill
 from pathlib import Path
 
-from pySDC.helpers.stats_helper import get_sorted
+from pySDC.helpers.stats_helper import filter_stats, get_sorted
 from pySDC.core.Collocation import CollBase as Collocation
 from pySDC.implementations.problem_classes.Battery import battery, battery_implicit
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
@@ -13,6 +13,7 @@ import pySDC.helpers.plot_helper as plt_helper
 from pySDC.core.Hooks import hooks
 
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
+from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
 
 
 class log_data(hooks):
@@ -52,16 +53,25 @@ class log_data(hooks):
             type='restart',
             value=int(step.status.get('restart')),
         )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type='dt',
+            value=L.dt,
+        )
 
 
-def main(dt, problem, restol, sweeper, use_switch_estimator):
+def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     """
     A simple test program to do SDC/PFASST runs for the battery drain model
     """
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = restol
+    level_params['restol'] = -1
     level_params['dt'] = dt
 
     # initialize sweeper parameters
@@ -87,16 +97,24 @@ def main(dt, problem, restol, sweeper, use_switch_estimator):
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 20
+    step_params['maxiter'] = 4
 
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 20
     controller_params['hook_class'] = log_data
+    controller_params['mssdc_jac'] = False
 
     # convergence controllers
-    switch_estimator_params = {}
-    convergence_controllers = {SwitchEstimator: switch_estimator_params}
+    convergence_controllers = dict()
+    if use_switch_estimator:
+        switch_estimator_params = dict()
+        convergence_controllers.update({SwitchEstimator: switch_estimator_params})
+
+    if use_adaptivity:
+        adaptivity_params = dict()
+        adaptivity_params['e_tol'] = 1e-12
+        convergence_controllers.update({Adaptivity: adaptivity_params})
 
     # fill description dictionary for easy step instantiation
     description = dict()
@@ -107,14 +125,14 @@ def main(dt, problem, restol, sweeper, use_switch_estimator):
     description['level_params'] = level_params  # pass level parameters
     description['step_params'] = step_params
 
-    if use_switch_estimator:
+    if use_switch_estimator or use_adaptivity:
         description['convergence_controllers'] = convergence_controllers
 
     proof_assertions_description(description, problem_params)
 
     # set time parameters
     t0 = 0.0
-    Tend = 0.5
+    Tend = 0.3
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -135,7 +153,7 @@ def main(dt, problem, restol, sweeper, use_switch_estimator):
 
     Path("data").mkdir(parents=True, exist_ok=True)
     Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
-    fname = 'data/battery_{}_USE{}.dat'.format(sweeper.__name__, use_switch_estimator)
+    fname = 'data/battery_{}_USE{}_USA{}.dat'.format(sweeper.__name__, use_switch_estimator, use_adaptivity)
     f = open(fname, 'wb')
     dill.dump(stats, f)
     f.close()
@@ -151,12 +169,11 @@ def main(dt, problem, restol, sweeper, use_switch_estimator):
         print(out)
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
-    times = [item[0] for item in iter_counts]
-    for m in range(len(times)):
-        if niters[m] == step_params['maxiter']:
-            print(times[m])
+
     assert np.mean(niters) <= 9, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
+
+    print(np.sum(np.array(get_sorted(stats, type='restart', recomputed=None))[:, 1]))
 
     return description
 
@@ -167,27 +184,34 @@ def run():
     as <problem_class>_model_solution_<sweeper_class>.png
     """
 
-    dt = 1e-4
-    problem_classes = [battery_implicit]  # [battery, battery_implicit]
-    restolerances = [5e-8]  # [1e-12, 1e-8]
-    sweeper_classes = [generic_implicit]  # [imex_1st_order, generic_implicit]
-    use_switch_estimator = [False]  # [True, False]
+    dt = 1e-2
+    problem_classes = [battery]  # [battery, battery_implicit]
+    sweeper_classes = [imex_1st_order]  # [imex_1st_order, generic_implicit]
+    use_switch_estimator = [True]  # [True, False]
+    use_adaptivity = [True]
 
-    for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
+    for problem, sweeper in zip(problem_classes, sweeper_classes):
         for use_SE in use_switch_estimator:
-            description = main(dt=dt, problem=problem, restol=restol, sweeper=sweeper, use_switch_estimator=use_SE)
+            for use_A in  use_adaptivity:
+                description = main(
+                    dt=dt,
+                    problem=problem,
+                    sweeper=sweeper,
+                    use_switch_estimator=use_SE,
+                    use_adaptivity=use_A,
+                )
 
-            plot_voltages(description, problem.__name__, sweeper.__name__, use_SE)
+                plot_voltages(description, problem.__name__, sweeper.__name__, use_SE, use_A)
 
-        plot_comparison(description, problem.__name__, sweeper.__name__)
+            plot_comparison(description, problem.__name__, sweeper.__name__)
 
 
-def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./'):
+def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adaptivity, cwd='./'):
     """
     Routine to plot the numerical solution of the model alone
     """
 
-    f = open('data/battery_{}_USE{}.dat'.format(sweeper, use_switch_estimator), 'rb')
+    f = open('data/battery_{}_USE{}_USA{}.dat'.format(sweeper, use_switch_estimator, use_adaptivity), 'rb')
     stats = dill.load(f)
     f.close()
 
@@ -200,20 +224,27 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, cwd='./')
     setup_mpl()
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
     ax.set_title('Simulation of {} using {}'.format(problem, sweeper), fontsize=10)
-    ax.plot(times, [v[1] for v in cL_val], label=r'$i_L$')
-    ax.plot(times, [v[1] for v in vC_val], label=r'$v_C$')
+    ax.plot(times, [v[1] for v in cL_val], linewidth=0.8, label=r'$i_L$')
+    ax.plot(times, [v[1] for v in vC_val], linewidth=0.8, label=r'$v_C$')
 
     if use_switch_estimator:
-        val_switch = get_sorted(stats, type='switch1', sortby='time')
+        val_switch = get_unsorted(stats, type='switch1', sortby='time')
         t_switch = [v[0] for v in val_switch]
-        ax.axvline(x=t_switch[0], linestyle='--', color='k', label='Switch')
-        print("t_switch=", t_switch)
+        ax.axvline(x=t_switch[-1], linestyle='--', linewidth=0.8, color='r', label='Switch')
 
-    ax.axhline(y=1.0, linestyle='--', color='k', label='$V_{ref}$')
-    ax.legend(frameon=False, fontsize=12, loc='upper right')
+    if use_adaptivity:
+        dt = np.array(get_sorted(stats, type='dt', recomputed=False))
+        dt_ax = ax.twinx()
+        dt_ax.plot(dt[:, 0], dt[:, 1], 'k-', linewidth=0.8, label=r'$\Delta t$')
+        dt_ax.set_ylabel(r'$\Delta t$', fontsize=8)
+        dt_ax.legend(frameon=False, fontsize=8, loc='center right')
 
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Energy')
+    ax.axhline(y=1.0, linestyle='--', linewidth=0.8, color='g', label='$V_{ref}$')
+
+    ax.legend(frameon=False, fontsize=8, loc='upper right')
+
+    ax.set_xlabel('Time', fontsize=8)
+    ax.set_ylabel('Energy', fontsize=8)
 
     fig.savefig('data/{}/{}_model_solution_{}.png'.format(problem, problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
@@ -296,6 +327,27 @@ def proof_assertions_description(description, problem_params):
     assert 'errtol' not in description['step_params'].keys(), 'No exact solution known to compute error'
     assert 'alpha' in description['problem_params'].keys(), 'Please supply "alpha" in the problem parameters'
     assert 'V_ref' in description['problem_params'].keys(), 'Please supply "V_ref" in the problem parameters'
+
+def get_unsorted(stats, type=None, sortby='time'):
+    """
+    Helper function to get stats without any sorting (switches are needed in unsorted order, but in order of founding them)
+    Args:
+        stats (dict): raw statistics from a controller run
+        type (str): string to describe the requested type of value
+        sortby (str): string to specify which key to use for sorting
+
+    Returns:
+        results (list): the stats for a specific type sorted by some attribute
+    """
+
+    filtered_stats = filter_stats(stats, type='switch1')
+
+    result = []
+    for k, v in filtered_stats.items():
+        item = getattr(k, sortby)
+        result.append((item, v))
+
+    return result
 
 
 if __name__ == "__main__":

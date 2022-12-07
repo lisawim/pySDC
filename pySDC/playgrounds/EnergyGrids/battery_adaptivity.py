@@ -131,7 +131,7 @@ def plot_voltages(use_switch_estimator, cwd='./'):
         ax.axvline(x=t_switch[0], linestyle='--', color='r', label='Switch')
     ax.set_xlabel('Time', fontsize=20)
     ax.set_ylabel('Energy', fontsize=20)
-    #for element in list_gs:
+    # for element in list_gs:
     #    if element[1] > 0:
     #        ax.axvline(element[0], linestyle='--', color='r', label='Restart')
     dt_ax = ax.twinx()

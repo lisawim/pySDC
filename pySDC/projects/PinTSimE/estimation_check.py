@@ -4,9 +4,10 @@ from pathlib import Path
 
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.core.Collocation import CollBase as Collocation
-from pySDC.implementations.problem_classes.Battery import battery, battery_implicit
+from pySDC.implementations.problem_classes.Battery import battery, battery_explicit, battery_implicit
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
+from pySDC.implementations.sweeper_classes.Runge_Kutta import RK4
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.convergence_controller_classes.estimate_embedded_error import EstimateEmbeddedErrorNonMPI
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
@@ -17,13 +18,7 @@ from pySDC.core.Hooks import hooks
 
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
 from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
-process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=0,
-            sweep=L.status.sweep,
-            type='current L',
-            value=L.uend[0],
+
 
 class log_data(hooks):
     def post_step(self, step, level_number):
@@ -202,16 +197,16 @@ def check(cwd='./'):
     """
 
     V_ref = 1.0
-    dt_list = [1e-2, 1e-3, 1e-4]  # [4e-1, 4e-2, 4e-3]
+    dt_list = [4e-1, 4e-2, 4e-3]
     use_switch_estimator = [True, False]
     use_adaptivity = [True, False]
     restarts_true = []
     restarts_false_adapt = []
     restarts_true_adapt = []
 
-    problem_classes = [battery_implicit]  # [battery, battery_implicit]
-    restolerances = [1e-15]  # [1e-15, 5e-8]
-    sweeper_classes = [generic_implicit]  # [imex_1st_order, generic_implicit]
+    problem_classes = [battery, battery_implicit]
+    restolerances = [1e-15, 5e-8]
+    sweeper_classes = [imex_1st_order, generic_implicit]
 
     for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
         Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
@@ -496,12 +491,12 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     if len(dt_list) > 1:
         setup_mpl()
         fig_diffs, ax_diffs = plt_helper.plt.subplots(
-            1, len(dt_list), figsize=(2 * len(dt_list), 2), sharex='col', sharey='row'
+            2, len(dt_list), figsize=(3 * len(dt_list), 4), sharex='col', sharey='row'
         )
 
     else:
         setup_mpl()
-        fig_diffs, ax_diffs = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+        fig_diffs, ax_diffs = plt_helper.plt.subplots(2, 1, figsize=(3, 3))
 
     count_ax = 0
     for dt_item in dt_list:
@@ -529,11 +524,18 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
         t_switch_adapt = [v[0] for v in val_switch_TT]
         t_switch_adapt = t_switch_adapt[-1]
 
+        dt_FT = np.array(get_sorted(stats_FT, type='dt', recomputed=False, sortby='time'))
+        dt_TT = np.array(get_sorted(stats_TT, type='dt', recomputed=False, sortby='time'))
+
+        restart_FT = np.array(get_sorted(stats_FT, type='restart', recomputed=None, sortby='time'))
+        restart_TT = np.array(get_sorted(stats_TT, type='restart', recomputed=None, sortby='time'))
+
         vC_TF = get_sorted(stats_TF, type='voltage C', recomputed=False, sortby='time')
         vC_FT = get_sorted(stats_FT, type='voltage C', recomputed=False, sortby='time')
         vC_TT = get_sorted(stats_TT, type='voltage C', recomputed=False, sortby='time')
         vC_FF = get_sorted(stats_FF, type='voltage C', sortby='time')
-
+        print(vC_TT)
+        print(np.array(get_sorted(stats_TT, type='voltage C', recomputed=None)))
         diff_TF, diff_FF = [v[1] - V_ref for v in vC_TF], [v[1] - V_ref for v in vC_FF]
         times_TF, times_FF = [v[0] for v in vC_TF], [v[0] for v in vC_FF]
 
@@ -541,43 +543,71 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
         times_FT, times_TT = [v[0] for v in vC_FT], [v[0] for v in vC_TT]
 
         if len(dt_list) > 1:
-            ax_diffs[count_ax].set_title('dt={}'.format(dt_item))
-            ax_diffs[count_ax].plot(times_TF, diff_TF, label='SE=True, A=False', color='#ff7f0e')
-            ax_diffs[count_ax].plot(times_FF, diff_FF, label='SE=False, A=False', color='#1f77b4')
-            ax_diffs[count_ax].plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
-            ax_diffs[count_ax].plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='--')
-            ax_diffs[count_ax].axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
+            ax_diffs[0, count_ax].set_title(r'$\Delta t$={}'.format(dt_item))
+            ax_diffs[0, count_ax].plot(times_TF, diff_TF, label='SE=True, A=False', color='#ff7f0e')
+            ax_diffs[0, count_ax].plot(times_FF, diff_FF, label='SE=False, A=False', color='#1f77b4')
+            ax_diffs[0, count_ax].plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
+            ax_diffs[0, count_ax].plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='-.')
+            ax_diffs[0, count_ax].axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
             # if t_switch_adapt != t_switch_TF:
             #    ax_diffs[count_ax].axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='k', label='Switch')
-            ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='lower left')
-            ax_diffs[count_ax].set_yscale('symlog', linthresh=1e-5)
-            ax_diffs[count_ax].set_xlabel('Time', fontsize=6)
+            ax_diffs[0, count_ax].legend(frameon=False, fontsize=6, loc='lower left')
+            ax_diffs[0, count_ax].set_yscale('symlog', linthresh=1e-5)
+            # ax_diffs[0, count_ax].set_xlabel('Time', fontsize=6)
             if count_ax == 0:
-                ax_diffs[count_ax].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
+                ax_diffs[0, count_ax].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
 
             if count_ax == 0 or count_ax == 1:
-                ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='center right')
+                ax_diffs[0, count_ax].legend(frameon=False, fontsize=6, loc='upper right')
 
             else:
-                ax_diffs[count_ax].legend(frameon=False, fontsize=6, loc='upper right')
+                ax_diffs[0, count_ax].legend(frameon=False, fontsize=6, loc='upper right')
+
+            ax_diffs[1, count_ax].plot(dt_FT[:, 0], dt_FT[:, 1], label=r'$\Delta t$ - SE=F, A=T', color='red', linestyle='--')
+            ax_diffs[1, count_ax].plot([None], [None], label='Restart - SE=F, A=T', color='grey', linestyle='-.')
+
+            for i in range(len(restart_FT)):
+                if restart_FT[i, 1] > 0:
+                    ax_diffs[1, count_ax].axvline(restart_FT[i, 0], color='grey', linestyle='-.')
+
+            ax_diffs[1, count_ax].plot(dt_TT[:, 0], dt_TT[:, 1], label=r'$ \Delta t$ - SE=T, A=T', color='limegreen', linestyle='-.')
+            ax_diffs[1, count_ax].plot([None], [None], label='Restart - SE=T, A=T', color='black', linestyle='-.')
+
+            for i in range(len(restart_TT)):
+                if restart_TT[i, 1] > 0:
+                    ax_diffs[1, count_ax].axvline(restart_TT[i, 0], color='black', linestyle='-.')
+
+            ax_diffs[1, count_ax].set_xlabel('Time', fontsize=6)
+            if count_ax == 0:
+                ax_diffs[1, count_ax].set_ylabel(r'$\Delta t_{adapted}$', fontsize=6)
+
+            ax_diffs[1, count_ax].legend(frameon=True, fontsize=6, loc='upper left')
 
         else:
-            ax_diffs.set_title('dt={}'.format(dt_item))
-            ax_diffs.plot(times_TF, diff_TF, label='SE=True', color='#ff7f0e')
-            ax_diffs.plot(times_FF, diff_FF, label='SE=False', color='#1f77b4')
-            ax_diffs.plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
-            ax_diffs.plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='--')
-            ax_diffs.axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
+            ax_diffs[0].set_title(r'$\Delta t$={}'.format(dt_item))
+            ax_diffs[0].plot(times_TF, diff_TF, label='SE=True', color='#ff7f0e')
+            ax_diffs[0].plot(times_FF, diff_FF, label='SE=False', color='#1f77b4')
+            ax_diffs[0].plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
+            ax_diffs[0].plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='-.')
+            ax_diffs[0].axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
             if t_switch_adapt != t_switch_TF:
-                ax_diffs.axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='k', label='Switch')
-            ax_diffs.legend(frameon=False, fontsize=6, loc='lower left')
-            ax_diffs.set_yscale('symlog', linthresh=1e-5)
-            ax_diffs.set_xlabel('Time', fontsize=6)
-            ax_diffs.set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
-            ax_diffs.legend(frameon=False, fontsize=6, loc='center right')
+                ax_diffs[0].axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='k', label='Switch')
+            ax_diffs[0].legend(frameon=False, fontsize=6, loc='lower left')
+            ax_diffs[0].set_yscale('symlog', linthresh=1e-5)
+            # ax_diffs[0].set_xlabel('Time', fontsize=6)
+            ax_diffs[0].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
+            ax_diffs[0].legend(frameon=False, fontsize=6, loc='center right')
+
+            ax_diffs[1].plot(dt_FT[:, 0], dt_FT[:, 1], label='SE=False, A=True', color='red', linestyle='--')
+            ax_diffs[1].plot(dt_TT[:, 0], dt_TT[:, 1], label='SE=True, A=True', color='limegreen', linestyle='-.')
+            ax_diffs[1].set_xlabel('Time', fontsize=6)
+            ax_diffs[1].set_ylabel(r'$\Delta t_{adapted}$', fontsize=6)
+
+            ax_diffs[1].legend(frameon=False, fontsize=6, loc='upper right')
 
         count_ax += 1
 
+    plt_helper.plt.tight_layout()
     fig_diffs.savefig('data/{}/difference_estimation_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_diffs)
 

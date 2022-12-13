@@ -125,6 +125,17 @@ class SwitchEstimator(ConvergenceController):
                     self.switch_detected = False
 
     def determine_restart(self, controller, S):
+        """
+        Check if the step needs to be restarted due to a predicting switch.
+
+        Args:
+            controller (pySDC.Controller): The controller
+            S (pySDC.Step): The current step
+
+        Returns:
+            None
+        """
+
         if self.switch_detected:
             print("Restart")
             S.status.restart = True
@@ -133,6 +144,18 @@ class SwitchEstimator(ConvergenceController):
         super(SwitchEstimator, self).determine_restart(controller, S)
 
     def post_step_processing(self, controller, S):
+        """
+        After a step is done, some variables will be prepared for predicting a possibly new switch. If no Adaptivity is used, the next
+        time step will be set as the default one from the front end.
+
+        Args:
+            controller (pySDC.Controller): The controller
+            S (pySDC.Step): The current step
+
+        Returns:
+            None
+        """
+
         L = S.levels[0]
 
         if self.switch_detected_step:

@@ -97,7 +97,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 6
+    step_params['maxiter'] = 4
 
     # initialize controller parameters
     controller_params = dict()
@@ -185,10 +185,10 @@ def run():
     """
 
     dt = 1e-2
-    problem_classes = [battery_implicit]  # [battery, battery_implicit]
-    sweeper_classes = [generic_implicit]  # [imex_1st_order, generic_implicit]
+    problem_classes = [battery]  # [battery, battery_implicit]
+    sweeper_classes = [imex_1st_order]  # [imex_1st_order, generic_implicit]
     use_switch_estimator = [True]  # [True, False]
-    use_adaptivity = [False]
+    use_adaptivity = [True]
 
     for problem, sweeper in zip(problem_classes, sweeper_classes):
         for use_SE in use_switch_estimator:
@@ -203,7 +203,7 @@ def run():
 
                 plot_voltages(description, problem.__name__, sweeper.__name__, use_SE, use_A)
 
-            plot_comparison(description, problem.__name__, sweeper.__name__)
+            # plot_comparison(description, problem.__name__, sweeper.__name__)
 
 
 def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adaptivity, cwd='./'):

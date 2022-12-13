@@ -113,7 +113,7 @@ class SwitchEstimator(ConvergenceController):
                                 type='switch{}'.format(self.count_switches + 1),
                                 value=p(self.t_switch),
                             )
-                            # self.switch_detected_step = self.switch_detected
+
                             self.switch_detected_step = True
 
                         dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
@@ -160,7 +160,7 @@ class SwitchEstimator(ConvergenceController):
         L = S.levels[0]
 
         if self.switch_detected_step:
-            if L.prob.params.set_switch[self.count_switches] and L.time + L.dt > self.t_switch:
+            if L.prob.params.set_switch[self.count_switches] and L.time + L.dt >= self.t_switch:
                 self.count_switches += 1
                 self.t_switch = None
                 self.switch_detected_step = False

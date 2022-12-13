@@ -7,10 +7,24 @@ from pySDC.core.ConvergenceController import ConvergenceController
 
 class SwitchEstimator(ConvergenceController):
     """
-    Method to estimate a discrete event (switch)
+    Class to predict the time point of the switch and setting a new step size.
+
+    For the first time this is nonMPI version, because a MPI version is not yet developed.
     """
 
     def setup(self, controller, params, description):
+        """
+        Function sets defualt variables to handle with the switch at the beginning.
+
+        Args:
+            controller (pySDC.Controller): The controller
+            params (dict): The params passed for this specific convergence controller
+            description (dict): The description object used to instantiate the controller
+
+        Returns:
+            (dict): The updated params dictionary
+        """
+
         # for RK4 sweeper, sweep.coll.nodes now consists of values of ButcherTableau
         # for this reason, collocation nodes will be generated here
         coll = CollBase(
@@ -26,39 +40,16 @@ class SwitchEstimator(ConvergenceController):
         return {'control_order': 100, **params}
 
     def get_new_step_size(self, controller, S):
-        def regulaFalsiMethod(a0, b0, f, tol, maxIter=50):
-            """
-            Regula falsi method to find the root for the switch
-            Args:
-                a0, b0 (np.float):              points to start the method
-                f (callable function):          function values
-                tol (np.float):                 when tol is reached, the secant method breaks
-                maxIter (np.int):               maximum number of iterations to find root
+        """
+        Determine a new step size when a switch is found such that the switch happens at the time step.
 
-            Return:
-                The root of f
-            """
-            count = 0
-            while count <= maxIter:
-                c0 = a0 - ((b0 - a0) / (f(b0) - f(a0))) * f(a0)
+        Args:
+            controller (pySDC.Controller): The controller
+            S (pySDC.Step): The current step
 
-                if f(a0) * f(c0) > 0:
-                    a0 = c0
-                    b0 = b0
-
-                if f(b0) * f(c0) > 0:
-                    a0 = a0
-                    b0 = c0
-
-                count += 1
-
-                cm = a0 - ((b0 - a0) / (f(b0) - f(a0))) * f(a0)
-
-                if abs(cm - c0) < tol:
-                    print("Regula falsi method: Number of iterations: ", count, "-- Root: ", c0)
-                    break
-
-            return c0
+        Returns:
+            None
+        """
 
         self.switch_detected = False  # reset between steps
 

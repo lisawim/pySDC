@@ -97,7 +97,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 4
+    step_params['maxiter'] = 6
 
     # initialize controller parameters
     controller_params = dict()
@@ -185,10 +185,10 @@ def run():
     """
 
     dt = 1e-2
-    problem_classes = [battery]  # [battery, battery_implicit]
-    sweeper_classes = [imex_1st_order]  # [imex_1st_order, generic_implicit]
+    problem_classes = [battery_implicit]  # [battery, battery_implicit]
+    sweeper_classes = [generic_implicit]  # [imex_1st_order, generic_implicit]
     use_switch_estimator = [True]  # [True, False]
-    use_adaptivity = [True]
+    use_adaptivity = [False]
 
     for problem, sweeper in zip(problem_classes, sweeper_classes):
         for use_SE in use_switch_estimator:
@@ -228,8 +228,9 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adapt
     ax.plot(times, [v[1] for v in vC_val], linewidth=0.8, label=r'$v_C$')
 
     if use_switch_estimator:
-        val_switch = get_unsorted(stats, type='switch1', sortby='time')
+        val_switch = get_sorted(stats, type='switch1', sortby='time')
         t_switch = [v[0] for v in val_switch]
+        print(t_switch)
         ax.axvline(x=t_switch[-1], linestyle='--', linewidth=0.8, color='r', label='Switch')
 
     if use_adaptivity:

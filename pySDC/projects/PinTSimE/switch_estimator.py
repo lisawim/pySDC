@@ -63,8 +63,7 @@ class SwitchEstimator(ConvergenceController):
         else:
             V_ref = np.array([L.prob.params.V_ref], dtype=float)
 
-        if S.status.iter == S.params.maxiter and self.count_switches < np.shape(V_ref)[0]:
-        # if S.status.iter > 0 and self.count_switches < np.shape(V_ref)[0]:
+        if S.status.iter > 0 and self.count_switches < np.shape(V_ref)[0]:
             for m in range(len(L.u)):
                 if L.u[m][self.count_switches + 1] - V_ref[self.count_switches] <= 0:
                     self.switch_detected = True

@@ -197,16 +197,16 @@ def check(cwd='./'):
     """
 
     V_ref = 1.0
-    dt_list = [1e-3] # [4e-1, 4e-2, 4e-3]
-    use_switch_estimator = [True] # [True, False]
-    use_adaptivity = [False] # [True, False]
+    dt_list = [1e-2, 1e-3, 1e-4]
+    use_switch_estimator = [True, False]
+    use_adaptivity = [True, False]
     restarts_true = []
     restarts_false_adapt = []
     restarts_true_adapt = []
 
-    problem_classes = [battery_implicit] # [battery, battery_implicit]
-    restolerances = [1e-15] # [1e-15, 5e-8]
-    sweeper_classes = [generic_implicit] # [imex_1st_order, generic_implicit]
+    problem_classes = [battery, battery_implicit]
+    restolerances = [1e-15, 5e-8]
+    sweeper_classes = [imex_1st_order, generic_implicit]
 
     for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
         Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
@@ -240,21 +240,21 @@ def check(cwd='./'):
                         elif use_SE and use_A:
                             restarts_true_adapt.append(np.sum(restarts_sorted))
 
-        # accuracy_check(dt_list, problem.__name__, sweeper.__name__, V_ref)
+        accuracy_check(dt_list, problem.__name__, sweeper.__name__, V_ref)
 
-        # differences_around_switch(
-        #    dt_list,
-        #    problem.__name__,
-        #    restarts_true,
-        #    restarts_false_adapt,
-        #    restarts_true_adapt,
-        #    sweeper.__name__,
-        #    V_ref,
-        #)
+        differences_around_switch(
+            dt_list,
+            problem.__name__,
+            restarts_true,
+            restarts_false_adapt,
+            restarts_true_adapt,
+            sweeper.__name__,
+            V_ref,
+        )
 
-        # differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref)
+        differences_over_time(dt_list, problem.__name__, sweeper.__name__, V_ref)
 
-        # iterations_over_time(dt_list, description['step_params']['maxiter'], problem.__name__, sweeper.__name__)
+        iterations_over_time(dt_list, description['step_params']['maxiter'], problem.__name__, sweeper.__name__)
 
         restarts_true = []
         restarts_false_adapt = []

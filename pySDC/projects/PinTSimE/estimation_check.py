@@ -288,8 +288,8 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
         stats_FT = dill.load(f4)
         f4.close()
 
-        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
-        t_switch_adapt = [v[0] for v in val_switch_TT]
+        val_switch_TT = get_sorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[1] for v in val_switch_TT]
         t_switch_adapt = t_switch_adapt[-1]
 
         dt_TT_val = get_sorted(stats_TT, type='dt', recomputed=False)
@@ -381,12 +381,12 @@ def differences_around_switch(dt_list, problem, restarts_true, restarts_false_ad
         stats_FT = dill.load(f4)
         f4.close()
 
-        val_switch_TF = get_unsorted(stats_TF, type='switch1', sortby='time')
-        t_switch = [v[0] for v in val_switch_TF]
+        val_switch_TF = get_sorted(stats_TF, type='switch1', sortby='time')
+        t_switch = [v[1] for v in val_switch_TF]
         t_switch = t_switch[-1]  # battery has only one single switch
 
-        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
-        t_switch_adapt = [v[0] for v in val_switch_TT]
+        val_switch_TT = get_sorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[1] for v in val_switch_TT]
         t_switch_adapt = t_switch_adapt[-1]
 
         vC_TF = get_sorted(stats_TF, type='voltage C', recomputed=False, sortby='time')
@@ -516,12 +516,12 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
         stats_FT = dill.load(f4)
         f4.close()
 
-        val_switch_TF = get_unsorted(stats_TF, type='switch1', sortby='time')
-        t_switch_TF = [v[0] for v in val_switch_TF]
+        val_switch_TF = get_sorted(stats_TF, type='switch1', sortby='time')
+        t_switch_TF = [v[1] for v in val_switch_TF]
         t_switch_TF = t_switch_TF[-1]  # battery has only one single switch
 
-        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
-        t_switch_adapt = [v[0] for v in val_switch_TT]
+        val_switch_TT = get_sorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[1] for v in val_switch_TT]
         t_switch_adapt = t_switch_adapt[-1]
 
         dt_FT = np.array(get_sorted(stats_FT, type='dt', recomputed=False, sortby='time'))
@@ -660,12 +660,12 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         times_FT.append([v[0] for v in iter_counts_FT_val])
         times_FF.append([v[0] for v in iter_counts_FF_val])
 
-        val_switch_TF = get_unsorted(stats_TF, type='switch1', sortby='time')
-        t_switch_TF = [v[0] for v in val_switch_TF]
+        val_switch_TF = get_sorted(stats_TF, type='switch1', sortby='time')
+        t_switch_TF = [v[1] for v in val_switch_TF]
         t_switches_TF.append(t_switch_TF[-1])
 
-        val_switch_TT = get_unsorted(stats_TT, type='switch1', sortby='time')
-        t_switch_adapt = [v[0] for v in val_switch_TT]
+        val_switch_TT = get_sorted(stats_TT, type='switch1', sortby='time')
+        t_switch_adapt = [v[1] for v in val_switch_TT]
         t_switches_adapt.append(t_switch_adapt[-1])
 
     if len(dt_list) > 1:

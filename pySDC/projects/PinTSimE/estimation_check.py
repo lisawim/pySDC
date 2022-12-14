@@ -77,7 +77,7 @@ class log_data(hooks):
         )
 
 
-def run(dt, problem, restol, sweeper, use_switch_estimator, use_adaptivity, V_ref):
+def run(dt, problem, sweeper, use_switch_estimator, use_adaptivity, V_ref):
     """
     A simple test program to do SDC/PFASST runs for the battery drain model
     """
@@ -205,10 +205,9 @@ def check(cwd='./'):
     restarts_true_adapt = []
 
     problem_classes = [battery, battery_implicit]
-    restolerances = [1e-15, 5e-8]
     sweeper_classes = [imex_1st_order, generic_implicit]
 
-    for problem, restol, sweeper in zip(problem_classes, restolerances, sweeper_classes):
+    for problem, sweeper in zip(problem_classes, sweeper_classes):
         Path("data/{}".format(problem.__name__)).mkdir(parents=True, exist_ok=True)
         for dt_item in dt_list:
             for use_SE in use_switch_estimator:
@@ -216,7 +215,6 @@ def check(cwd='./'):
                     description, stats = run(
                         dt=dt_item,
                         problem=problem,
-                        restol=restol,
                         sweeper=sweeper,
                         use_switch_estimator=use_SE,
                         use_adaptivity=use_A,

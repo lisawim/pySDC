@@ -32,7 +32,7 @@ def run(dt, problem, sweeper, use_switch_estimator, use_adaptivity, V_ref):
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
     # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
-    sweeper_params['initial_guess'] = 'zero'
+    sweeper_params['initial_guess'] = 'spread'  # 'zero'
 
     # initialize problem parameters
     problem_params = dict()
@@ -104,13 +104,13 @@ def run(dt, problem, sweeper, use_switch_estimator, use_adaptivity, V_ref):
     f.close()
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', recomputed=False, sortby='time')
+    iter_counts = get_sorted(stats, type='niter', sortby='time')
 
     # compute and print statistics
     f = open('data/battery_out.txt', 'w')
     niters = np.array([item[1] for item in iter_counts])
 
-    assert np.mean(niters) <= 11, "Mean number of iterations is too high, got %s" % np.mean(niters)
+    assert np.mean(niters) <= 4, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
 
     return description, stats
@@ -122,7 +122,7 @@ def check(cwd='./'):
     """
 
     V_ref = 1.0
-    dt_list = [1e-2, 1e-3]
+    dt_list = [1e-2, 1e-3, 1e-4]
     use_switch_estimator = [True, False]
     use_adaptivity = [True, False]
     restarts_true = []
@@ -227,13 +227,14 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
         e_emb_FT = [v[1] for v in e_emb_FT_val]
 
         if len(dt_list) > 1:
-            ax_acc[count_ax].set_title(r'$\Delta t$={}'.format(dt_item))
-            dt1 = ax_acc[count_ax].plot([v[0] for v in dt_TT_val], [v[1] for v in dt_TT_val], 'ko-', label=r'SE+A - $\Delta t$')
-            dt2 = ax_acc[count_ax].plot([v[0] for v in dt_FT_val], [v[1] for v in dt_FT_val], 'g-', label=r'A - $\Delta t$')
+            ax_acc[count_ax].set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
+            dt1 = ax_acc[count_ax].plot([v[0] for v in dt_TT_val], [v[1] for v in dt_TT_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$')
+            dt2 = ax_acc[count_ax].plot([v[0] for v in dt_FT_val], [v[1] for v in dt_FT_val], 'g-', label=r'A - $\Delta t_\mathrm{adapt}$')
             ax_acc[count_ax].axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
+            ax_acc[count_ax].tick_params(axis='both', which='major', labelsize=6)
             ax_acc[count_ax].set_xlabel('Time', fontsize=6)
             if count_ax == 0:
-                ax_acc[count_ax].set_ylabel(r'$\Delta t_{adapted}$', fontsize=6)
+                ax_acc[count_ax].set_ylabel(r'$\Delta t_\mathrm{adapt}$', fontsize=6)
 
             e_ax = ax_acc[count_ax].twinx()
             e_plt1 = e_ax.plot(times_TT, e_emb_TT, 'k--', label=r'SE+A - $\epsilon_{emb}$')
@@ -245,15 +246,15 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
             lines = dt1 + e_plt1 + dt2 + e_plt2
             labels = [l.get_label() for l in lines]
 
-            ax_acc[count_ax].legend(lines, labels, frameon=False, fontsize=6, loc='upper left')
+            ax_acc[count_ax].legend(lines, labels, frameon=False, fontsize=6, loc='upper right')
 
         else:
-            ax_acc.set_title(r'$\Delta t$={}'.format(dt_item))
-            dt1 = ax_acc.plot([v[0] for v in dt_TT_val], [v[1] for v in dt_TT_val], 'ko-', label=r'SE+A - $\Delta t$')
-            dt2 = ax_acc.plot([v[0] for v in dt_FT_val], [v[1] for v in dt_FT_val], 'go-', label=r'A - $\Delta t$')
+            ax_acc.set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
+            dt1 = ax_acc.plot([v[0] for v in dt_TT_val], [v[1] for v in dt_TT_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$')
+            dt2 = ax_acc.plot([v[0] for v in dt_FT_val], [v[1] for v in dt_FT_val], 'go-', label=r'A - $\Delta t_\mathrm{adapt}$')
             ax_acc.axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
             ax_acc.set_xlabel('Time', fontsize=6)
-            ax_acc.set_ylabel(r'$Delta t_{adapted}$', fontsize=6)
+            ax_acc.set_ylabel(r'$Delta t_\mathrm{adapt}$', fontsize=6)
 
             e_ax = ax_acc.twinx()
             e_plt1 = e_ax.plot(times_TT, e_emb_TT, 'k--', label=r'SE+A - $\epsilon_{emb}$')
@@ -264,7 +265,7 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
             lines = dt1 + e_plt1 + dt2 + e_plt2
             labels = [l.get_label() for l in lines]
 
-            ax_acc.legend(lines, labels, frameon=False, fontsize=6, loc='upper left')
+            ax_acc.legend(lines, labels, frameon=False, fontsize=6, loc='upper right')
 
         count_ax += 1
 
@@ -351,6 +352,7 @@ def differences_around_switch(dt_list, problem, restarts_true, restarts_false_ad
     pos13 = ax_around[0].plot(dt_list, diffs_true_at, 'ko--', label='at switch')
     ax_around[0].set_xticks(dt_list)
     ax_around[0].set_xticklabels(dt_list)
+    ax_around[0].tick_params(axis='both', which='major', labelsize=6)
     ax_around[0].set_xscale('log', base=10)
     ax_around[0].set_yscale('symlog', linthresh=1e-8)
     ax_around[0].set_ylim(-1, 1)
@@ -370,6 +372,7 @@ def differences_around_switch(dt_list, problem, restarts_true, restarts_false_ad
     pos22 = ax_around[1].plot(dt_list, diffs_false_after_adapt, 'bd--', label='after switch')
     ax_around[1].set_xticks(dt_list)
     ax_around[1].set_xticklabels(dt_list)
+    ax_around[1].tick_params(axis='both', which='major', labelsize=6)
     ax_around[1].set_xscale('log', base=10)
     ax_around[1].set_yscale('symlog', linthresh=1e-8)
     ax_around[1].set_ylim(-1, 1)
@@ -389,6 +392,7 @@ def differences_around_switch(dt_list, problem, restarts_true, restarts_false_ad
     pos33 = ax_around[2].plot(dt_list, diffs_true_at_adapt, 'ko--', label='at switch')
     ax_around[2].set_xticks(dt_list)
     ax_around[2].set_xticklabels(dt_list)
+    ax_around[2].tick_params(axis='both', which='major', labelsize=6)
     ax_around[2].set_xscale('log', base=10)
     ax_around[2].set_yscale('symlog', linthresh=1e-8)
     ax_around[2].set_ylim(-1, 1)
@@ -402,7 +406,7 @@ def differences_around_switch(dt_list, problem, restarts_true, restarts_false_ad
     labels = [l.get_label() for l in lines]
     ax_around[2].legend(frameon=False, fontsize=6, loc='lower right')
 
-    fig_around.savefig('data/diffs_estimation_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
+    fig_around.savefig('data/diffs_around_switch_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_around)
 
 
@@ -473,6 +477,7 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             ax_diffs[0, count_ax].axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
             ax_diffs[0, count_ax].legend(frameon=False, fontsize=6, loc='lower left')
             ax_diffs[0, count_ax].set_yscale('symlog', linthresh=1e-5)
+            ax_diffs[0, count_ax].tick_params(axis='both', which='major', labelsize=6)
             if count_ax == 0:
                 ax_diffs[0, count_ax].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
 
@@ -497,8 +502,9 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
                     ax_diffs[1, count_ax].axvline(restart_TT[i, 0], color='black', linestyle='-.')
 
             ax_diffs[1, count_ax].set_xlabel('Time', fontsize=6)
+            ax_diffs[1, count_ax].tick_params(axis='both', which='major', labelsize=6)
             if count_ax == 0:
-                ax_diffs[1, count_ax].set_ylabel(r'$\Delta t_{adapted}$', fontsize=6)
+                ax_diffs[1, count_ax].set_ylabel(r'$\Delta t_\mathrm{adapted}$', fontsize=6)
 
             ax_diffs[1, count_ax].legend(frameon=True, fontsize=6, loc='upper left')
 
@@ -509,22 +515,23 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             ax_diffs[0].plot(times_FT, diff_FT, label='SE=False, A=True', color='red', linestyle='--')
             ax_diffs[0].plot(times_TT, diff_TT, label='SE=True, A=True', color='limegreen', linestyle='-.')
             ax_diffs[0].axvline(x=t_switch_TF, linestyle='--', linewidth=0.5, color='k', label='Switch')
-            ax_diffs[0].legend(frameon=False, fontsize=6, loc='lower left')
+            ax_diffs[0].tick_params(axis='both', which='major', labelsize=6)
             ax_diffs[0].set_yscale('symlog', linthresh=1e-5)
             ax_diffs[0].set_ylabel('Difference $v_{C}-V_{ref}$', fontsize=6)
             ax_diffs[0].legend(frameon=False, fontsize=6, loc='center right')
 
             ax_diffs[1].plot(dt_FT[:, 0], dt_FT[:, 1], label='SE=False, A=True', color='red', linestyle='--')
             ax_diffs[1].plot(dt_TT[:, 0], dt_TT[:, 1], label='SE=True, A=True', color='limegreen', linestyle='-.')
+            ax_diffs[1].tick_params(axis='both', which='major', labelsize=6)
             ax_diffs[1].set_xlabel('Time', fontsize=6)
-            ax_diffs[1].set_ylabel(r'$\Delta t_{adapted}$', fontsize=6)
+            ax_diffs[1].set_ylabel(r'$\Delta t_ \mathrm{adapted}$', fontsize=6)
 
             ax_diffs[1].legend(frameon=False, fontsize=6, loc='upper right')
 
         count_ax += 1
 
     plt_helper.plt.tight_layout()
-    fig_diffs.savefig('data/difference_estimation_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
+    fig_diffs.savefig('data/diffs_over_time_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_diffs)
 
 def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
@@ -594,11 +601,10 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
             ax_iter_all[col].plot(times_TT[col], iters_time_TT[col], '--', label='SE=T, A=T')
             ax_iter_all[col].plot(times_FT[col], iters_time_FT[col], '--', label='SE=F, A=T')
             ax_iter_all[col].axvline(x=t_switches_TF[col], linestyle='--', linewidth=0.5, color='k', label='Switch')
-            if t_switches_adapt[col] != t_switches_TF[col]:
-                ax_iter_all[col].axvline(x=t_switches_adapt[col], linestyle='--', linewidth=0.5, color='k', label='Switch')
-            ax_iter_all[col].set_title('dt={}'.format(dt_list[col]))
+            ax_iter_all[col].set_title(r'$\Delta t_\mathrm{{initial}}={dt}$'.format(initial='initial', dt=dt_list[col]))
             ax_iter_all[col].set_ylim(0, maxiter + 2)
             ax_iter_all[col].set_xlabel('Time', fontsize=6)
+            ax_iter_all[col].tick_params(axis='both', which='major', labelsize=6)
 
             if col == 0:
                 ax_iter_all[col].set_ylabel('Number iterations', fontsize=6)
@@ -615,11 +621,10 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         ax_iter_all.plot(times_TT[0], iters_time_TT[0], '--', label='SE=T, A=T')
         ax_iter_all.plot(times_FT[0], iters_time_FT[0], '--', label='SE=F, A=T')
         ax_iter_all.axvline(x=t_switches_TF[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
-        if t_switches_adapt[0] != t_switches_TF[0]:
-            ax_iter_all.axvline(x=t_switches_adapt[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
-        ax_iter_all.set_title('dt={}'.format(dt_list[0]))
+        ax_iter_all.set_title(r'$\Delta t_\mathrm{{initial}}={dt}$'.format(initial='initial', dt=dt_list[0]))
         ax_iter_all.set_ylim(0, maxiter + 2)
         ax_iter_all.set_xlabel('Time', fontsize=6)
+        ax_iter_all.tick_params(axis='both', which='major', labelsize=6)
 
         ax_iter_all.set_ylabel('Number iterations', fontsize=6)
         ax_iter_all.legend(frameon=False, fontsize=6, loc='upper right')

@@ -113,7 +113,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
 
     if use_adaptivity:
         adaptivity_params = dict()
-        adaptivity_params['e_tol'] = 1e-12
+        adaptivity_params['e_tol'] = 1e-7
         convergence_controllers.update({Adaptivity: adaptivity_params})
 
     # fill description dictionary for easy step instantiation
@@ -145,7 +145,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', recomputed=False, sortby='time')
+    iter_counts = get_sorted(stats, type='niter', sortby='time')
 
     # compute and print statistics
     min_iter = 20
@@ -169,7 +169,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
 
-    assert np.mean(niters) <= 5, "Mean number of iterations is too high, got %s" % np.mean(niters)
+    assert np.mean(niters) <= 4, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
 
     return description

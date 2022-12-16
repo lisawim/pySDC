@@ -27,7 +27,7 @@ def run(dt, use_switch_estimator=True):
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
     sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
-    sweeper_params['initial_guess'] = 'zero'
+    sweeper_params['initial_guess'] = 'spread'
 
     # initialize problem parameters
     problem_params = dict()

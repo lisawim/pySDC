@@ -79,7 +79,7 @@ def main(use_switch_estimator=True):
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
     sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
-    sweeper_params['initial_guess'] = 'zero'
+    sweeper_params['initial_guess'] = 'spread'
 
     # initialize problem parameters
     problem_params = dict()
@@ -96,7 +96,7 @@ def main(use_switch_estimator=True):
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 20
+    step_params['maxiter'] = 10
 
     # initialize controller parameters
     controller_params = dict()
@@ -151,7 +151,7 @@ def main(use_switch_estimator=True):
     min_iter = 20
     max_iter = 0
 
-    f = open('battery_2condensators_out.txt', 'w')
+    f = open('data/battery_2condensators_out.txt', 'w')
     niters = np.array([item[1] for item in iter_counts])
     out = '   Mean number of iterations: %4.2f' % np.mean(niters)
     f.write(out + '\n')
@@ -162,9 +162,6 @@ def main(use_switch_estimator=True):
         # print(out)
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
-
-    restarts = np.array(get_sorted(stats, type='restart', recomputed=False))[:, 1]
-    print("Restarts for dt: ", level_params['dt'], " -- ", np.sum(restarts))
 
     assert np.mean(niters) <= 10, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()

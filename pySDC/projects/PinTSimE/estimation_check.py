@@ -567,10 +567,10 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         stats_FT = dill.load(f4)
         f4.close()
 
-        iter_counts_TF_val = get_sorted(stats_TF, type='niter', recomputed=False, sortby='time')
-        iter_counts_TT_val = get_sorted(stats_TT, type='niter', recomputed=False, sortby='time')
-        iter_counts_FT_val = get_sorted(stats_FT, type='niter', recomputed=False, sortby='time')
-        iter_counts_FF_val = get_sorted(stats_FF, type='niter', recomputed=False, sortby='time')
+        iter_counts_TF_val = get_sorted(stats_TF, type='niter', sortby='time')
+        iter_counts_TT_val = get_sorted(stats_TT, type='niter', sortby='time')
+        iter_counts_FT_val = get_sorted(stats_FT, type='niter', sortby='time')
+        iter_counts_FF_val = get_sorted(stats_FF, type='niter', sortby='time')
 
         iters_time_TF.append([v[1] for v in iter_counts_TF_val])
         iters_time_TT.append([v[1] for v in iter_counts_TT_val])

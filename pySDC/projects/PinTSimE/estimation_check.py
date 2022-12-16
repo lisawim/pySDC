@@ -66,7 +66,7 @@ def run(dt, problem, sweeper, use_switch_estimator, use_adaptivity, V_ref):
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 15
     controller_params['hook_class'] = log_data
     controller_params['mssdc_jac'] = False
 
@@ -274,7 +274,7 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
             ax_acc.set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
             dt1 = ax_acc.plot([v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$')
             dt2 = ax_acc.plot([v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'go-', label=r'A - $\Delta t_\mathrm{adapt}$')
-            ax_acc.axvline(x=t_switch_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
+            ax_acc.axvline(x=t_switch_SE_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
             ax_acc.set_xlabel('Time', fontsize=6)
             ax_acc.set_ylabel(r'$Delta t_\mathrm{adapt}$', fontsize=6)
 
@@ -666,7 +666,7 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         ax_iter_all.plot(times_SE[0], iters_time_SE[0], label='SE=True')
         ax_iter_all.plot(times_SE_adapt[0], iters_time_SE_adapt[0], '--', label='SE=T, A=T')
         ax_iter_all.plot(times_adapt[0], iters_time_adapt[0], '--', label='SE=F, A=T')
-        ax_iter_all.axvline(x=t_switches_TF[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
+        ax_iter_all.axvline(x=t_switches_SE[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
         ax_iter_all.set_title(r'$\Delta t_\mathrm{{initial}}={dt}$'.format(initial='initial', dt=dt_list[0]))
         ax_iter_all.set_ylim(0, maxiter + 2)
         ax_iter_all.set_xlabel('Time', fontsize=6)

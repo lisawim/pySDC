@@ -88,11 +88,11 @@ class SwitchEstimator(ConvergenceController):
                         tol = self.dt_initial / r
 
                         if not np.isclose(self.t_switch - L.time, L.dt, atol=tol):
-                            dt_search = self.t_switch - L.time
+                            dt_switch = self.t_switch - L.time
 
                         else:
-                            print('Switch located at time: {}'.format(self.t_switch))
-                            dt_search = self.t_switch - L.time
+                            self.log(f"Switch located at time {self.t_switch:.6f}", S)
+                            dt_switch = self.t_switch - L.time
                             L.prob.params.set_switch[self.count_switches] = self.switch_detected
                             L.prob.params.t_switch[self.count_switches] = self.t_switch
                             controller.hooks.add_to_stats(
@@ -111,10 +111,10 @@ class SwitchEstimator(ConvergenceController):
 
                         # when a switch is found, time step to match with switch should be preferred
                         if self.switch_detected:
-                            L.status.dt_new = dt_search
+                            L.status.dt_new = dt_switch
 
                         else:
-                            L.status.dt_new = min([dt_planned, dt_search])
+                            L.status.dt_new = min([dt_planned, dt_switch])
 
                     else:
                         self.switch_detected = False
@@ -135,7 +135,6 @@ class SwitchEstimator(ConvergenceController):
         """
 
         if self.switch_detected:
-            print("Restart")
             S.status.restart = True
             S.status.force_done = True
 

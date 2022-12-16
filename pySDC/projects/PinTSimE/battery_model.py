@@ -67,6 +67,17 @@ class log_data(hooks):
 def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     """
     A simple test program to do SDC/PFASST runs for the battery drain model
+
+    Args:
+        Args:
+        dt (np.float): (initial) time step
+        problem (problem_class): the considered problem class (here: battery or battery_implicit)
+        sweeper (sweeper_class): the used sweeper class to solve (here: imex_1st_order or generic_implicit)
+        use_switch_estimator (bool): Switch estimator should be used or not
+        use_adaptivity (bool): Adaptivity should be used or not
+
+    Returns:
+        description (dict): contains all the information for the controller
     """
 
     # initialize level parameters
@@ -79,7 +90,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
     # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
-    sweeper_params['initial_guess'] = 'zero'
+    sweeper_params['initial_guess'] = 'spread'
 
     # initialize problem parameters
     problem_params = dict()
@@ -204,6 +215,14 @@ def run():
 def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adaptivity, cwd='./'):
     """
     Routine to plot the numerical solution of the model
+
+    Args:
+        description (dict): contains all the information for the controller
+        problem (problem.__name__): the considered problem class (the class name)
+        sweeper (sweeper.__name__): the sweeper used to solve (the class name)
+        use_switch_estimator (bool): Switch estimator should be used or not
+        use_adaptivity (bool): Adaptivity should be used or not
+        cwd: current working directory
     """
 
     f = open(cwd + 'data/battery_{}_USE{}_USA{}.dat'.format(sweeper, use_switch_estimator, use_adaptivity), 'rb')
@@ -245,18 +264,21 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adapt
     plt_helper.plt.close(fig)
 
 
-def proof_assertions_description(description, problem_params):
+def proof_assertions_description(description):
     """
     Function to proof the assertions (function to get cleaner code)
+
+    Args:
+        description (dict): contains all the information for the controller
     """
 
-    assert problem_params['alpha'] > problem_params['V_ref'], 'Please set "alpha" greater than "V_ref"'
-    assert problem_params['V_ref'] > 0, 'Please set "V_ref" greater than 0'
-    assert type(problem_params['V_ref']) == float, '"V_ref" needs to be of type float'
+    assert description['problem_params']['alpha'] > description['problem_params']['V_ref'], 'Please set "alpha" greater than "V_ref"'
+    assert description['problem_params']['V_ref'] > 0, 'Please set "V_ref" greater than 0'
+    assert type(description['problem_params']['V_ref']) == float, '"V_ref" needs to be of type float'
 
-    assert type(problem_params['set_switch'][0]) == np.bool_, '"set_switch" has to be an bool array'
-    assert type(problem_params['t_switch']) == np.ndarray, '"t_switch" has to be an array'
-    assert problem_params['t_switch'][0] == 0, '"t_switch" is only allowed to have entry zero'
+    assert type(description['problem_params']['set_switch'][0]) == np.bool_, '"set_switch" has to be an bool array'
+    assert type(description['problem_params']['t_switch']) == np.ndarray, '"t_switch" has to be an array'
+    assert description['problem_params']['t_switch'] == 0, '"t_switch" is only allowed to have entry zero'
 
     assert 'errtol' not in description['step_params'].keys(), 'No exact solution known to compute error'
     assert 'alpha' in description['problem_params'].keys(), 'Please supply "alpha" in the problem parameters'

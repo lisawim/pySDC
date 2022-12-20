@@ -2,7 +2,7 @@ import numpy as np
 import dill
 from pathlib import Path
 
-from pySDC.helpers.stats_helper import get_sorted
+from pySDC.helpers.stats_helper import sort_stats, filter_stats, get_sorted
 from pySDC.core.Collocation import CollBase as Collocation
 from pySDC.implementations.problem_classes.Battery import battery, battery_implicit
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
@@ -112,7 +112,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 15
     controller_params['hook_class'] = log_data
     controller_params['mssdc_jac'] = False
 
@@ -139,7 +139,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     if use_switch_estimator or use_adaptivity:
         description['convergence_controllers'] = convergence_controllers
 
-    proof_assertions_description(description, problem_params)
+    proof_assertions_description(description)
 
     # set time parameters
     t0 = 0.0
@@ -156,7 +156,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', sortby='time')
+    iter_counts = get_sorted(stats, type='niter', recomputed=False, sortby='time')
 
     # compute and print statistics
     min_iter = 20
@@ -242,7 +242,7 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adapt
     ax.plot(times, [v[1] for v in vC], label=r'$v_C$')
 
     if use_switch_estimator:
-        val_switch = get_sorted(stats, type='switch1', sortby='time')
+        val_switch = get_recomputed(stats, type='switch1', sortby='time')
         t_switch = [v[1] for v in val_switch]
         ax.axvline(x=t_switch[-1], linestyle='--', linewidth=0.8, color='r', label='Switch')
 
@@ -283,6 +283,27 @@ def proof_assertions_description(description):
     assert 'errtol' not in description['step_params'].keys(), 'No exact solution known to compute error'
     assert 'alpha' in description['problem_params'].keys(), 'Please supply "alpha" in the problem parameters'
     assert 'V_ref' in description['problem_params'].keys(), 'Please supply "V_ref" in the problem parameters'
+
+def get_recomputed(stats, type, sortby):
+    """
+    Function that filters statistics after a recomputation
+
+    Args:
+        stats (dict): Raw statistics from a controller run
+        type (str): the type the be filtered
+        sortby (str): string to specify which key to use for sorting
+
+    Returns:
+        sorted_list (list): list of filtered statistics
+    """
+
+    sorted_nested_list = []
+    times_unique = np.unique([me[0] for me in get_sorted(stats, type=type)])
+    filtered_list = [filter_stats(stats, time=t_unique, num_restarts=max([me.num_restarts for me in filter_stats(stats, type=type, time=t_unique).keys()]), type=type) for t_unique in times_unique]
+    for item in filtered_list:
+        sorted_nested_list.append(sort_stats(item, sortby=sortby))
+    sorted_list = [item for sub_item in sorted_nested_list for item in sub_item]
+    return sorted_list
 
 
 if __name__ == "__main__":

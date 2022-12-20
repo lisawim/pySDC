@@ -9,7 +9,7 @@ from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
-from pySDC.projects.PinTSimE.battery_model import log_data, proof_assertions_description
+from pySDC.projects.PinTSimE.battery_model import get_recomputed, log_data, proof_assertions_description
 import pySDC.helpers.plot_helper as plt_helper
 
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
@@ -116,7 +116,7 @@ def run(dt, problem, sweeper, use_switch_estimator, use_adaptivity, V_ref):
     f.close()
 
     # filter statistics by number of iterations
-    iter_counts = get_sorted(stats, type='niter', sortby='time')
+    iter_counts = get_sorted(stats, type='niter', recomputed=False, sortby='time')
 
     # compute and print statistics
     f = open('data/battery_out.txt', 'w')
@@ -232,7 +232,7 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
         stats_adapt = dill.load(f4)
         f4.close()
 
-        val_switch_SE_adapt = get_sorted(stats_SE_adapt, type='switch1', sortby='time')
+        val_switch_SE_adapt = get_recomputed(stats_SE_adapt, type='switch1', sortby='time')
         t_switch_SE_adapt = [v[1] for v in val_switch_SE_adapt]
         t_switch_SE_adapt = t_switch_SE_adapt[-1]
 
@@ -275,6 +275,7 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
             dt1 = ax_acc.plot([v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$')
             dt2 = ax_acc.plot([v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'go-', label=r'A - $\Delta t_\mathrm{adapt}$')
             ax_acc.axvline(x=t_switch_SE_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
+            ax_acc.tick_params(axis='both', which='major', labelsize=6)
             ax_acc.set_xlabel('Time', fontsize=6)
             ax_acc.set_ylabel(r'$Delta t_\mathrm{adapt}$', fontsize=6)
 
@@ -337,11 +338,11 @@ def differences_around_switch(dt_list, problem, restarts_SE, restarts_adapt, res
         stats_adapt = dill.load(f4)
         f4.close()
 
-        val_switch_SE = get_sorted(stats_SE, type='switch1', sortby='time')
+        val_switch_SE = get_recomputed(stats_SE, type='switch1', sortby='time')
         t_switch = [v[1] for v in val_switch_SE]
         t_switch = t_switch[-1]  # battery has only one single switch
 
-        val_switch_SE_adapt = get_sorted(stats_SE_adapt, type='switch1', sortby='time')
+        val_switch_SE_adapt = get_recomputed(stats_SE_adapt, type='switch1', sortby='time')
         t_switch_SE_adapt = [v[1] for v in val_switch_SE_adapt]
         t_switch_SE_adapt = t_switch_SE_adapt[-1]
 
@@ -388,7 +389,7 @@ def differences_around_switch(dt_list, problem, restarts_SE, restarts_adapt, res
     ax_around[0].set_xscale('log', base=10)
     ax_around[0].set_yscale('symlog', linthresh=1e-8)
     ax_around[0].set_ylim(-1, 1)
-    ax_around[0].set_xlabel(r'$\Delta t$', fontsize=6)
+    ax_around[0].set_xlabel(r'$\Delta t_\mathrm{initial}$', fontsize=6)
     ax_around[0].set_ylabel(r'$v_{C}-V_{ref}$', fontsize=6)
 
     restart_ax0 = ax_around[0].twinx()
@@ -408,7 +409,7 @@ def differences_around_switch(dt_list, problem, restarts_SE, restarts_adapt, res
     ax_around[1].set_xscale('log', base=10)
     ax_around[1].set_yscale('symlog', linthresh=1e-8)
     ax_around[1].set_ylim(-1, 1)
-    ax_around[1].set_xlabel(r'$\Delta t$', fontsize=6)
+    ax_around[1].set_xlabel(r'$\Delta t_\mathrm{initial}$', fontsize=6)
 
     restart_ax1 = ax_around[1].twinx()
     restarts_plt1 = restart_ax1.plot(dt_list, restarts_adapt, 'cs--', label='Restarts')
@@ -428,7 +429,7 @@ def differences_around_switch(dt_list, problem, restarts_SE, restarts_adapt, res
     ax_around[2].set_xscale('log', base=10)
     ax_around[2].set_yscale('symlog', linthresh=1e-8)
     ax_around[2].set_ylim(-1, 1)
-    ax_around[2].set_xlabel(r'$\Delta t$', fontsize=6)
+    ax_around[2].set_xlabel(r'$\Delta t_\mathrm{initial}$', fontsize=6)
 
     restart_ax2 = ax_around[2].twinx()
     restarts_plt2 = restart_ax2.plot(dt_list, restarts_SE_adapt, 'cs--', label='Restarts')
@@ -457,12 +458,12 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     if len(dt_list) > 1:
         setup_mpl()
         fig_diffs, ax_diffs = plt_helper.plt.subplots(
-            2, len(dt_list), figsize=(3 * len(dt_list), 4), sharex='col', sharey='row'
+            2, len(dt_list), figsize=(4 * len(dt_list), 6), sharex='col', sharey='row'
         )
 
     else:
         setup_mpl()
-        fig_diffs, ax_diffs = plt_helper.plt.subplots(2, 1, figsize=(3, 3))
+        fig_diffs, ax_diffs = plt_helper.plt.subplots(2, 1, figsize=(4, 6))
 
     count_ax = 0
     for dt_item in dt_list:
@@ -482,11 +483,11 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
         stats_adapt = dill.load(f4)
         f4.close()
 
-        val_switch_SE = get_sorted(stats_SE, type='switch1', sortby='time')
+        val_switch_SE = get_recomputed(stats_SE, type='switch1', sortby='time')
         t_switch_SE = [v[1] for v in val_switch_SE]
         t_switch_SE = t_switch_SE[-1]  # battery has only one single switch
 
-        val_switch_SE_adapt = get_sorted(stats_SE_adapt, type='switch1', sortby='time')
+        val_switch_SE_adapt = get_recomputed(stats_SE_adapt, type='switch1', sortby='time')
         t_switch_SE_adapt = [v[1] for v in val_switch_SE_adapt]
         t_switch_SE_adapt = t_switch_SE_adapt[-1]
 
@@ -545,7 +546,8 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             if count_ax == 0:
                 ax_diffs[1, count_ax].set_ylabel(r'$\Delta t_\mathrm{adapted}$', fontsize=6)
 
-            ax_diffs[1, count_ax].legend(frameon=True, fontsize=6, loc='upper left')
+            ax_diffs[1,	count_ax].set_yscale('log', base=10)
+            ax_diffs[1, count_ax].legend(frameon=True, fontsize=6, loc='lower left')
 
         else:
             ax_diffs[0].set_title(r'$\Delta t$={}'.format(dt_item))
@@ -563,7 +565,8 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             ax_diffs[1].plot(dt_SE_adapt[:, 0], dt_SE_adapt[:, 1], label='SE=True, A=True', color='limegreen', linestyle='-.')
             ax_diffs[1].tick_params(axis='both', which='major', labelsize=6)
             ax_diffs[1].set_xlabel('Time', fontsize=6)
-            ax_diffs[1].set_ylabel(r'$\Delta t_ \mathrm{adapted}$', fontsize=6)
+            ax_diffs[1].set_ylabel(r'$\Delta t_\mathrm{adapted}$', fontsize=6)
+            ax_diffs[1].set_yscale('log', base=10)
 
             ax_diffs[1].legend(frameon=False, fontsize=6, loc='upper right')
 
@@ -613,6 +616,7 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         stats_adapt = dill.load(f4)
         f4.close()
 
+        # consider iterations before restarts to see what happens
         iter_counts_SE_val = get_sorted(stats_SE, type='niter', sortby='time')
         iter_counts_SE_adapt_val = get_sorted(stats_SE_adapt, type='niter', sortby='time')
         iter_counts_adapt_val = get_sorted(stats_adapt, type='niter', sortby='time')
@@ -628,11 +632,11 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         times_adapt.append([v[0] for v in iter_counts_adapt_val])
         times.append([v[0] for v in iter_counts_val])
 
-        val_switch_SE = get_sorted(stats_SE, type='switch1', sortby='time')
+        val_switch_SE = get_recomputed(stats_SE, type='switch1', sortby='time')
         t_switch_SE = [v[1] for v in val_switch_SE]
         t_switches_SE.append(t_switch_SE[-1])
 
-        val_switch_SE_adapt = get_sorted(stats_SE_adapt, type='switch1', sortby='time')
+        val_switch_SE_adapt = get_recomputed(stats_SE_adapt, type='switch1', sortby='time')
         t_switch_SE_adapt = [v[1] for v in val_switch_SE_adapt]
         t_switches_SE_adapt.append(t_switch_SE_adapt[-1])
 

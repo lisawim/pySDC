@@ -218,9 +218,7 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
 
     else:
         setup_mpl()
-        fig_acc, ax_acc = plt_helper.plt.subplots(
-            1, 1, figsize=(3, 3), sharex='col', sharey='row'
-        )
+        fig_acc, ax_acc = plt_helper.plt.subplots(1, 1, figsize=(3, 3), sharex='col', sharey='row')
 
     count_ax = 0
     for dt_item in dt_list:
@@ -250,8 +248,12 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
 
         if len(dt_list) > 1:
             ax_acc[count_ax].set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
-            dt1 = ax_acc[count_ax].plot([v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$')
-            dt2 = ax_acc[count_ax].plot([v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'g-', label=r'A - $\Delta t_\mathrm{adapt}$')
+            dt1 = ax_acc[count_ax].plot(
+                [v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$'
+            )
+            dt2 = ax_acc[count_ax].plot(
+                [v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'g-', label=r'A - $\Delta t_\mathrm{adapt}$'
+            )
             ax_acc[count_ax].axvline(x=t_switch_SE_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
             ax_acc[count_ax].tick_params(axis='both', which='major', labelsize=6)
             ax_acc[count_ax].set_xlabel('Time', fontsize=6)
@@ -272,8 +274,12 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
 
         else:
             ax_acc.set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
-            dt1 = ax_acc.plot([v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$')
-            dt2 = ax_acc.plot([v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'go-', label=r'A - $\Delta t_\mathrm{adapt}$')
+            dt1 = ax_acc.plot(
+                [v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$'
+            )
+            dt2 = ax_acc.plot(
+                [v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'go-', label=r'A - $\Delta t_\mathrm{adapt}$'
+            )
             ax_acc.axvline(x=t_switch_SE_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
             ax_acc.tick_params(axis='both', which='major', labelsize=6)
             ax_acc.set_xlabel('Time', fontsize=6)
@@ -296,7 +302,9 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
     plt_helper.plt.close(fig_acc)
 
 
-def differences_around_switch(dt_list, problem, restarts_SE, restarts_adapt, restarts_SE_adapt, sweeper, V_ref, cwd='./'):
+def differences_around_switch(
+    dt_list, problem, restarts_true, restarts_false_adapt, restarts_true_adapt, sweeper, V_ref, cwd='./'
+):
     """
     Routine to plot the differences before, at, and after the switch. Produces the diffs_estimation_<sweeper_class>.png file
 
@@ -527,14 +535,18 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             else:
                 ax_diffs[0, count_ax].legend(frameon=False, fontsize=6, loc='upper right')
 
-            ax_diffs[1, count_ax].plot(dt_adapt[:, 0], dt_adapt[:, 1], label=r'$\Delta t$ - SE=F, A=T', color='red', linestyle='--')
+            ax_diffs[1, count_ax].plot(
+                dt_adapt[:, 0], dt_adapt[:, 1], label=r'$\Delta t$ - SE=F, A=T', color='red', linestyle='--'
+            )
             ax_diffs[1, count_ax].plot([None], [None], label='Restart - SE=F, A=T', color='grey', linestyle='-.')
 
             for i in range(len(restart_adapt)):
                 if restart_adapt[i, 1] > 0:
                     ax_diffs[1, count_ax].axvline(restart_adapt[i, 0], color='grey', linestyle='-.')
 
-            ax_diffs[1, count_ax].plot(dt_SE_adapt[:, 0], dt_SE_adapt[:, 1], label=r'$ \Delta t$ - SE=T, A=T', color='limegreen', linestyle='-.')
+            ax_diffs[1, count_ax].plot(
+                dt_SE_adapt[:, 0], dt_SE_adapt[:, 1], label=r'$ \Delta t$ - SE=T, A=T', color='limegreen', linestyle='-.'
+            )
             ax_diffs[1, count_ax].plot([None], [None], label='Restart - SE=T, A=T', color='black', linestyle='-.')
 
             for i in range(len(restart_SE_adapt)):
@@ -575,6 +587,7 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
     plt_helper.plt.tight_layout()
     fig_diffs.savefig('data/diffs_over_time_{}.png'.format(sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_diffs)
+
 
 def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
     """
@@ -650,7 +663,9 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
             ax_iter_all[col].plot(times_SE[col], iters_time_SE[col], label='SE=T, A=F')
             ax_iter_all[col].plot(times_SE_adapt[col], iters_time_SE_adapt[col], '--', label='SE=T, A=T')
             ax_iter_all[col].plot(times_adapt[col], iters_time_adapt[col], '--', label='SE=F, A=T')
-            ax_iter_all[col].axvline(x=t_switches_SE[col], linestyle='--', linewidth=0.5, color='k', label='Switch')
+            ax_iter_all[col].axvline(
+                x=t_switches_SE[col], linestyle='--', linewidth=0.5, color='k', label='Switch'
+            )
             ax_iter_all[col].set_title(r'$\Delta t_\mathrm{{initial}}={dt}$'.format(initial='initial', dt=dt_list[col]))
             ax_iter_all[col].set_ylim(0, maxiter + 2)
             ax_iter_all[col].set_xlabel('Time', fontsize=6)
@@ -662,9 +677,7 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
             ax_iter_all[col].legend(frameon=False, fontsize=6, loc='upper right')
     else:
         setup_mpl()
-        fig_iter_all, ax_iter_all = plt_helper.plt.subplots(
-            nrows=1, ncols=1, figsize=(3, 3)
-        )
+        fig_iter_all, ax_iter_all = plt_helper.plt.subplots(nrows=1, ncols=1, figsize=(3, 3))
 
         ax_iter_all.plot(times[0], iters_time[0], label='SE=False')
         ax_iter_all.plot(times_SE[0], iters_time_SE[0], label='SE=True')

@@ -9,6 +9,7 @@ from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.transfer_classes.TransferMesh import mesh_to_mesh
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
+from pySDC.projects.PinTSimE.battery_model import get_recomputed
 import pySDC.helpers.plot_helper as plt_helper
 from pySDC.core.Hooks import hooks
 
@@ -52,15 +53,14 @@ class log_data(hooks):
             type='voltage C2',
             value=L.uend[2],
         )
-        self.increment_stats(
+        self.add_to_stats(
             process=step.status.slot,
             time=L.time,
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
             type='restart',
-            value=1,
-            initialize=0,
+            value=int(step.status.get('restart')),
         )
 
 
@@ -71,14 +71,14 @@ def main(use_switch_estimator=True):
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-13
+    level_params['restol'] = -1  # do not set restol in combination of 'initial_guess' = 'spread'
     level_params['dt'] = 1e-2
 
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
-    sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
+    # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
     sweeper_params['initial_guess'] = 'spread'
 
     # initialize problem parameters
@@ -100,7 +100,7 @@ def main(use_switch_estimator=True):
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 15
     controller_params['hook_class'] = log_data
 
     # convergence controllers
@@ -122,7 +122,7 @@ def main(use_switch_estimator=True):
     if use_switch_estimator:
         description['convergence_controllers'] = convergence_controllers
 
-    proof_assertions_description(description, problem_params)
+    proof_assertions_description(description)
 
     # set time parameters
     t0 = 0.0
@@ -134,7 +134,7 @@ def main(use_switch_estimator=True):
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
-
+    print(uinit)
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
@@ -194,13 +194,17 @@ def plot_voltages(description, use_switch_estimator, cwd='./'):
     ax.plot(times, [v[1] for v in vC2], label='$v_{C_2}$')
 
     if use_switch_estimator:
-        t_switch_plot = np.zeros(np.shape(description['problem_params']['t_switch'])[0])
-        for i in range(np.shape(description['problem_params']['t_switch'])[0]):
-            t_switch_plot[i] = description['problem_params']['t_switch'][i]
+        val_switch1 = get_recomputed(stats, type='switch1', sortby='time')
+        val_switch2 = get_recomputed(stats, type='switch2', sortby='time')
+        t_switches1 = [v[1] for v in val_switch1]
+        t_switches2 = [v[1] for v in val_switch2]
+        t_switch1 = t_switches1[-1]
+        t_switch2 = t_switches2[-1]
 
-            ax.axvline(x=t_switch_plot[i], linestyle='--', color='k', label='Switch {}'.format(i + 1))
+        ax.axvline(x=t_switch1, linestyle='--', color='k', linewidth=0.5, label='Switch 1')
+        ax.axvline(x=t_switch2, linestyle='--', color='r', linewidth=0.5, label='Switch 2')
 
-    ax.legend(frameon=False, fontsize=12, loc='upper right')
+    ax.legend(frameon=False, fontsize=8, loc='upper right')
 
     ax.set_xlabel('Time')
     ax.set_ylabel('Energy')
@@ -209,25 +213,29 @@ def plot_voltages(description, use_switch_estimator, cwd='./'):
     plt_helper.plt.close(fig)
 
 
-def proof_assertions_description(description, problem_params):
+def proof_assertions_description(description):
     """
     Function to proof the assertions (function to get cleaner code)
     """
 
-    assert problem_params['alpha'] > problem_params['V_ref'][0], 'Please set "alpha" greater than "V_ref1"'
-    assert problem_params['alpha'] > problem_params['V_ref'][1], 'Please set "alpha" greater than "V_ref2"'
+    assert (
+        description['problem_params']['alpha'] > description['problem_params']['V_ref'][0]
+    ), 'Please set "alpha" greater than "V_ref1"'
+    assert (
+        description['problem_params']['alpha'] > description['problem_params']['V_ref'][1]
+    ), 'Please set "alpha" greater than "V_ref2"'
 
-    assert problem_params['V_ref'][0] > 0, 'Please set "V_ref1" greater than 0'
-    assert problem_params['V_ref'][1] > 0, 'Please set "V_ref2" greater than 0'
+    assert description['problem_params']['V_ref'][0] > 0, 'Please set "V_ref1" greater than 0'
+    assert description['problem_params']['V_ref'][1] > 0, 'Please set "V_ref2" greater than 0'
 
-    assert type(problem_params['V_ref']) == np.ndarray, '"V_ref" needs to be an array (of type float)'
-    assert not problem_params['set_switch'][0], 'First entry of "set_switch" needs to be False'
-    assert not problem_params['set_switch'][1], 'Second entry of "set_switch" needs to be False'
+    assert type(description['problem_params']['V_ref']) == np.ndarray, '"V_ref" needs to be an array (of type float)'
+    assert not description['problem_params']['set_switch'][0], 'First entry of "set_switch" needs to be False'
+    assert not description['problem_params']['set_switch'][1], 'Second entry of "set_switch" needs to be False'
 
-    assert not type(problem_params['t_switch']) == float, '"t_switch" has to be an array with entry zero'
+    assert not type(description['problem_params']['t_switch']) == float, '"t_switch" has to be an array with entry zero'
 
-    assert problem_params['t_switch'][0] == 0, 'First entry of "t_switch" needs to be zero'
-    assert problem_params['t_switch'][1] == 0, 'Second entry of "t_switch" needs to be zero'
+    assert description['problem_params']['t_switch'][0] == 0, 'First entry of "t_switch" needs to be zero'
+    assert description['problem_params']['t_switch'][1] == 0, 'Second entry of "t_switch" needs to be zero'
 
     assert 'errtol' not in description['step_params'].keys(), 'No exact solution known to compute error'
     assert 'alpha' in description['problem_params'].keys(), 'Please supply "alpha" in the problem parameters'

@@ -9,6 +9,7 @@ from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.transfer_classes.TransferMesh import mesh_to_mesh
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
+from pySDC.projects.PinTSimE.battery_model import get_recomputed
 from pySDC.projects.PinTSimE.battery_2condensators_model import log_data, proof_assertions_description
 import pySDC.helpers.plot_helper as plt_helper
 
@@ -19,14 +20,14 @@ def run(dt, use_switch_estimator=True):
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-13
+    level_params['restol'] = -1
     level_params['dt'] = dt
 
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
-    sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
+    # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
     sweeper_params['initial_guess'] = 'spread'
 
     # initialize problem parameters
@@ -44,11 +45,11 @@ def run(dt, use_switch_estimator=True):
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 20
+    step_params['maxiter'] = 10
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 15
     controller_params['hook_class'] = log_data
 
     # convergence controllers
@@ -70,7 +71,7 @@ def run(dt, use_switch_estimator=True):
     if use_switch_estimator:
         description['convergence_controllers'] = convergence_controllers
 
-    proof_assertions_description(description, problem_params)
+    proof_assertions_description(description)
 
     # set time parameters
     t0 = 0.0
@@ -111,7 +112,7 @@ def run(dt, use_switch_estimator=True):
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
 
-    assert np.mean(niters) <= 12, "Mean number of iterations is too high, got %s" % np.mean(niters)
+    assert np.mean(niters) <= 10, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
 
     return stats, description
@@ -161,8 +162,8 @@ def check(cwd='./'):
         stats_false = dill.load(f2)
         f2.close()
 
-        val_switch1 = get_sorted(stats_true, type='switch1', sortby='time')
-        val_switch2 = get_sorted(stats_true, type='switch2', sortby='time')
+        val_switch1 = get_recomputed(stats_true, type='switch1', sortby='time')
+        val_switch2 = get_recomputed(stats_true, type='switch2', sortby='time')
         t_switch1 = [v[1] for v in val_switch1]
         t_switch2 = [v[1] for v in val_switch2]
 
@@ -207,10 +208,10 @@ def check(cwd='./'):
         restarts_dt = restarts_dict[dt_item]
         for i in range(len(restarts_dt[:, 0])):
             if round(restarts_dt[i, 0], 13) == round(t_switch1, 13):
-                restarts_dt_switch1.append(np.sum(restarts_dt[0:i, 1]))
+                restarts_dt_switch1.append(np.sum(restarts_dt[0 : i - 1, 1]))
 
             if round(restarts_dt[i, 0], 13) == round(t_switch2, 13):
-                restarts_dt_switch2.append(np.sum(restarts_dt[i - 1 :, 1]))
+                restarts_dt_switch2.append(np.sum(restarts_dt[i - 2 :, 1]))
 
         setup_mpl()
         fig1, ax1 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))

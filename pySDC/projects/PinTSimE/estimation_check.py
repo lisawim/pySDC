@@ -247,9 +247,12 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
         e_emb_adapt = [v[1] for v in e_emb_adapt_val]
 
         if len(dt_list) > 1:
-            ax_acc[count_ax].set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
+            ax_acc[count_ax].set_title(r'$\Delta t_\mathrm{initial}$=%s' % dt_item)
             dt1 = ax_acc[count_ax].plot(
-                [v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$'
+                [v[0] for v in dt_SE_adapt_val],
+                [v[1] for v in dt_SE_adapt_val],
+                'ko-',
+                label=r'SE+A - $\Delta t_\mathrm{adapt}$',
             )
             dt2 = ax_acc[count_ax].plot(
                 [v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'g-', label=r'A - $\Delta t_\mathrm{adapt}$'
@@ -273,12 +276,18 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
             ax_acc[count_ax].legend(lines, labels, frameon=False, fontsize=6, loc='upper right')
 
         else:
-            ax_acc.set_title(r'$\Delta t_\mathrm{{initial}}$={dt}'.format(initial='initial', dt=dt_item))
+            ax_acc.set_title(r'$\Delta t_\mathrm{initial}$=%s' % dt_item)
             dt1 = ax_acc.plot(
-                [v[0] for v in dt_SE_adapt_val], [v[1] for v in dt_SE_adapt_val], 'ko-', label=r'SE+A - $\Delta t_\mathrm{adapt}$'
+                [v[0] for v in dt_SE_adapt_val],
+                [v[1] for v in dt_SE_adapt_val],
+                'ko-',
+                label=r'SE+A - $\Delta t_\mathrm{adapt}$',
             )
             dt2 = ax_acc.plot(
-                [v[0] for v in dt_adapt_val], [v[1] for v in dt_adapt_val], 'go-', label=r'A - $\Delta t_\mathrm{adapt}$'
+                [v[0] for v in dt_adapt_val],
+                [v[1] for v in dt_adapt_val],
+                'go-',
+                label=r'A - $\Delta t_\mathrm{adapt}$',
             )
             ax_acc.axvline(x=t_switch_SE_adapt, linestyle='--', linewidth=0.5, color='r', label='Switch')
             ax_acc.tick_params(axis='both', which='major', labelsize=6)
@@ -303,7 +312,7 @@ def accuracy_check(dt_list, problem, sweeper, V_ref, cwd='./'):
 
 
 def differences_around_switch(
-    dt_list, problem, restarts_true, restarts_false_adapt, restarts_true_adapt, sweeper, V_ref, cwd='./'
+    dt_list, problem, restarts_SE, restarts_adapt, restarts_SE_adapt, sweeper, V_ref, cwd='./'
 ):
     """
     Routine to plot the differences before, at, and after the switch. Produces the diffs_estimation_<sweeper_class>.png file
@@ -517,11 +526,13 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
         times_adapt, times_SE_adapt = [v[0] for v in vC_adapt], [v[0] for v in vC_SE_adapt]
 
         if len(dt_list) > 1:
-            ax_diffs[0, count_ax].set_title(r'$\Delta t$={}'.format(dt_item))
+            ax_diffs[0, count_ax].set_title(r'$\Delta t$=%s' % dt_item)
             ax_diffs[0, count_ax].plot(times_SE, diff_SE, label='SE=True, A=False', color='#ff7f0e')
             ax_diffs[0, count_ax].plot(times, diff, label='SE=False, A=False', color='#1f77b4')
             ax_diffs[0, count_ax].plot(times_adapt, diff_adapt, label='SE=False, A=True', color='red', linestyle='--')
-            ax_diffs[0, count_ax].plot(times_SE_adapt, diff_SE_adapt, label='SE=True, A=True', color='limegreen', linestyle='-.')
+            ax_diffs[0, count_ax].plot(
+                times_SE_adapt, diff_SE_adapt, label='SE=True, A=True', color='limegreen', linestyle='-.'
+            )
             ax_diffs[0, count_ax].axvline(x=t_switch_SE, linestyle='--', linewidth=0.5, color='k', label='Switch')
             ax_diffs[0, count_ax].legend(frameon=False, fontsize=6, loc='lower left')
             ax_diffs[0, count_ax].set_yscale('symlog', linthresh=1e-5)
@@ -545,7 +556,11 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
                     ax_diffs[1, count_ax].axvline(restart_adapt[i, 0], color='grey', linestyle='-.')
 
             ax_diffs[1, count_ax].plot(
-                dt_SE_adapt[:, 0], dt_SE_adapt[:, 1], label=r'$ \Delta t$ - SE=T, A=T', color='limegreen', linestyle='-.'
+                dt_SE_adapt[:, 0],
+                dt_SE_adapt[:, 1],
+                label=r'$ \Delta t$ - SE=T, A=T',
+                color='limegreen',
+                linestyle='-.',
             )
             ax_diffs[1, count_ax].plot([None], [None], label='Restart - SE=T, A=T', color='black', linestyle='-.')
 
@@ -558,11 +573,11 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             if count_ax == 0:
                 ax_diffs[1, count_ax].set_ylabel(r'$\Delta t_\mathrm{adapted}$', fontsize=6)
 
-            ax_diffs[1,	count_ax].set_yscale('log', base=10)
+            ax_diffs[1, count_ax].set_yscale('log', base=10)
             ax_diffs[1, count_ax].legend(frameon=True, fontsize=6, loc='lower left')
 
         else:
-            ax_diffs[0].set_title(r'$\Delta t$={}'.format(dt_item))
+            ax_diffs[0].set_title(r'$\Delta t$=%s' % dt_item)
             ax_diffs[0].plot(times_SE, diff_SE, label='SE=True', color='#ff7f0e')
             ax_diffs[0].plot(times, diff, label='SE=False', color='#1f77b4')
             ax_diffs[0].plot(times_adapt, diff_adapt, label='SE=False, A=True', color='red', linestyle='--')
@@ -574,7 +589,9 @@ def differences_over_time(dt_list, problem, sweeper, V_ref, cwd='./'):
             ax_diffs[0].legend(frameon=False, fontsize=6, loc='center right')
 
             ax_diffs[1].plot(dt_adapt[:, 0], dt_adapt[:, 1], label='SE=False, A=True', color='red', linestyle='--')
-            ax_diffs[1].plot(dt_SE_adapt[:, 0], dt_SE_adapt[:, 1], label='SE=True, A=True', color='limegreen', linestyle='-.')
+            ax_diffs[1].plot(
+                dt_SE_adapt[:, 0], dt_SE_adapt[:, 1], label='SE=True, A=True', color='limegreen', linestyle='-.'
+            )
             ax_diffs[1].tick_params(axis='both', which='major', labelsize=6)
             ax_diffs[1].set_xlabel('Time', fontsize=6)
             ax_diffs[1].set_ylabel(r'$\Delta t_\mathrm{adapted}$', fontsize=6)
@@ -663,10 +680,8 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
             ax_iter_all[col].plot(times_SE[col], iters_time_SE[col], label='SE=T, A=F')
             ax_iter_all[col].plot(times_SE_adapt[col], iters_time_SE_adapt[col], '--', label='SE=T, A=T')
             ax_iter_all[col].plot(times_adapt[col], iters_time_adapt[col], '--', label='SE=F, A=T')
-            ax_iter_all[col].axvline(
-                x=t_switches_SE[col], linestyle='--', linewidth=0.5, color='k', label='Switch'
-            )
-            ax_iter_all[col].set_title(r'$\Delta t_\mathrm{{initial}}={dt}$'.format(initial='initial', dt=dt_list[col]))
+            ax_iter_all[col].axvline(x=t_switches_SE[col], linestyle='--', linewidth=0.5, color='k', label='Switch')
+            ax_iter_all[col].set_title(r'$\Delta t_\mathrm{initial}$=%s' % dt_list[col])
             ax_iter_all[col].set_ylim(0, maxiter + 2)
             ax_iter_all[col].set_xlabel('Time', fontsize=6)
             ax_iter_all[col].tick_params(axis='both', which='major', labelsize=6)
@@ -684,7 +699,7 @@ def iterations_over_time(dt_list, maxiter, problem, sweeper, cwd='./'):
         ax_iter_all.plot(times_SE_adapt[0], iters_time_SE_adapt[0], '--', label='SE=T, A=T')
         ax_iter_all.plot(times_adapt[0], iters_time_adapt[0], '--', label='SE=F, A=T')
         ax_iter_all.axvline(x=t_switches_SE[0], linestyle='--', linewidth=0.5, color='k', label='Switch')
-        ax_iter_all.set_title(r'$\Delta t_\mathrm{{initial}}={dt}$'.format(initial='initial', dt=dt_list[0]))
+        ax_iter_all.set_title(r'$\Delta t_\mathrm{initial}$=%s' % dt_list[0])
         ax_iter_all.set_ylim(0, maxiter + 2)
         ax_iter_all.set_xlabel('Time', fontsize=6)
         ax_iter_all.tick_params(axis='both', which='major', labelsize=6)

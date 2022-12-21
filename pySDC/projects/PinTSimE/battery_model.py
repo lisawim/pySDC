@@ -272,7 +272,9 @@ def proof_assertions_description(description):
         description (dict): contains all the information for the controller
     """
 
-    assert description['problem_params']['alpha'] > description['problem_params']['V_ref'], 'Please set "alpha" greater than "V_ref"'
+    assert (
+        description['problem_params']['alpha'] > description['problem_params']['V_ref']
+    ), 'Please set "alpha" greater than "V_ref"'
     assert description['problem_params']['V_ref'] > 0, 'Please set "V_ref" greater than 0'
     assert type(description['problem_params']['V_ref']) == float, '"V_ref" needs to be of type float'
 
@@ -283,6 +285,7 @@ def proof_assertions_description(description):
     assert 'errtol' not in description['step_params'].keys(), 'No exact solution known to compute error'
     assert 'alpha' in description['problem_params'].keys(), 'Please supply "alpha" in the problem parameters'
     assert 'V_ref' in description['problem_params'].keys(), 'Please supply "V_ref" in the problem parameters'
+
 
 def get_recomputed(stats, type, sortby):
     """
@@ -299,7 +302,15 @@ def get_recomputed(stats, type, sortby):
 
     sorted_nested_list = []
     times_unique = np.unique([me[0] for me in get_sorted(stats, type=type)])
-    filtered_list = [filter_stats(stats, time=t_unique, num_restarts=max([me.num_restarts for me in filter_stats(stats, type=type, time=t_unique).keys()]), type=type) for t_unique in times_unique]
+    filtered_list = [
+        filter_stats(
+            stats,
+            time=t_unique,
+            num_restarts=max([me.num_restarts for me in filter_stats(stats, type=type, time=t_unique).keys()]),
+            type=type,
+        )
+        for t_unique in times_unique
+    ]
     for item in filtered_list:
         sorted_nested_list.append(sort_stats(item, sortby=sortby))
     sorted_list = [item for sub_item in sorted_nested_list for item in sub_item]

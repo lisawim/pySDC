@@ -135,6 +135,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     description['sweeper_params'] = sweeper_params  # pass sweeper parameters
     description['level_params'] = level_params  # pass level parameters
     description['step_params'] = step_params
+    description['max_restarts'] = 1
 
     if use_switch_estimator or use_adaptivity:
         description['convergence_controllers'] = convergence_controllers
@@ -159,7 +160,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     iter_counts = get_sorted(stats, type='niter', recomputed=False, sortby='time')
 
     # compute and print statistics
-    min_iter = 20
+    min_iter = 4
     max_iter = 0
 
     Path("data").mkdir(parents=True, exist_ok=True)
@@ -183,6 +184,9 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     assert np.mean(niters) <= 4, "Mean number of iterations is too high, got %s" % np.mean(niters)
     f.close()
 
+    restarts = np.array(get_sorted(stats, type='restart', recomputed=None, sortby='time'))
+    print('Restarts: %i' % np.sum(restarts[:, 1]))
+
     return description
 
 
@@ -192,9 +196,10 @@ def run():
     as <problem_class>_model_solution_<sweeper_class>.png
     """
 
-    dt = 1e-2
+    dt = 1e-4
     problem_classes = [battery, battery_implicit]
     sweeper_classes = [imex_1st_order, generic_implicit]
+    recomputed = False
     use_switch_estimator = [True]
     use_adaptivity = [True]
 
@@ -209,10 +214,10 @@ def run():
                     use_adaptivity=use_A,
                 )
 
-            plot_voltages(description, problem.__name__, sweeper.__name__, use_SE, use_A)
+            plot_voltages(description, problem.__name__, sweeper.__name__, recomputed, use_SE, use_A)
 
 
-def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adaptivity, cwd='./'):
+def plot_voltages(description, problem, sweeper, recomputed, use_switch_estimator, use_adaptivity, cwd='./'):
     """
     Routine to plot the numerical solution of the model
 
@@ -230,8 +235,8 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adapt
     f.close()
 
     # convert filtered statistics to list of iterations count, sorted by process
-    cL = get_sorted(stats, type='current L', recomputed=False, sortby='time')
-    vC = get_sorted(stats, type='voltage C', recomputed=False, sortby='time')
+    cL = get_sorted(stats, type='current L', recomputed=recomputed, sortby='time')
+    vC = get_sorted(stats, type='voltage C', recomputed=recomputed, sortby='time')
 
     times = [v[0] for v in cL]
 
@@ -243,6 +248,9 @@ def plot_voltages(description, problem, sweeper, use_switch_estimator, use_adapt
 
     if use_switch_estimator:
         val_switch = get_recomputed(stats, type='switch1', sortby='time')
+        print(val_switch)
+        assert len(val_switch) > 0, 'ERROR: No switches found!'
+
         t_switch = [v[1] for v in val_switch]
         ax.axvline(x=t_switch[-1], linestyle='--', linewidth=0.8, color='r', label='Switch')
 

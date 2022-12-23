@@ -241,29 +241,28 @@ def plot_voltages(description, problem, sweeper, recomputed, use_switch_estimato
     times = [v[0] for v in cL]
 
     setup_mpl()
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(6, 6))
     ax.set_title('Simulation of {} using {}'.format(problem, sweeper), fontsize=10)
     ax.plot(times, [v[1] for v in cL], label=r'$i_L$')
     ax.plot(times, [v[1] for v in vC], label=r'$v_C$')
 
     if use_switch_estimator:
         val_switch = get_recomputed(stats, type='switch1', sortby='time')
-        print(val_switch)
+
         assert len(val_switch) > 0, 'ERROR: No switches found!'
 
         t_switch = [v[1] for v in val_switch]
         ax.axvline(x=t_switch[-1], linestyle='--', linewidth=0.8, color='r', label='Switch')
 
     if use_adaptivity:
-        dt = np.array(get_sorted(stats, type='dt', recomputed=False))
-        dt_ax = ax.twinx()
-        dt_ax.plot(dt[:, 0], dt[:, 1], linestyle='-', linewidth=0.8, color='k', label=r'$\Delta t$')
-        dt_ax.set_ylabel(r'$\Delta t$', fontsize=8)
-        dt_ax.legend(frameon=False, fontsize=8, loc='center right')
+        dt = np.array(get_sorted(stats, type='dt', recomputed=recomputed))
+        adapt_ax = ax.twinx()
+        adapt_ax.plot(dt[:, 0], dt[:, 1], linestyle='-', linewidth=0.8, color='k', label=r'$\Delta t$')
+        adapt_ax.legend(frameon=True, fontsize=8, loc='lower right')
 
-    ax.axhline(y=1.0, linestyle='--', linewidth=0.8, color='g', label='$V_{ref}$')
+    ax.axhline(y=1.0, linestyle='--', linewidth=0.5, color='g', label='$V_{ref}$')
 
-    ax.legend(frameon=False, fontsize=8, loc='upper right')
+    ax.legend(frameon=True, fontsize=8, loc='upper right')
 
     ax.set_xlabel('Time', fontsize=8)
     ax.set_ylabel('Energy', fontsize=8)

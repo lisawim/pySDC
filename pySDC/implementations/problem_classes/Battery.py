@@ -10,6 +10,9 @@ class battery(ptype):
     Example implementing the battery drain model as in the description in the PinTSimE project
     Attributes:
         A: system matrix, representing the 2 ODEs
+        t_switch: time point of the switch
+        count_switches: counter for the switches
+        SV, SC: switches of circuit
     """
 
     def __init__(self, problem_params, dtype_u=mesh, dtype_f=imex_mesh):
@@ -41,6 +44,8 @@ class battery(ptype):
         self.A = np.zeros((2, 2))
         self.t_switch = None
         self.count_switches = 0
+        self.SV = 0
+        self.SC = 1
 
     def eval_f(self, u, t):
         """
@@ -58,18 +63,16 @@ class battery(ptype):
         if self.t_switch is not None:
             if t >= self.t_switch:
                 f.expl[0] = self.params.Vs / self.params.L
-                print('Vs')
+
             else:
                 f.expl[0] = 0
-                print('C1')
 
         else:
             if u[1] <= self.params.V_ref:
                 f.expl[0] = self.params.Vs / self.params.L
-                print("Vs")
+
             else:
                 f.expl[0] = 0
-                print("C1")
 
         return f
 

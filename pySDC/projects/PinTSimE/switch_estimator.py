@@ -92,7 +92,7 @@ class SwitchEstimator(ConvergenceController):
                             )
 
                             L.prob.t_switch = self.params.t_switch
-                            controller.hooks.add_to_stats(
+                            controller.hooks[0].add_to_stats(
                                 process=S.status.slot,
                                 time=L.time,
                                 level=L.level_index,

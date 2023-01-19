@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.io
 import dill
 from pathlib import Path
 
@@ -81,18 +82,26 @@ def main(dt, problem, sweeper, use_switch_estimator):
     # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
     sweeper_params['initial_guess'] = 'spread'
 
+    pvData = get_PV_data()
+    pvData_new = dict()
+    i = 0
+    for key_item in pvData_dict.keys():
+        if pvData[key_item] != 0.0:
+            pvData_new[i] = pvData_dict[key_item]
+            i += 1
+
     # initialize problem parameters
     problem_params = dict()
-    problem_params['I_pv'] =
-    problem_params['R_pv'] =
-    problem_params['C_pv'] =
-    problem_params['R0'] =
-    problem_params['C0'] =
-    problem_params['Rline2'] =
-    problem_params['Rload'] =
-    problem_params['Vs'] =
-    problem_params['V_ref'] =
-    problem_params['alpha'] =
+    problem_params['pvData'] = pvData_new
+    problem_params['R_pv'] = 0.05
+    problem_params['C_pv'] = 500 * 1e-6
+    problem_params['R0'] = 1
+    problem_params['C0'] = 1
+    problem_params['Rline2'] = 1
+    problem_params['Rload'] = 1
+    problem_params['Vs'] = 5
+    problem_params['V_ref'] = 0.9
+    problem_params['alpha'] = 6
 
     # initialize step parameters
     step_params = dict()
@@ -214,6 +223,18 @@ def plot_voltages(description, problem, sweeper, recomputed, use_switch_estimato
 
     fig.savefig('data/{}_model_solution_{}.png'.format(problem, sweeper), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
+
+
+def get_PV_data():
+    """
+    Function that converts the PV data into a dictionary
+    """
+
+    pvData_mat = scipy.io.loadmat(r"PV_Power_profiles.mat")  # dictionary
+    pvData = pvData_mat['S']  # type np.array
+    pvData = dict(enumerate(pvData.flatten(), 1))
+
+    return pvData
 
 
 if __name__ == "__main__":

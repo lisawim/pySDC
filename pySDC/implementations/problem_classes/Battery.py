@@ -472,7 +472,7 @@ class battery_drain_charge(ptype):
         problem_params['nvars'] = 2
 
         # these parameters will be used later, so assert their existence
-        essential_keys = ['I_pv', 'R_pv', 'C_pv', 'R0', 'C0', 'Rline2', 'Rload', 'Vs', 'V_ref', 'alpha']
+        essential_keys = ['pvData', 'R_pv', 'C_pv', 'R0', 'C0', 'Rline2', 'Rload', 'Vs', 'V_ref', 'alpha']
         for key in essential_keys:
             if key not in problem_params:
                 msg = 'need %s to instantiate problem, only got %s' % (key, str(problem_params.keys()))
@@ -489,6 +489,7 @@ class battery_drain_charge(ptype):
         self.A = np.zeros((2, 2))
         self.t_switch = None
         self.nswitches = 0
+        self.pv_input = 0.0
 
     def eval_f(self, u, t):
         """
@@ -502,6 +503,12 @@ class battery_drain_charge(ptype):
 
         f = self.dtype_f(self.init, val=0.0)
         f.impl[:] = self.A.dot(u)
+
+        if (t * 60) % 60 == 0:
+            # Time t corresponds to a full second
+            t_int = int(t)
+            self.pv_input = self.params.pvData[t_int + 1]
+            I_pv = 
 
         f.expl[0] = eval_grid_voltage(t) / (self.params.C_pv * self.params.Rline2) - I_pv(t) / self.params.C_pv
         return f

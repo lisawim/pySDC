@@ -8,6 +8,7 @@ from pySDC.implementations.problem_classes.Battery import battery, battery_impli
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
+from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
 import pySDC.helpers.plot_helper as plt_helper
 from pySDC.core.Hooks import hooks
@@ -32,17 +33,8 @@ class log_data(hooks):
             level=L.level_index,
             iter=0,
             sweep=L.status.sweep,
-            type='current L',
-            value=L.uend[0],
-        )
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=0,
-            sweep=L.status.sweep,
-            type='voltage C',
-            value=L.uend[1],
+            type='u',
+            value=L.uend,
         )
         self.add_to_stats(
             process=step.status.slot,
@@ -73,20 +65,36 @@ class log_data(hooks):
         )
 
 
-def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
+def generate_description(
+    dt,
+    problem,
+    sweeper,
+    hook_class,
+    use_adaptivity,
+    use_switch_estimator,
+    ncapacitors,
+    alpha,
+    V_ref,
+    C,
+    max_restarts=None,
+):
     """
-    A simple test program to do SDC/PFASST runs for the battery drain model
-
+    Generate a description for the battery models for a controller run.
     Args:
         dt (float): time step for computation
-        problem (problem_class.__name__): problem class that wants to be simulated
-        sweeper (sweeper_class.__name__): sweeper class for solving the problem class numerically
-        use_switch_estimator (bool): flag if the switch estimator wants to be used or not
+        problem (pySDC.core.Problem.ptype): problem class that wants to be simulated
+        sweeper (pySDC.core.Sweeper.sweeper): sweeper class for solving the problem class numerically
+        hook_class (pySDC.core.Hooks): logged data for a problem
         use_adaptivity (bool): flag if the adaptivity wants to be used or not
+        use_switch_estimator (bool): flag if the switch estimator wants to be used or not
+        ncapacitors (np.int): number of capacitors used for the battery_model
+        alpha (np.float): Multiple used for the initial conditions (problem_parameter)
+        V_ref (np.ndarray): Reference values for the capacitors (problem_parameter)
+        C (np.ndarray): Capacitances (problem_parameter
 
     Returns:
-        stats (dict): Raw statistics from a controller run
         description (dict): contains all information for a controller run
+        controller_params (dict): Parameters needed for a controller run
     """
 
     # initialize level parameters
@@ -98,21 +106,21 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'LOBATTO'
     sweeper_params['num_nodes'] = 5
-    # sweeper_params['QI'] = 'LU'  # For the IMEX sweeper, the LU-trick can be activated for the implicit part
+    sweeper_params['QI'] = 'IE'
     sweeper_params['initial_guess'] = 'spread'
 
     # initialize problem parameters
     problem_params = dict()
     problem_params['newton_maxiter'] = 200
     problem_params['newton_tol'] = 1e-08
-    problem_params['ncondensators'] = 1  # number of condensators
+    problem_params['ncapacitors'] = ncapacitors  # number of condensators
     problem_params['Vs'] = 5.0
     problem_params['Rs'] = 0.5
-    problem_params['C'] = np.array([1.0])
+    problem_params['C'] = C
     problem_params['R'] = 1.0
     problem_params['L'] = 1.0
-    problem_params['alpha'] = 1.2
-    problem_params['V_ref'] = np.array([1.0])
+    problem_params['alpha'] = alpha
+    problem_params['V_ref'] = V_ref
 
     # initialize step parameters
     step_params = dict()
@@ -121,7 +129,7 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 30
-    controller_params['hook_class'] = log_data
+    controller_params['hook_class'] = hook_class
     controller_params['mssdc_jac'] = False
 
     # convergence controllers
@@ -135,6 +143,12 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
         adaptivity_params['e_tol'] = 1e-7
         convergence_controllers.update({Adaptivity: adaptivity_params})
 
+    if max_restarts is not None:
+        convergence_controllers[BasicRestartingNonMPI] = {
+            'max_restarts': max_restarts,
+            'crash_after_max_restarts': False,
+        }
+
     # fill description dictionary for easy step instantiation
     description = dict()
     description['problem_class'] = problem  # pass problem class
@@ -143,22 +157,24 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     description['sweeper_params'] = sweeper_params  # pass sweeper parameters
     description['level_params'] = level_params  # pass level parameters
     description['step_params'] = step_params
+    description['convergence_controllers'] = convergence_controllers
 
-    if use_switch_estimator or use_adaptivity:
-        description['convergence_controllers'] = convergence_controllers
+    return description, controller_params
 
-    # set time parameters
-    t0 = 0.0
-    Tend = 0.3
 
-    proof_assertions_description(description, use_adaptivity, use_switch_estimator)
+def controller_run(description, controller_params, use_adaptivity, use_switch_estimator, t0, Tend):
+    """
+    Executes a controller run for a problem defined in the description
 
-    assert dt < Tend, "Time step is too large for the time domain!"
+    Args:
+        description (dict): contains all information for a controller run
+        controller_params (dict): Parameters needed for a controller run
+        use_adaptivity (bool): flag if the adaptivity wants to be used or not
+        use_switch_estimator (bool): flag if the switch estimator wants to be used or not
 
-    assert (
-        Tend == 0.3 and description['problem_params']['V_ref'] == 1.0 and description['problem_params']['alpha'] == 1.2
-    ), "Error! Do not use other parameters for V_ref != 1.0, alpha != 1.2, Tend != 0.3 due to hardcoded reference!"
-    assert description['level_params']['dt'] == 1e-2, "Error! Do not use another time step dt!= 1e-2!"
+    Returns:
+        stats (dict): Raw statistics from a controller run
+    """
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
@@ -170,16 +186,18 @@ def main(dt, problem, sweeper, use_switch_estimator, use_adaptivity):
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
+    problem = description['problem_class']
+    sweeper = description['sweeper_class']
+
     Path("data").mkdir(parents=True, exist_ok=True)
-    fname = 'data/battery_{}_USE{}_USA{}.dat'.format(sweeper.__name__, use_switch_estimator, use_adaptivity)
+    fname = 'data/{}_{}_USE{}_USA{}.dat'.format(
+        problem.__name__, sweeper.__name__, use_switch_estimator, use_adaptivity
+    )
     f = open(fname, 'wb')
     dill.dump(stats, f)
     f.close()
 
-    iter_counts = get_sorted(stats, type='niter', recomputed=None, sortby='time')
-    print(np.sum([v[1] for v in iter_counts]))
-
-    return stats, description
+    return stats
 
 
 def run():
@@ -189,22 +207,34 @@ def run():
     """
 
     dt = 1e-2
+    t0 = 0.0
+    Tend = 0.3
+
     problem_classes = [battery, battery_implicit]
     sweeper_classes = [imex_1st_order, generic_implicit]
+
+    ncapacitors = 1
+    alpha = 1.2
+    V_ref = np.array([1.0])
+    C = np.array([1.0])
+
     recomputed = False
-    use_switch_estimator = [False]
+    use_switch_estimator = [True]
     use_adaptivity = [True]
 
     for problem, sweeper in zip(problem_classes, sweeper_classes):
         for use_SE in use_switch_estimator:
             for use_A in use_adaptivity:
-                stats, description = main(
-                    dt=dt,
-                    problem=problem,
-                    sweeper=sweeper,
-                    use_switch_estimator=use_SE,
-                    use_adaptivity=use_A,
+                description, controller_params = generate_description(
+                    dt, problem, sweeper, log_data, use_A, use_SE, ncapacitors, alpha, V_ref, C
                 )
+
+                # Assertions
+                proof_assertions_description(description, use_A, use_SE)
+
+                proof_assertions_time(dt, Tend, V_ref, alpha)
+
+                stats = controller_run(description, controller_params, use_A, use_SE, t0, Tend)
 
             check_solution(stats, dt, problem.__name__, use_A, use_SE)
 
@@ -217,50 +247,45 @@ def plot_voltages(description, problem, sweeper, recomputed, use_switch_estimato
 
     Args:
         description(dict): contains all information for a controller run
-        problem (problem_class.__name__): problem class that wants to be simulated
-        sweeper (sweeper_class.__name__): sweeper class for solving the problem class numerically
+        problem (pySDC.core.Problem.ptype): problem class that wants to be simulated
+        sweeper (pySDC.core.Sweeper.sweeper): sweeper class for solving the problem class numerically
         recomputed (bool): flag if the values after a restart are used or before
         use_switch_estimator (bool): flag if the switch estimator wants to be used or not
         use_adaptivity (bool): flag if adaptivity wants to be used or not
-        cwd: current working directory
+        cwd (str): current working directory
     """
 
-    f = open(cwd + 'data/battery_{}_USE{}_USA{}.dat'.format(sweeper, use_switch_estimator, use_adaptivity), 'rb')
+    f = open(cwd + 'data/{}_{}_USE{}_USA{}.dat'.format(problem, sweeper, use_switch_estimator, use_adaptivity), 'rb')
     stats = dill.load(f)
     f.close()
 
     # convert filtered statistics to list of iterations count, sorted by process
-    cL = get_sorted(stats, type='current L', recomputed=False, sortby='time')
-    vC = get_sorted(stats, type='voltage C', recomputed=False, sortby='time')
-    print('cL:', [v[1] for v in cL][-1])
-    print('vC:', [v[1] for v in vC][-1])
+    cL = np.array([me[1][0] for me in get_sorted(stats, type='u', recomputed=recomputed)])
+    vC = np.array([me[1][1] for me in get_sorted(stats, type='u', recomputed=recomputed)])
 
-    times = [v[0] for v in cL]
+    t = np.array([me[0] for me in get_sorted(stats, type='u', recomputed=recomputed)])
 
     setup_mpl()
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
     ax.set_title('Simulation of {} using {}'.format(problem, sweeper), fontsize=10)
-    ax.plot(times, [v[1] for v in cL], label=r'$i_L$')
-    ax.plot(times, [v[1] for v in vC], label=r'$v_C$')
+    ax.plot(t, cL, label=r'$i_L$')
+    ax.plot(t, vC, label=r'$v_C$')
 
     if use_switch_estimator:
         switches = get_recomputed(stats, type='switch', sortby='time')
 
         assert len(switches) >= 1, 'No switches found!'
         t_switch = [v[1] for v in switches]
-        print('switches:', t_switch)
         ax.axvline(x=t_switch[-1], linestyle='--', linewidth=0.8, color='r', label='Switch')
 
     if use_adaptivity:
         dt = np.array(get_sorted(stats, type='dt', recomputed=False))
-        e_em = np.array(get_sorted(stats, type='error_embedded_estimate', recomputed=False, sortby='time'))
-        print('dt:', dt[-1, 1])
-        print('e_em:', e_em[-1, 1])
+
         dt_ax = ax.twinx()
         dt_ax.plot(dt[:, 0], dt[:, 1], linestyle='-', linewidth=0.8, color='k', label=r'$\Delta t$')
         dt_ax.set_ylabel(r'$\Delta t$', fontsize=8)
         dt_ax.legend(frameon=False, fontsize=8, loc='center right')
-    print('restarts:', np.sum(np.array(get_sorted(stats, type='restart', recomputed=None, sortby='time'))[:, 1]))
+
     ax.axhline(y=1.0, linestyle='--', linewidth=0.8, color='g', label='$V_{ref}$')
 
     ax.legend(frameon=False, fontsize=8, loc='upper right')
@@ -543,8 +568,8 @@ def get_data_dict(stats, use_adaptivity=True, use_switch_estimator=True, recompu
 
     data = dict()
 
-    data['cL'] = np.array(get_sorted(stats, type='current L', recomputed=recomputed, sortby='time'))[:, 1]
-    data['vC'] = np.array(get_sorted(stats, type='voltage C', recomputed=recomputed, sortby='time'))[:, 1]
+    data['cL'] = np.array([me[1][0] for me in get_sorted(stats, type='u', recomputed=False, sortby='time')])
+    data['vC'] = np.array([me[1][1] for me in get_sorted(stats, type='u', recomputed=False, sortby='time')])
     if use_adaptivity:
         data['dt'] = np.array(get_sorted(stats, type='dt', recomputed=recomputed, sortby='time'))[:, 1]
         data['e_em'] = np.array(
@@ -592,7 +617,7 @@ def get_recomputed(stats, type, sortby):
 
 def proof_assertions_description(description, use_adaptivity, use_switch_estimator):
     """
-    Function to proof the assertions (function to get cleaner code)
+    Function to proof the assertions in the description.
 
     Args:
         description(dict): contains all information for a controller run
@@ -600,17 +625,17 @@ def proof_assertions_description(description, use_adaptivity, use_switch_estimat
         use_switch_estimator (bool): flag if the switch estimator wants to be used or not
     """
 
-    n = description['problem_params']['ncondensators']
+    n = description['problem_params']['ncapacitors']
     assert (
         description['problem_params']['alpha'] > description['problem_params']['V_ref'][k] for k in range(n)
     ), 'Please set "alpha" greater than values of "V_ref"'
     assert type(description['problem_params']['V_ref']) == np.ndarray, '"V_ref" needs to be an np.ndarray'
     assert type(description['problem_params']['C']) == np.ndarray, '"C" needs to be an np.ndarray '
     assert (
-        description['problem_params']['ncondensators'] == np.shape(description['problem_params']['V_ref'])[0]
+        np.shape(description['problem_params']['V_ref'])[0] == n
     ), 'Number of reference values needs to be equal to number of condensators'
     assert (
-        description['problem_params']['ncondensators'] == np.shape(description['problem_params']['C'])[0]
+        np.shape(description['problem_params']['C'])[0] == n
     ), 'Number of capacitance values needs to be equal to number of condensators'
 
     assert (
@@ -623,6 +648,25 @@ def proof_assertions_description(description, use_adaptivity, use_switch_estimat
 
     if use_switch_estimator or use_adaptivity:
         assert description['level_params']['restol'] == -1, "Please set restol to -1 or omit it"
+
+
+def proof_assertions_time(dt, Tend, V_ref, alpha):
+    """
+    Function to proof the assertions regarding the time domain (in combination with the specific problem):
+
+    Args:
+        dt (float): time step for computation
+        Tend (float): end time
+        V_ref (np.ndarray): Reference values (problem parameter)
+        alpha (np.float): Multiple used for initial conditions (problem_parameter)
+    """
+
+    assert dt < Tend, "Time step is too large for the time domain!"
+
+    assert (
+        Tend == 0.3 and V_ref[0] == 1.0 and alpha == 1.2
+    ), "Error! Do not use other parameters for V_ref != 1.0, alpha != 1.2, Tend != 0.3 due to hardcoded reference!"
+    assert dt == 1e-2, "Error! Do not use another time step dt!= 1e-2!"
 
 
 if __name__ == "__main__":

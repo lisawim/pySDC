@@ -152,7 +152,7 @@ class battery_n_capacitors(ptype):
         m_guess = -100
         break_flag = False
 
-        for m in range(1, len(u)):
+        for m in range(len(u)):
             for k in range(1, self.params.nvars):
                 if u[m][k] - self.params.V_ref[k - 1] <= 0:
                     switch_detected = True
@@ -165,7 +165,7 @@ class battery_n_capacitors(ptype):
                 break
 
         vC_switch = (
-            [u[m][k_detected] - self.params.V_ref[k_detected - 1] for m in range(1, len(u))] if switch_detected else []
+            [u[m][k_detected] - self.params.V_ref[k_detected - 1] for m in range(len(u))] if switch_detected else []
         )
 
         return switch_detected, m_guess, vC_switch
@@ -272,6 +272,70 @@ class battery(battery_n_capacitors):
         me[0] = 0.0  # cL
         me[1] = self.params.alpha * self.params.V_ref[0]  # vC
 
+        return me
+
+
+class battery_explicit(battery_n_capacitors):
+    def __init__(self, problem_params, dtype_u=mesh, dtype_f=mesh):
+        # invoke super init, passing number of dofs, dtype_u and dtype_f
+        super(battery_explicit, self).__init__(
+            problem_params,
+            dtype_u=dtype_u,
+            dtype_f=dtype_f,
+        )
+
+    def eval_f(self, u, t):
+        """
+        Routine to evaluate the RHS
+
+        Args:
+            u (dtype_u): current values
+            t (float): current time
+
+        Returns:
+            dtype_f: the RHS
+        """
+
+        f = self.dtype_f(self.init, val=0.0)
+        self.A = np.zeros((2, 2))
+        non_f = np.zeros(2)
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        if u[1] <= self.params.V_ref[0] or t >= t_switch:
+            self.A[0, 0] = -(self.params.Rs + self.params.R) / self.params.L
+            non_f[0] = self.params.Vs
+
+        else:
+            self.A[1, 1] = -1 / (self.params.C[0] * self.params.R)
+            non_f[0] = 0
+
+        f[:] = self.A.dot(u) + non_f
+        return f
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple linear solver for (I-factor*A)u = rhs
+        Args:
+            rhs (dtype_f): right-hand side for the linear system
+            factor (float): abbrev. for the local stepsize (or any other factor required)
+            u0 (dtype_u): initial guess for the iterative solver
+            t (float): current time (e.g. for time-dependent BCs)
+        Returns:
+            dtype_u: solution as mesh
+        """
+        self.A = np.zeros((2, 2))
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        if u[1] <= self.params.V_ref[0] or t >= t_switch:
+            self.A[0, 0] = -(self.params.Rs + self.params.R) / self.params.L
+
+        else:
+            self.A[1, 1] = -1 / (self.params.C[0] * self.params.R)
+
+        me = self.dtype_u(self.init)
+        me[:] = np.linalg.solve(np.eye(self.params.nvars) - factor * self.A, rhs)
         return me
 
 

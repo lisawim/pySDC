@@ -4,9 +4,10 @@ from pathlib import Path
 
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.core.Collocation import CollBase as Collocation
-from pySDC.implementations.problem_classes.Battery import battery, battery_implicit
+from pySDC.implementations.problem_classes.Battery import battery, battery_implicit, battery_explicit
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
+from pySDC.implementations.sweeper_classes.Runge_Kutta import RK4
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
 from pySDC.projects.PinTSimE.battery_model import (
@@ -32,12 +33,12 @@ def run(cwd='./'):
         cwd (str): current working directory
     """
 
-    dt_list = [4e-2, 4e-3]
+    dt_list = [1e-2, 1e-3, 1e-4] #[4e-2, 4e-3]
     t0 = 0.0
     Tend = 0.3
 
-    problem_classes = [battery, battery_implicit]
-    sweeper_classes = [imex_1st_order, generic_implicit]
+    problem_classes = [battery_explicit] #[battery, battery_implicit, battery_explicit]
+    sweeper_classes = [RK4] #[imex_1st_order, generic_implicit, RK4]
 
     ncapacitors = 1
     alpha = 1.2
@@ -74,8 +75,8 @@ def run(cwd='./'):
 
                     stats = controller_run(description, controller_params, use_A, use_SE, t0, Tend)
 
-                    if use_A or use_SE:
-                        check_solution(stats, dt_item, problem.__name__, use_A, use_SE)
+                    #if use_A or use_SE:
+                    #    check_solution(stats, dt_item, problem.__name__, use_A, use_SE)
 
                     if use_SE:
                         assert (

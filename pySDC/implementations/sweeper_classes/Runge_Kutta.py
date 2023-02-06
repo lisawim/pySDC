@@ -298,6 +298,25 @@ class RK4(RungeKutta):
         super(RK4, self).__init__(params)
 
 
+class ThreeEights(RungeKutta):
+    """
+    Explicit Runge-Kutta of fourth-order: 3/8 rule.
+    """
+
+    def __init__(self, params):
+        nodes = np.array([0, 1.0 / 3.0, 2.0 / 3.0, 1.0])
+        weights = np.array([1.0, 3.0, 3.0, 1.0]) / 8.0
+        matrix = = np.zeros((4, 4))
+        matrix[1, 0] = 1.0 / 3.0
+        matrix[2, 0] = -1.0 / 3.0
+        matrix[3, 0] = 1.0
+        matrix[2, 1] = 1.0
+        matrix[3, 1] = -1.0
+        matrix[3, 2] = 1.0
+        params['butcher_tableau'] = ButcherTableau(weights, nodes, matrix)
+        super(ThreeEights, self).__init__(params)
+
+
 class Heun_Euler(RungeKutta):
     """
     Second order explicit embedded Runge-Kutta

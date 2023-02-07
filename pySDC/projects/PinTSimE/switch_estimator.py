@@ -3,6 +3,7 @@ import scipy as sp
 
 from pySDC.core.Collocation import CollBase
 from pySDC.core.ConvergenceController import ConvergenceController, Status
+from pySDC.implementations.sweeper_classes.Runge_Kutta import RungeKutta
 
 
 class SwitchEstimator(ConvergenceController):
@@ -25,17 +26,12 @@ class SwitchEstimator(ConvergenceController):
             (dict): The updated params dictionary
         """
 
-        # for RK4 sweeper, sweep.coll.nodes now consists of values of ButcherTableau
-        # for this reason, collocation nodes will be generated here
-        coll = CollBase(
-            num_nodes=description['sweeper_params']['num_nodes'],
-            quad_type=description['sweeper_params']['quad_type'],
-        )
+        sweeper_type = 'RK' if RungeKutta in description['sweeper_class'].__bases__ else 'SDC'
 
         defaults = {
             'control_order': 100,
             'tol': description['level_params']['dt'],
-            'nodes': coll.nodes,
+            'sweeper_type': sweeper_type,
         }
         return {**defaults, **params}
 
@@ -73,12 +69,18 @@ class SwitchEstimator(ConvergenceController):
 
         L = S.levels[0]
 
+        if self.params.sweeper_type == 'RK':
+            tableau_type = 'TableauEmbedded' if L.sweep.coll.__class__.__name__ == 'ButcherTableauEmbedded' else 'Tableau'
+
+        else:
+            tableau_type = None
+
         if S.status.iter == S.params.maxiter:
-            self.status.switch_detected, m_guess, vC_switch = L.prob.get_switching_info(L.u, L.time)
+            t_interp = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]
+            t_interp, u = self.get_extracted_values(tableau_type, t_interp, L.u)
 
+            self.status.switch_detected, m_guess, vC_switch = L.prob.get_switching_info(u, L.time)
             if self.status.switch_detected:
-                t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
-
                 # only find root if vc_switch[0], vC_switch[-1] have opposite signs (intermediate value theorem)
                 if vC_switch[0] * vC_switch[-1] < 0:
                     self.status.t_switch = self.get_switch(t_interp, vC_switch, m_guess)
@@ -117,7 +119,7 @@ class SwitchEstimator(ConvergenceController):
 
                         else:
                             L.status.dt_new = min([dt_planned, dt_switch])
-
+                        print(L.status.dt_new)
                     else:
                         self.status.switch_detected = False
 
@@ -176,7 +178,8 @@ class SwitchEstimator(ConvergenceController):
             t_switch (np.float): time point of th switch
         """
 
-        p = sp.interpolate.interp1d(t_interp, vC_switch, 'cubic', bounds_error=False)
+        kind = 'quadratic' if len(t_interp) <= 3 else 'cubic'
+        p = sp.interpolate.interp1d(t_interp, vC_switch, kind=kind, bounds_error=False)
 
         SwitchResults = sp.optimize.root_scalar(
             p,
@@ -188,3 +191,64 @@ class SwitchEstimator(ConvergenceController):
         t_switch = SwitchResults.root
 
         return t_switch
+
+    @staticmethod
+    def get_extracted_values(tableau_type, t_interp, u):
+        """
+        Helper to extract values needed for switch estimation using different sweepers. For RK sweepers, additional
+        0 and 1's needs to be removed for the interpolation. When SDC is used as sweeper, only u-value at left should be
+        removed, which corresponds to value at first collocation node (Gauss-Lobatto nodes only, needs to be adapted).
+
+        For using RK sweepers, t_interp will be sorted and duplicates will be removed.
+
+        Args:
+            tableau_type (str): Type of Butcher Tablaeu (differs between embedded, not embedded, None)
+            t_interp (list): list of nodes
+            u (dtype_u): function values
+
+        Returns:
+            t_interp (list): list of nodes (extracted)
+            u (dtype_u): function values (extracted)
+        """
+
+        if tableau_type is not None:
+            # save values on collocation update
+            updates = [t_interp[-1], u[-1]]
+            if tableau_type == 'TableauEmbedded':
+                t_interp = t_interp[1:-2]
+                u = u[1:-2]
+
+            elif tableau_type == 'Tableau':
+                t_interp = t_interp[1:-1]
+                u = u[1:-1]
+
+            # remove duplicates from nodes
+            t_interp_unique = []
+            rm_index = []
+            for i, t in enumerate(t_interp):
+                if t not in t_interp_unique:
+                    t_interp_unique.append(t)
+
+                else:
+                    rm_index.append(i)
+
+            for i in rm_index:
+                u.pop(i)
+
+            # sort nodes and their values
+            ind = [item[0] for item in sorted(enumerate(t_interp_unique), key=lambda i:i[1])]
+            t_interp = [t_interp_unique[i] for i in ind]
+            u = [u[i] for i in ind]
+
+            # remove last values on node 1..
+            t_interp.pop(-1)
+            u.pop(-1)
+
+            # ..and replace it with update
+            t_interp.append(updates[0])
+            u.append(updates[1])
+
+        else:
+            u = u[1:]
+
+        return t_interp, u

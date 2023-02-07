@@ -8,6 +8,7 @@ from pySDC.implementations.datatype_classes.mesh import mesh, imex_mesh
 class battery_n_capacitors(ptype):
     """
     Example implementing the battery drain model with N capacitors, where N is an arbitrary integer greater than 0.
+
     Attributes:
         nswitches: number of switches
     """
@@ -390,3 +391,132 @@ class battery_implicit(battery):
         me[:] = u[:]
 
         return me
+
+
+class battery_drain_charge(ptype):
+    """
+    Example implementing the battery drain model.
+
+    Attributes:
+        nswitches (np.int): number of switches found
+        t_switch (np.float): time point of switch if found, else None
+    """
+
+    def __init__(self, problem_params, dtype_u=mesh, dtype_f=imex_mesh):
+        """
+        Initialization routine
+
+        Args:
+            problem_params (dict): custom parameters for the example
+            dtype_u: mesh data type for solution
+            dtype_f: mesh data type for RHS
+        """
+
+        # these parameters will be used later, so assert their existence
+        essential_keys = ['Ipv', 'Rpv', 'Cpv', 'R0', 'C0', 'Rline2', 'Rl', 'V_ref', 'alpha']
+        for key in essential_keys:
+            if key not in problem_params:
+                msg = 'need %s to instantiate problem, only got %s' % (key, str(problem_params.keys()))
+                raise ParameterError(msg)
+
+        problem_params['nvars'] = 2
+
+        # invoke super init, passing number of dofs, dtype_u and dtype_f
+        super(battery_drain_charge, self).__init__(
+            init=(problem_params['nvars'], None, np.dtype('float64')),
+            dtype_u=dtype_u,
+            dtype_f=dtype_f,
+            params=problem_params,
+        )
+
+        self.A = np.zeros((2, 2))
+        self.t_switch = None
+        self.nswitches = 0
+
+    def eval_f(self, u, t):
+        """
+        Routine to evaluate the RHS
+
+        Args:
+            u (dtype_u): current values
+            t (float): current time
+
+        Returns:
+            dtype_f: the RHS
+        """
+
+        f = self.dtype_f(self.init, val=0.0)
+        f.impl[:] = self.A.dot(u)
+
+        Vgrid = self.eval_grid_voltage(t)
+        f.expl[0] = Vgrid / (self.params.Cpv * self.params.Rline2) - self.params.Ipv / self.params.Cpv
+
+        return f
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver
+
+        Args:
+            rhs (dtype_f): right-hand side for the linear system
+            factor (float): abbrev. for the local stepsize (or any other factor required)
+            u0 (dtype_u): initial guess for the iterative solver
+            t (float): current time (e.g. for time-dependent BCs)
+
+        Returns:
+            dtype_u: solution as mesh
+        """
+
+        u = self.dtype_u(u0)
+        self.A = np.zeros((2, 2))
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        if rhs[1] <= self.params.V_ref or t >= t_switch:
+            self.A[0, 0] = -(1 / (self.params.Cpv * self.params.Rline2) + 1 / (self.params.Cpv * self.params.R0))
+            self.A[0, 1] = 1 / (self.params.Cpv * self.params.R0)
+            self.A[1, 0] = 1 / (self.params.C0 * self.params.R0)
+            self.A[1, 1] = -1 / (self.params.C0 * self.params.R0)
+
+        else:
+            self.A[0, 0] = -1 / (self.params.Cpv * self.params.Rline2)
+
+        me = self.dtype_u(self.init)
+        me[:] = np.linalg.solve(np.eye(self.params.nvars) - factor * self.A, rhs)
+        return me
+
+    def u_exact(self, t):
+        """
+        Routine to compute the exact solution at time t
+
+        Args:
+            t (float): current time
+
+        Returns:
+            dtype_u: exact solution
+        """
+        assert t == 0, 'ERROR: u_exact only valid for t=0'
+
+        me = self.dtype_u(self.init)
+
+        me[0] = 0.0  # vCpv
+        me[1] = 0.0  # vC0
+
+        return me
+
+    @staticmethod
+    def eval_grid_voltage(t):
+        """
+        Function that computes the grid voltage at time t.
+
+        Args:
+            t (np.float): current time
+
+        Returns:
+            Vgrid (np.float): grid voltage
+        """
+
+        Vgrid = 1000
+        add = -200 if t < 5 or t > 6 else 0
+        Vgrid += add
+        return Vgrid

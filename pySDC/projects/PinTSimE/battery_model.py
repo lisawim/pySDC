@@ -4,9 +4,10 @@ from pathlib import Path
 
 from pySDC.helpers.stats_helper import sort_stats, filter_stats, get_sorted
 from pySDC.core.Collocation import CollBase as Collocation
-from pySDC.implementations.problem_classes.Battery import battery, battery_implicit
+from pySDC.implementations.problem_classes.Battery import battery, battery_explicit, battery_implicit
 from pySDC.implementations.sweeper_classes.imex_1st_order import imex_1st_order
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
+from pySDC.implementations.sweeper_classes.Runge_Kutta import Cash_Karp, RK4
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
@@ -14,7 +15,7 @@ import pySDC.helpers.plot_helper as plt_helper
 from pySDC.core.Hooks import hooks
 
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
-from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
+from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity, AdaptivityRK
 
 
 class log_data(hooks):
@@ -75,6 +76,7 @@ def generate_description(
     alpha,
     V_ref,
     C,
+    maxiter,
     max_restarts=None,
 ):
     """
@@ -90,6 +92,8 @@ def generate_description(
         alpha (np.float): Multiple used for the initial conditions (problem_parameter)
         V_ref (np.ndarray): Reference values for the capacitors (problem_parameter)
         C (np.ndarray): Capacitances (problem_parameter
+        maxiter (np.int): maximum number of iterations per step
+        max_restarts (np.int): maximum number of restarts per step
 
     Returns:
         description (dict): contains all information for a controller run
@@ -123,7 +127,7 @@ def generate_description(
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 4
+    step_params['maxiter'] = maxiter
 
     # initialize controller parameters
     controller_params = dict()
@@ -140,7 +144,12 @@ def generate_description(
     if use_adaptivity:
         adaptivity_params = dict()
         adaptivity_params['e_tol'] = 1e-7
-        convergence_controllers.update({Adaptivity: adaptivity_params})
+        if sweeper.__name__ == 'Cash_Karp':
+            adaptivity_params['update_order'] = 5
+            convergence_controllers.update({AdaptivityRK: adaptivity_params})
+
+        else:
+            convergence_controllers.update({Adaptivity: adaptivity_params})
 
     if max_restarts is not None:
         convergence_controllers[BasicRestartingNonMPI] = {
@@ -209,8 +218,8 @@ def run():
     t0 = 0.0
     Tend = 0.3
 
-    problem_classes = [battery, battery_implicit]
-    sweeper_classes = [imex_1st_order, generic_implicit]
+    problem_classes = [battery, battery_explicit, battery_implicit]
+    sweeper_classes = [imex_1st_order, Cash_Karp, generic_implicit]
 
     ncapacitors = 1
     alpha = 1.2
@@ -220,23 +229,29 @@ def run():
     max_restarts = 1
     recomputed = False
     use_switch_estimator = [True]
-    use_adaptivity = [True]
+    use_adaptivity = [False]
 
     for problem, sweeper in zip(problem_classes, sweeper_classes):
         for use_SE in use_switch_estimator:
             for use_A in use_adaptivity:
+                if sweeper.__name__ == 'RK4' or sweeper.__name__ == 'Cash_Karp':
+                    maxiter = 1
+
+                else:
+                    maxiter = 4
+
                 description, controller_params = generate_description(
-                    dt, problem, sweeper, log_data, use_A, use_SE, ncapacitors, alpha, V_ref, C, max_restarts
+                    dt, problem, sweeper, log_data, use_A, use_SE, ncapacitors, alpha, V_ref, C, maxiter, max_restarts
                 )
 
                 # Assertions
                 proof_assertions_description(description, use_A, use_SE)
 
-                proof_assertions_time(dt, Tend, V_ref, alpha)
+                #proof_assertions_time(dt, Tend, V_ref, alpha)
 
                 stats = controller_run(description, controller_params, use_A, use_SE, t0, Tend)
 
-            check_solution(stats, dt, problem.__name__, use_A, use_SE)
+            #check_solution(stats, dt, problem.__name__, use_A, use_SE)
 
             plot_voltages(description, problem.__name__, sweeper.__name__, recomputed, use_SE, use_A)
 

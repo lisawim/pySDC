@@ -449,6 +449,13 @@ class battery_drain_charge(ptype):
         f.impl[:] = self.A.dot(u)
 
         Vgrid = self.eval_grid_voltage(t)
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        #if u[0] <= self.params.V_ref or t >= t_switch:
+        #    f.expl[1] = Vgrid / (self.params.C0 * self.params.Rline2)
+        #else:
+        #    f.expl[0] = Vgrid / (self.params.Cpv * self.params.Rline2) - self.params.Ipv / self.params.Cpv
+
         f.expl[0] = Vgrid / (self.params.Cpv * self.params.Rline2) - self.params.Ipv / self.params.Cpv
 
         return f
@@ -472,14 +479,19 @@ class battery_drain_charge(ptype):
 
         t_switch = np.inf if self.t_switch is None else self.t_switch
 
-        if rhs[1] <= self.params.V_ref or t >= t_switch:
+        if rhs[0] <= self.params.V_ref or t >= t_switch:
             self.A[0, 0] = -(1 / (self.params.Cpv * self.params.Rline2) + 1 / (self.params.Cpv * self.params.R0))
             self.A[0, 1] = 1 / (self.params.Cpv * self.params.R0)
             self.A[1, 0] = 1 / (self.params.C0 * self.params.R0)
             self.A[1, 1] = -1 / (self.params.C0 * self.params.R0)
 
+            #self.A[0, 0] = -1 / (self.params.Cpv * self.params.Rpv)
+            #self.A[1, 0] = -1 / (self.params.C0 * self.params.Rline2)
+
         else:
             self.A[0, 0] = -1 / (self.params.Cpv * self.params.Rline2)
+
+            #self.A[0, 0] = -1 / (self.params.Cpv * self.params.Rline2)
 
         me = self.dtype_u(self.init)
         me[:] = np.linalg.solve(np.eye(self.params.nvars) - factor * self.A, rhs)
@@ -517,6 +529,6 @@ class battery_drain_charge(ptype):
         """
 
         Vgrid = 1000
-        add = -200 if t < 5 or t > 6 else 0
+        add = 0 if t < 5 or t > 6 else -200
         Vgrid += add
         return Vgrid

@@ -1,9 +1,9 @@
 import numpy as np
 import scipy.sparse as sp
-from scipy.sparse.linalg import cg, spsolve
+from scipy.sparse.linalg import spsolve, gmres, inv
 
-from pySDC.core.Errors import ParameterError, ProblemError
-from pySDC.core.Problem import ptype
+from pySDC.core.Errors import ProblemError
+from pySDC.core.Problem import ptype, WorkCounter
 from pySDC.helpers import problem_helper
 from pySDC.implementations.datatype_classes.mesh import mesh, imex_mesh
 
@@ -22,7 +22,28 @@ class LeakySuperconductor(ptype):
     leak itself.
     """
 
-    def __init__(self, problem_params, dtype_u=mesh, dtype_f=mesh):
+    dtype_u = mesh
+    dtype_f = mesh
+
+    def __init__(
+        self,
+        Cv=1000.0,
+        K=1000.0,
+        u_thresh=1e-2,
+        u_max=2e-2,
+        Q_max=1.0,
+        leak_range=(0.45, 0.55),
+        leak_type='linear',
+        order=2,
+        stencil_type='center',
+        bc='neumann-zero',
+        nvars=2**7,
+        newton_tol=1e-8,
+        newton_iter=99,
+        lintol=1e-8,
+        liniter=99,
+        direct_solver=True,
+    ):
         """
         Initialization routine
 
@@ -31,66 +52,62 @@ class LeakySuperconductor(ptype):
             dtype_u: mesh data type (will be passed parent class)
             dtype_f: mesh data type (will be passed parent class)
         """
-
-        # these parameters will be used later, so assert their existence
-        defaults = {
-            'Cv': 1000.0,
-            'K': 1000.0,
-            'u_thresh': 1e-2,
-            'u_max': 2e-2,
-            'Q_max': 1.0,
-            'leak_range': (0.45, 0.55),
-            'order': 2,
-            'stencil_type': 'center',
-            'bc': 'neumann-zero',
-            'nvars': 2**7,
-            'newton_tol': 1e-8,
-            'newton_iter': 99,
-        }
-
-        for key in problem_params.keys():
-            if key not in defaults.keys():
-                raise ParameterError(
-                    f'Don\'t know what to do with parameter {key} in this problem!. Available parameters: {defaults}'
-                )
-        params = {**defaults, **problem_params}
-
         # invoke super init, passing number of dofs, dtype_u and dtype_f
-        super().__init__(
-            init=(params['nvars'], None, np.dtype('float64')),
-            dtype_u=dtype_u,
-            dtype_f=dtype_f,
-            params=params,
+        super().__init__(init=(nvars, None, np.dtype('float64')))
+        self._makeAttributeAndRegister(
+            'Cv',
+            'K',
+            'u_thresh',
+            'u_max',
+            'Q_max',
+            'leak_range',
+            'leak_type',
+            'order',
+            'stencil_type',
+            'bc',
+            'nvars',
+            'newton_tol',
+            'newton_iter',
+            'lintol',
+            'liniter',
+            'direct_solver',
+            localVars=locals(),
+            readOnly=True,
         )
 
         # compute dx (equal in both dimensions) and get discretization matrix A
-        if self.params.bc == 'periodic':
-            self.dx = 1.0 / self.params.nvars
-            xvalues = np.array([i * self.dx for i in range(self.params.nvars)])
-        elif self.params.bc == 'dirichlet-zero':
-            self.dx = 1.0 / (self.params.nvars + 1)
-            xvalues = np.array([(i + 1) * self.dx for i in range(self.params.nvars)])
-        elif self.params.bc == 'neumann-zero':
-            self.dx = 1.0 / (self.params.nvars - 1)
-            xvalues = np.array([(i + 1) * self.dx for i in range(self.params.nvars)])
+        if self.bc == 'periodic':
+            self.dx = 1.0 / self.nvars
+            xvalues = np.array([i * self.dx for i in range(self.nvars)])
+        elif self.bc == 'dirichlet-zero':
+            self.dx = 1.0 / (self.nvars + 1)
+            xvalues = np.array([(i + 1) * self.dx for i in range(self.nvars)])
+        elif self.bc == 'neumann-zero':
+            self.dx = 1.0 / (self.nvars - 1)
+            xvalues = np.array([i * self.dx for i in range(self.nvars)])
         else:
-            raise ProblemError(f'Boundary conditions {self.params.bc} not implemented.')
+            raise ProblemError(f'Boundary conditions {self.bc} not implemented.')
 
         self.A = problem_helper.get_finite_difference_matrix(
             derivative=2,
-            order=self.params.order,
-            type=self.params.stencil_type,
+            order=self.order,
+            stencil_type=self.stencil_type,
             dx=self.dx,
-            size=self.params.nvars,
+            size=self.nvars,
             dim=1,
-            bc=self.params.bc,
+            bc=self.bc,
         )
-        self.A *= self.params.K
+        self.A *= self.K / self.Cv
 
         self.xv = xvalues
-        self.Id = sp.eye(np.prod(self.params.nvars), format='csc')
+        self.Id = sp.eye(np.prod(self.nvars), format='csc')
 
-        self.leak = np.logical_and(self.xv > self.params.leak_range[0], self.xv < self.params.leak_range[1])
+        self.leak = np.logical_and(self.xv > self.leak_range[0], self.xv < self.leak_range[1])
+
+        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['rhs'] = WorkCounter()
+        if not self.direct_solver:
+            self.work_counters['linear'] = WorkCounter()
 
     def eval_f_non_linear(self, u, t):
         """
@@ -103,12 +120,18 @@ class LeakySuperconductor(ptype):
         Returns:
             dtype_u: the non-linear part of the RHS
         """
-        u_thresh = self.params.u_thresh
-        u_max = self.params.u_max
-        Q_max = self.params.Q_max
+        u_thresh = self.u_thresh
+        u_max = self.u_max
+        Q_max = self.Q_max
         me = self.dtype_u(self.init)
 
-        me[:] = (u - u_thresh) / (u_max - u_thresh) * Q_max
+        if self.leak_type == 'linear':
+            me[:] = (u - u_thresh) / (u_max - u_thresh) * Q_max
+        elif self.leak_type == 'exponential':
+            me[:] = Q_max * (np.exp(u) - np.exp(u_thresh)) / (np.exp(u_max) - np.exp(u_thresh))
+        else:
+            raise NotImplementedError(f'Leak type {self.leak_type} not implemented!')
+
         me[u < u_thresh] = 0
         me[self.leak] = Q_max
         me[u >= u_max] = Q_max
@@ -116,6 +139,8 @@ class LeakySuperconductor(ptype):
         # boundary conditions
         me[0] = 0.0
         me[-1] = 0.0
+
+        me[:] /= self.Cv
 
         return me
 
@@ -131,8 +156,43 @@ class LeakySuperconductor(ptype):
             dtype_f: The right hand side
         """
         f = self.dtype_f(self.init)
-        f[:] = (self.A.dot(u.flatten()).reshape(self.params.nvars) + self.eval_f_non_linear(u, t)) / self.params.Cv
+        f[:] = self.A.dot(u.flatten()).reshape(self.nvars) + self.eval_f_non_linear(u, t)
+        self.work_counters['rhs']()
         return f
+
+    def get_non_linear_Jacobian(self, u):
+        """
+        Evaluate the non-linear part of the Jacobian only
+
+        Args:
+            u (dtype_u): Current solution
+
+        Returns:
+            scipy.sparse.csc: The derivative of the non-linear part of the solution w.r.t. to the solution.
+        """
+        u_thresh = self.u_thresh
+        u_max = self.u_max
+        Q_max = self.Q_max
+        me = self.dtype_u(self.init)
+
+        if self.leak_type == 'linear':
+            me[:] = Q_max / (u_max - u_thresh)
+        elif self.leak_type == 'exponential':
+            me[:] = Q_max * np.exp(u) / (np.exp(u_max) - np.exp(u_thresh))
+        else:
+            raise NotImplementedError(f'Leak type {self.leak_type} not implemented!')
+
+        me[u < u_thresh] = 0
+        me[u > u_max] = 0
+        me[self.leak] = 0
+
+        # boundary conditions
+        me[0] = 0.0
+        me[-1] = 0.0
+
+        me[:] /= self.Cv
+
+        return sp.diags(me, format='csc')
 
     def solve_system(self, rhs, factor, u0, t):
         """
@@ -147,52 +207,52 @@ class LeakySuperconductor(ptype):
         Returns:
             dtype_u: solution as mesh
         """
-
-        def get_non_linear_Jacobian(u):
-            """
-            Evaluate the non-linear part of the Jacobian only
-
-            Args:
-                u (dtype_u): Current solution
-
-            Returns:
-                dtype_u: The derivative of the non-linear part of the solution w.r.t. to the solution.
-            """
-            u_thresh = self.params.u_thresh
-            u_max = self.params.u_max
-            Q_max = self.params.Q_max
-            me = self.dtype_u(self.init)
-
-            me[:] = Q_max / (u_max - u_thresh)
-            me[u < u_thresh] = 0
-            me[u > u_max] = 0
-            me[self.leak] = 0
-
-            # boundary conditions
-            me[0] = 0.0
-            me[-1] = 0.0
-
-            me = self.dtype_u(self.init)
-            return me
-
         u = self.dtype_u(u0)
         res = np.inf
-        for _n in range(0, self.params.newton_iter):
+        delta = np.zeros_like(u)
+
+        # construct a preconditioner for the space solver
+        if not self.direct_solver:
+            M = inv(self.Id - factor * self.A)
+
+        for n in range(0, self.newton_iter):
             # assemble G such that G(u) = 0 at the solution of the step
             G = u - factor * self.eval_f(u, t) - rhs
+            self.work_counters[
+                'rhs'
+            ].niter -= (
+                1  # Work regarding construction of the Jacobian etc. should count into the Newton iterations only
+            )
 
             res = np.linalg.norm(G, np.inf)
-            if res <= self.params.newton_tol or np.isnan(res):
+            if res <= self.newton_tol and n > 0:  # we want to make at least one Newton iteration
                 break
 
             # assemble Jacobian J of G
-            J = self.Id - factor * (self.A + get_non_linear_Jacobian(u))
+            J = self.Id - factor * (self.A + self.get_non_linear_Jacobian(u))
 
             # solve the linear system
-            delta = np.linalg.solve(J, G)
+            if self.direct_solver:
+                delta = spsolve(J, G)
+            else:
+                delta, info = gmres(
+                    J,
+                    G,
+                    x0=delta,
+                    M=M,
+                    tol=self.lintol,
+                    maxiter=self.liniter,
+                    atol=0,
+                    callback=self.work_counters['linear'],
+                )
+
+            if not np.isfinite(delta).all():
+                break
 
             # update solution
             u = u - delta
+
+            self.work_counters['newton']()
 
         return u
 
@@ -207,9 +267,22 @@ class LeakySuperconductor(ptype):
             dtype_u: exact solution
         """
 
-        me = self.dtype_u(self.init, val=0)
+        me = self.dtype_u(self.init, val=0.0)
 
         if t > 0:
+
+            def jac(t, u):
+                """
+                Get the Jacobian for the implicit BDF method to use in `scipy.odeint`
+
+                Args:
+                    t (float): The current time
+                    u (dtype_u): Current solution
+
+                Returns:
+                    scipy.sparse.csc: The derivative of the non-linear part of the solution w.r.t. to the solution.
+                """
+                return self.A + self.get_non_linear_Jacobian(u)
 
             def eval_rhs(t, u):
                 """
@@ -224,13 +297,12 @@ class LeakySuperconductor(ptype):
                 """
                 return self.eval_f(u.reshape(self.init[0]), t).flatten()
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init)
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', jac=jac)
         return me
 
 
 class LeakySuperconductorIMEX(LeakySuperconductor):
-    def __init__(self, problem_params, dtype_u=mesh, dtype_f=imex_mesh):
-        super().__init__(problem_params, dtype_u, dtype_f)
+    dtype_f = imex_mesh
 
     def eval_f(self, u, t):
         """
@@ -245,9 +317,10 @@ class LeakySuperconductorIMEX(LeakySuperconductor):
         """
 
         f = self.dtype_f(self.init)
-        f.impl[:] = self.A.dot(u.flatten()).reshape(self.params.nvars) / self.params.Cv
-        f.expl[:] = self.eval_f_non_linear(u, t) / self.params.Cv
+        f.impl[:] = self.A.dot(u.flatten()).reshape(self.nvars)
+        f.expl[:] = self.eval_f_non_linear(u, t)
 
+        self.work_counters['rhs']()
         return f
 
     def solve_system(self, rhs, factor, u0, t):
@@ -265,7 +338,7 @@ class LeakySuperconductorIMEX(LeakySuperconductor):
         """
 
         me = self.dtype_u(self.init)
-        me[:] = spsolve(self.Id - factor * self.A, rhs.flatten()).reshape(self.params.nvars)
+        me[:] = spsolve(self.Id - factor * self.A, rhs.flatten()).reshape(self.nvars)
         return me
 
     def u_exact(self, t, u_init=None, t_init=None):
@@ -285,6 +358,19 @@ class LeakySuperconductorIMEX(LeakySuperconductor):
 
         if t > 0:
 
+            def jac(t, u):
+                """
+                Get the Jacobian for the implicit BDF method to use in `scipy.odeint`
+
+                Args:
+                    t (float): The current time
+                    u (dtype_u): Current solution
+
+                Returns:
+                    scipy.sparse.csc: The derivative of the non-linear part of the solution w.r.t. to the solution.
+                """
+                return self.A
+
             def eval_rhs(t, u):
                 """
                 Function to pass to `scipy.solve_ivp` to evaluate the full RHS
@@ -299,5 +385,5 @@ class LeakySuperconductorIMEX(LeakySuperconductor):
                 f = self.eval_f(u.reshape(self.init[0]), t)
                 return (f.impl + f.expl).flatten()
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init)
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', jac=jac)
         return me

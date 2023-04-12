@@ -29,7 +29,7 @@ def run():
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['nvars'] = 21 #14
+    problem_params['nvars'] = 14
     problem_params['newton_tol'] = 1e-7
 
     # initialize controller parameters
@@ -42,7 +42,7 @@ def run():
     step_params['maxiter'] = 30
 
 
-    problem = SynchronousGenerator_Piline
+    problem = SynchronousGenerator
     # Fill description dictionary for easy hierarchy creation
     description = dict()
     description['problem_class'] = problem

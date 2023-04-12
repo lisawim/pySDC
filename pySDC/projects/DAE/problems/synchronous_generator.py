@@ -9,7 +9,7 @@ def input_torque(t):
         if round(t, 14) < 2:
             Tm = 0.854
         else:
-            Tm = 0.854 - 0.5
+            Tm = 0.854 - 0.7 #0.5
         return Tm
 
 
@@ -56,7 +56,7 @@ class SynchronousGenerator(ptype_dae):
         """
 
         # mechanical torque
-        Tm = input_torque(t)
+        Tm = 0.854 #input_torque(t)
 
         phi_d, phi_q, phi_F, phi_D, phi_Q1, phi_Q2 = u[0], u[1], u[2], u[3], u[4], u[5]
         i_d, i_q, i_F, i_D, i_Q1, i_Q2 = u[6], u[7], u[8], u[9], u[10], u[11]
@@ -73,18 +73,18 @@ class SynchronousGenerator(ptype_dae):
         v_q = V.real * np.cos(delta_r) + V.imag * np.sin(delta_r)
 
         # electromagnetic torque
-        Te = phi_d * i_q - phi_q * i_d
-        print(Te)
+        Te = phi_q * i_d - phi_d * i_q
+
         f = self.dtype_f(self.init)
         f[:] = (
-            -dphi_d + self.wb * (v_d - self.Rs * i_d + omega_m * phi_q),
-            -dphi_q + self.wb * (v_q - self.Rs * i_q - omega_m * phi_d),
+            -dphi_d + self.wb * (v_d + self.Rs * i_d + omega_m * phi_q),
+            -dphi_q + self.wb * (v_q + self.Rs * i_q - omega_m * phi_d),
             -dphi_F + self.wb * (self.v_F - self.R_F * i_F),
             -dphi_D - self.wb * self.R_D * i_D,
             -dphi_Q1 - self.wb * self.R_Q1 * i_Q1,
             -dphi_Q2 - self.wb * self.R_Q2 * i_Q2,
             -ddelta_r + self.wb*(omega_m-1),
-            -domega_m + (1 / (2 * self.H)) * (Tm + Te - self.Kd * (omega_m-1)),
+            -domega_m + (self.wb / (2 * self.H)) * (Tm - Te - self.Kd * self.wb * (omega_m-1)),
             # algebraic generator
             -phi_d + self.Ld * i_d + self.Lmd * i_F + self.Lmd * i_D,
             -phi_q + self.Lq * i_q + self.Lmq * i_Q1 + self.Lmq * i_Q2,
@@ -156,7 +156,7 @@ class SynchronousGenerator_Piline(ptype_dae):
         self.R_Q2 = 0.0237
         self.omega_b = 376.9911184307752
         self.H_ = 3.525
-        self.K_D = 0.5
+        self.K_D = 0.0
         # pi line
         self.C_pi = 0.000002
         self.R_pi = 0.02
@@ -200,19 +200,19 @@ class SynchronousGenerator_Piline(ptype_dae):
         diz_d, diz_q, dvl_d, dvl_q = du[15], du[16],du[19], du[20]
 
         # electrical torque
-        Te = psi_d * i_q - psi_q * i_d
+        Te = psi_q * i_d - psi_d * i_q
 
         # algebraic variables are i_d, i_q, i_F, i_D, i_Q1, i_Q2, il_d, il_q
 
         f[:] = (
             # differential generator
-            dpsi_d - self.omega_b * (v_d - self.R_s * i_d + omega_m * psi_q),
-            dpsi_q - self.omega_b * (v_q - self.R_s * i_q - omega_m * psi_d),
+            dpsi_d - self.omega_b * (v_d + self.R_s * i_d + omega_m * psi_q),
+            dpsi_q - self.omega_b * (v_q + self.R_s * i_q - omega_m * psi_d),
             dpsi_F - self.omega_b * (self.v_F - self.R_F * i_F),
             dpsi_D - self.omega_b * (self.v_D - self.R_D * i_D),
             dpsi_Q1 - self.omega_b * (self.v_Q1 - self.R_Q1 * i_Q1),
             dpsi_Q2 - self.omega_b * (self.v_Q2 - self.R_Q2 * i_Q2),
-            -domega_m + (1 / (2 * self.H_)) * (Tm + Te - self.K_D * (omega_m-1)),
+            -domega_m + (self.omega_b / (2 * self.H_)) * (Tm - Te - self.K_D * self.omega_b * (omega_m-1)),
             # differential pi line
             dv_d - omega_m * v_q - 2/self.C_pi * (i_d - iz_d),
             dv_q + omega_m * v_q - 2/self.C_pi * (i_q - iz_q),

@@ -3,9 +3,8 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline
+from pySDC.projects.DAE.problems.soft_drink_manufacturing import SoftDrinkManufacturing_fully_implicit
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.sweepers.fully_implicit_BDF import fully_implicit_BDF
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted
@@ -19,34 +18,32 @@ def run():
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-9
-    level_params['dt'] = 1e-4
+    level_params['restol'] = 1e-6
+    level_params['dt'] = 1e-3
 
     # initialize sweeper parameters
     sweeper_params = dict()
-    sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 5
+    #sweeper_params['quad_type'] = 'RADAU-RIGHT'
+    sweeper_params['num_nodes'] = 1
     sweeper_params['QI'] = 'LU'
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['nvars'] = 20
-    problem_params['newton_tol'] = 1e-12
+    problem_params['nvars'] = 9
+    problem_params['newton_tol'] = 1e-7
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 30
     controller_params['hook_class'] = approx_solution_hook
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 10
+    step_params['maxiter'] = 6
 
-
-    problem = SynchronousGenerator
     # Fill description dictionary for easy hierarchy creation
     description = dict()
-    description['problem_class'] = problem
+    description['problem_class'] = SoftDrinkManufacturing_fully_implicit
     description['problem_params'] = problem_params
     description['sweeper_class'] = fully_implicit_DAE
     description['sweeper_params'] = sweeper_params
@@ -60,7 +57,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 1.0 #4.0
+    Tend = 7.5
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
@@ -69,47 +66,42 @@ def run():
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    id = np.array([me[1][6] for me in get_sorted(stats, type='approx_solution')])
-    iq = np.array([me[1][7] for me in get_sorted(stats, type='approx_solution')])
-    omega_m = np.array([me[1][12] for me in get_sorted(stats, type='approx_solution')])
-    delta_r = np.array([me[1][13] for me in get_sorted(stats, type='approx_solution')])
-    v_d = np.array([me[1][14] for me in get_sorted(stats, type='approx_solution')])
-    v_q = np.array([me[1][15] for me in get_sorted(stats, type='approx_solution')])
-    V_re = np.array([me[1][16] for me in get_sorted(stats, type='approx_solution')])
-    V_im = np.array([me[1][17] for me in get_sorted(stats, type='approx_solution')])
+    M1 = np.array([me[1][0] for me in get_sorted(stats, type='approx_solution')])
+    M2 = np.array([me[1][1] for me in get_sorted(stats, type='approx_solution')])
+    M3 = np.array([me[1][2] for me in get_sorted(stats, type='approx_solution')])
+    Ml = np.array([me[1][3] for me in get_sorted(stats, type='approx_solution')])
     t = np.array([me[0] for me in get_sorted(stats, type='approx_solution')])
-    print('v_d=', v_d)
-    print('v_q=', v_q)
-    print('delta_r=', delta_r)
-    print('V_re', V_re)
-    print('V_im', V_im)
-    Tm = np.zeros(len(t))
-    for m in range(len(t)):
-        if round(t[m], 14) < 0.2:
-            Tm[m] = 0.854
-        else:
-            Tm[m] = 0.354
-    #print ('i_d=', id)
-    #print('i_q=', iq)
-    wb = 100 * np.pi
-    freq = omega_m * wb / (2*np.pi)
 
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax.set_title('Simulation', fontsize=10)
-    ax.plot(t, id, label=r'$i_d$')
-    ax.plot(t, iq, label=r'$i_q$')
-    #ax.plot(t, Tm, label=r'$T_m$')
+    ax.set_title(r'Solution of $M_l$', fontsize=10)
+    #ax.plot(t, M1, label=r'$M_1$')
+    #ax.plot(t, M2, label=r'$M_2$')
+    #ax.plot(t, M3, label=r'$M_3$')
+    ax.plot(t, Ml, label=r'$M_l$')
     ax.legend(frameon=False, fontsize=8, loc='upper right')
-    fig.savefig('data/{}.png'.format(problem.__name__), dpi=300, bbox_inches='tight')
+    fig.savefig('data/soft_drink_solution_Ml.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
     fig2, ax2 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax2.set_title('Frequency', fontsize=10)
-    ax2.plot(t, freq, label='Frequency')
-    ax2.plot(t, omega_m, label=r'$\omega_m$')
+    ax2.set_title(r'Solution of $M_1$', fontsize=10)
+    ax2.plot(t, M1, label=r'$M_1$')
     ax2.legend(frameon=False, fontsize=8, loc='upper right')
-    fig2.savefig('data/{}_frequency.png'.format(problem.__name__), dpi=300, bbox_inches='tight')
+    fig2.savefig('data/soft_drink_solution_M1.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig2)
+
+    fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    ax3.set_title(r'Solution of $M_2$', fontsize=10)
+    ax3.plot(t, M2, label=r'$M_2$')
+    ax3.legend(frameon=False, fontsize=8, loc='upper right')
+    fig3.savefig('data/soft_drink_solution_M2.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig3)
+
+    fig4, ax4 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    ax4.set_title(r'Solution of $M_3$', fontsize=10)
+    ax4.plot(t, M3, label=r'$M_3$')
+    ax4.legend(frameon=False, fontsize=8, loc='upper right')
+    fig4.savefig('data/soft_drink_solution_M3.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig4)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 # Helper function
@@ -15,16 +16,19 @@ class one_transistor_amplifier(ptype_dae):
     The one transistor amplifier example from pg. 404 Solving ODE II by Hairer and Wanner
     The problem is an index-1 DAE
     """
+    dtype_u = mesh
+    dtype_f = mesh
 
     def __init__(self, nvars, newton_tol):
         super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
         # load reference solution
-        data = np.load(r'pySDC/projects/DAE/misc/data/one_trans_amp.npy')
-        x = data[:, 0]
+        #data = np.load(r'pySDC/projects/DAE/misc/data/one_trans_amp.npy')
+        #x = data[:, 0]
         # The last column contains the input signal
-        y = data[:, 1:-1]
-        self.u_ref = interp1d(x, y, kind='cubic', axis=0, fill_value='extrapolate')
-        self.t_end = x[-1]
+        #y = data[:, 1:-1]
+        #self.u_ref = interp1d(x, y, kind='cubic', axis=0, fill_value='extrapolate')
+        #self.t_end = x[-1]
 
     def eval_f(self, u, du, t):
         """
@@ -61,11 +65,16 @@ class one_transistor_amplifier(ptype_dae):
         """
         me = self.dtype_u(self.init)
 
-        if t < self.t_end:
-            me[:] = self.u_ref(t)
-        else:
-            warnings.warn("Requested time exceeds domain of the reference solution. Returning zero.")
-            me[:] = (0, 0, 0, 0, 0)
+        #if t < self.t_end:
+        #    me[:] = self.u_ref(t)
+        #else:
+        #    warnings.warn("Requested time exceeds domain of the reference solution. Returning zero.")
+        #    me[:] = (0, 0, 0, 0, 0)
+        me[0] = 0.0
+        me[1] = 3.0
+        me[2] = 3.0
+        me[3] = 6.0
+        me[4] = 0.0
         return me
 
 

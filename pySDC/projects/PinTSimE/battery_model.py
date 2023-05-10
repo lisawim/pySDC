@@ -218,8 +218,8 @@ def run():
     t0 = 0.0
     Tend = 0.3
 
-    problem_classes = [battery, battery_explicit, battery_implicit]
-    sweeper_classes = [imex_1st_order, Cash_Karp, generic_implicit]
+    problem_classes = [battery, battery_implicit]
+    sweeper_classes = [imex_1st_order, generic_implicit]
 
     ncapacitors = 1
     alpha = 1.2

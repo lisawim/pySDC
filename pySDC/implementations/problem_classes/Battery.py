@@ -200,7 +200,7 @@ class battery(battery_n_capacitors):
 
         f = self.dtype_f(self.init, val=0.0)
         f.impl[:] = self.A.dot(u)
-
+        print(t)
         t_switch = np.inf if self.t_switch is None else self.t_switch
 
         if u[1] <= self.V_ref[0] or t >= t_switch:

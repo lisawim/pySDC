@@ -6,16 +6,16 @@ from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 def input_torque(t):
-        if round(t, 14) < 2:
+        if round(t, 14) < 0.2:
             Tm = 0.854
         else:
-            Tm = 0.854 - 0.7 #0.5
+            Tm = 0.854 - 0.5
         return Tm
 
 
 class SynchronousGenerator(ptype_dae):
     """
-    Example implementing the synchronous generator model from PinTSimE  project
+    Example implementing the synchronous generator model from PinTSimE project
     """
 
     dtype_u = mesh
@@ -32,23 +32,27 @@ class SynchronousGenerator(ptype_dae):
 
         self.Ld = 1.8099
         self.Lq = 1.76
-        self.LF = 1.8247
-        self.LD = 1.8312
-        self.LQ1 = 2.3352
-        self.LQ2 = 1.735
+        self.LF = 1.824652
+        self.LD = 1.83149
+        self.LQ1 = 2.578217
+        self.LQ2 = 1.729817
         self.Lmd = 1.6599
         self.Lmq = 1.61
         self.Rs = 3 * 1e-3
-        self.R_F = 6 * 1e-4
-        self.R_D = 2.84 * 1e-2
-        self.R_Q1 = 6.2 * 1e-3
-        self.R_Q2 = 2.37 * 1e-2
-        self.H = 3.525
+        self.R_F = 0.000742259
+        self.R_D = 0.0333636
+        self.R_Q1 = 0.0104167
+        self.R_Q2 = 2.5953e-2
+        self.H = 6
         self.Kd = 0.0
-        self.wb = 376.9911184307752
-        self.Zline = -0.2688022164909709-0.15007173591230372j
-        self.vbus = 0.7
-        self.v_F = 8.736809687330562e-4
+        self.wb = 100 * np.pi
+        #self.vbus = 0.5419999999999999 - 0.4064j
+        self.v_F = 0.00108242466673301
+        self.R_shunt = 1e9
+        self.set_switch = False
+        self.V_g = 0.6920 - 0.4064j
+        self.G = np.real(1 / (0.1 + 0.5j))
+        self.B = np.imag(1 / (0.1 + 0.5j))
 
     def eval_f(self, u, du, t):
         """
@@ -56,21 +60,34 @@ class SynchronousGenerator(ptype_dae):
         """
 
         # mechanical torque
-        Tm = 0.854 #input_torque(t)
+        Tm = 0.9030
 
         phi_d, phi_q, phi_F, phi_D, phi_Q1, phi_Q2 = u[0], u[1], u[2], u[3], u[4], u[5]
         i_d, i_q, i_F, i_D, i_Q1, i_Q2 = u[6], u[7], u[8], u[9], u[10], u[11]
         omega_m, delta_r = u[12], u[13]
+        v_d, v_q = u[14], u[15]
+        V_re, V_im, I_re, I_im = u[16], u[17], u[18], u[19]
 
         dphi_d, dphi_q, dphi_F, dphi_D, dphi_Q1, dphi_Q2 = du[0], du[1], du[2], du[3], du[4], du[5]
         domega_m, ddelta_r = du[12], du[13]
-
+        print(t, du)
         # compute stator voltages
-        re_I = i_d * np.sin(delta_r) + i_q * np.cos(delta_r)
-        im_I = -i_d * np.cos(delta_r) + i_q * np.sin(delta_r)
-        V = self.vbus - self.Zline * (-1) * (re_I + 1j * im_I)
-        v_d = V.real * np.sin(delta_r) - V.imag * np.cos(delta_r)
-        v_q = V.real * np.cos(delta_r) + V.imag * np.sin(delta_r)
+        #re_I = i_d * np.sin(delta_r) + i_q * np.cos(delta_r)
+        #im_I = -i_d * np.cos(delta_r) + i_q * np.sin(delta_r)
+
+        #V = 1.0
+        #print(t, omega_m * self.wb / (2*np.pi))
+        #if (omega_m * self.wb / (2*np.pi) < 49 or omega_m * self.wb / (2*np.pi) > 51) and self.set_switch == False:
+        #V = self.R_shunt * (-1) * (re_I + 1j * im_I) # where R_shunt = 1e9
+            #self.set_switch = True
+            #print(t)
+        #else:
+        #V = self.vbus - self.Zline * (-1) * (re_I + 1j * im_I)
+
+        #v_d = V.real * np.sin(delta_r) - V.imag * np.cos(delta_r)
+        #v_q = V.real * np.cos(delta_r) + V.imag * np.sin(delta_r)
+        #if t == 0.0015505102572168283:
+        #    print(v_d, v_q)
 
         # electromagnetic torque
         Te = phi_q * i_d - phi_d * i_q
@@ -83,15 +100,21 @@ class SynchronousGenerator(ptype_dae):
             -dphi_D - self.wb * self.R_D * i_D,
             -dphi_Q1 - self.wb * self.R_Q1 * i_Q1,
             -dphi_Q2 - self.wb * self.R_Q2 * i_Q2,
-            -ddelta_r + self.wb*(omega_m-1),
-            -domega_m + (self.wb / (2 * self.H)) * (Tm - Te - self.Kd * self.wb * (omega_m-1)),
+            -ddelta_r + self.wb * (omega_m-1),
+            -domega_m + (self.wb / (2 * self.H)) * (Tm - (phi_q * i_d - phi_d * i_q) - self.Kd * self.wb * (omega_m-1)),
             # algebraic generator
             -phi_d + self.Ld * i_d + self.Lmd * i_F + self.Lmd * i_D,
             -phi_q + self.Lq * i_q + self.Lmq * i_Q1 + self.Lmq * i_Q2,
             -phi_F + self.Lmd * i_d + self.LF * i_F + self.Lmd * i_D,
             -phi_D + self.Lmd * i_d + self.Lmd * i_F + self.LD * i_D,
             -phi_Q1 + self.Lmq * i_q + self.LQ1 * i_Q1 + self.Lmq * i_Q2,
-            -phi_Q2 + self.Lmq * i_q + self.Lmq * i_Q1 + self.LQ2 * i_Q2
+            -phi_Q2 + self.Lmq * i_q + self.Lmq * i_Q1 + self.LQ2 * i_Q2,
+            v_d - V_re * np.sin(delta_r) + V_im * np.cos(delta_r),
+            v_q - V_re * np.cos(delta_r) - V_im * np.sin(delta_r),
+            I_re - (-1) * (i_d * np.sin(delta_r) + i_q * np.cos(delta_r)),
+            I_im + (-1) * (i_d * np.cos(delta_r) - i_q * np.sin(delta_r)),
+            self.G * (V_re - np.real(self.V_g)) - self.B * (V_im - np.imag(self.V_g)) - I_re,
+            self.B * (V_re - np.real(self.V_g)) + self.G * (V_im - np.imag(self.V_g)) - I_im,
         )
         return f
 
@@ -106,20 +129,26 @@ class SynchronousGenerator(ptype_dae):
 
         me = self.dtype_u(self.init)
 
-        me[0] = 0.7770802016688648  # phi_d
-        me[1] = -0.6337183129426077  # phi_q
-        me[2] = 1.152966888216155  # phi_F
-        me[3] = 0.9129958488040036  # phi_D
-        me[4] = -0.5797082294536264  # phi_Q1
-        me[5] = -0.5797082294536264  # phi_Q2
-        me[6] = -0.9061043142342473  # i_d
-        me[7] = -0.36006722326230495  # i_q
-        me[8] = 1.45613494788927  # i_F
+        me[0] = 0.7466010519363004  # phi_d
+        me[1] = -0.6693249361197048  # phi_q
+        me[2] = 1.125593681235877  # phi_F
+        me[3] = 0.8853384216922447  # phi_D
+        me[4] = -0.6122801972459051  # phi_Q1
+        me[5] = -0.6122801972459051  # phi_Q2
+        me[6] = -0.9249157983734856  # i_d
+        me[7] = -0.3802982591590532  # i_q
+        me[8] = 1.458284327617462  # i_F
         me[9] = 0.0  # i_D
         me[10] = 0.0  # i_Q1
         me[11] = 0.0  # i_Q2
-        me[12] = (2 * np.pi * 60) / (2 * np.pi * 60)  # omega_m
-        me[13] = 39.1 * (np.pi / 180)  # delta_r
+        me[12] = 1.0  # omega_m
+        me[13] = 0.7295713955883498  # delta_r (rad)
+        me[14] = 0.6665501887246269 # v_d
+        me[15] = 0.7454601571587608 # v_q
+        me[16] = 1  # V_re
+        me[17] = 0  # V_im
+        me[18] = 0.9 # I_re
+        me[19] = -0.436  # I_im
 
         return me
 

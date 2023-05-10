@@ -5,11 +5,11 @@ from pySDC.core.Errors import ParameterError
 from pySDC.core.Sweeper import sweeper
 
 
-class fully_implicit_BDF(sweeper):
+class implicit_euler_DAE(sweeper):
     """
     Custom sweeper class, implements Sweeper.py
 
-    BDF Sweeper to solve first order differential equations in fully implicit form
+    Implicit Euler for DAEs Sweeper to solve first order differential equations in fully implicit form
     Primarily implemented to be used with differential algebraic equations
     """
 
@@ -21,15 +21,15 @@ class fully_implicit_BDF(sweeper):
             params: parameters for the sweeper
         """
 
-        assert params['num_nodes'] == 2, 'Implicit Euler BDF only uses the value from t0!'
+        assert params['num_nodes'] == 2, 'Implicit Euler (BDF method) only uses the value from t0'
+        assert params['quad_type'] == 'LOBATTO', 'quad_type has to be LOBATTO due to both end points corresponding to nodes'
 
         # call parent's initialization routine
-        super(fully_implicit_BDF, self).__init__(params)
+        super(implicit_euler_DAE, self).__init__(params)
 
     def update_nodes(self):
         """
-        Update the u- and f-values at the collocation nodes -> corresponds to a single iteration of the preconditioned Richardson iteration >
-
+        Update the u- and f-values at the end of the time step
         Returns:
             None
         """
@@ -44,6 +44,7 @@ class fully_implicit_BDF(sweeper):
 
         u0 = L.u[0]
 
+        # implicit function that have to be solved by Newton's method
         def fun(u):
             u_new = P.dtype_u(P.init)
             u_new[:] = u
@@ -61,7 +62,7 @@ class fully_implicit_BDF(sweeper):
         )
 
         u_new = opt.x
-        L.u[1][:] = u_new
+        L.u[2][:] = u_new
         L.f[1][:] = (u_new - u0) / L.dt
 
         # indicate presence of new values at this level
@@ -118,9 +119,24 @@ class fully_implicit_BDF(sweeper):
         P = L.prob
 
         # compute the residual at the end of the interval
-        res_norm = abs(P.eval_f(L.u[1], L.f[1], L.time + L.dt))
+        res_norm = []
+        for m in range(self.coll.num_nodes):
+            res_norm.append(abs(P.eval_f(L.u[m+1], L.f[m], L.time + L.dt * self.coll.nodes[m])))
 
-        L.status.residual = res_norm
+        # find maximal residual over the nodes
+        if L.params.residual_type == 'full_abs':
+            L.status.residual = max(res_norm)
+        elif L.params.residual_type == 'last_abs':
+            L.status.residual = res_norm[-1]
+        elif L.params.residual_type == 'full_rel':
+            L.status.residual = max(res_norm) / abs(L.u[0])
+        elif L.params.residual_type == 'last_rel':
+            L.status.residual = res_norm[-1] / abs(L.u[0])
+        else:
+            raise ParameterError(
+                f'residual_type = {L.params.residual_type} not implemented, choose '
+                f'full_abs, last_abs, full_rel or last_rel instead'
+            )
 
         # indicate that the residual has seen the new values
         L.status.updated = False
@@ -129,9 +145,7 @@ class fully_implicit_BDF(sweeper):
 
     def compute_end_point(self):
         """
-        Compute u at the right point of the interval
-
-        The value uend computed here is a full evaluation of the Picard formulation unless do_full_update==False
+        Compute u at the right point of the interval. The value uend computed here is the value of the next time step
 
         Returns:
             None
@@ -140,11 +154,7 @@ class fully_implicit_BDF(sweeper):
         L = self.level
         P = L.prob
 
-        # check if Mth node is equal to right point and do_coll_update is false, perform a simple copy
-        if self.coll.right_is_node and not self.params.do_coll_update:
-            # a copy is sufficient
-            L.uend = P.dtype_u(L.u[1])
-        else:
-            L.uend = P.dtype_u(L.u[0])
+        # a copy is sufficient
+        L.uend = P.dtype_u(L.u[2])
 
         return None

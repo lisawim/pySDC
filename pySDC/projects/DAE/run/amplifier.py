@@ -4,7 +4,7 @@ import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.DAE.problems.transistor_amplifier import one_transistor_amplifier
-from pySDC.projects.DAE.sweepers.fully_implicit_BDF import fully_implicit_BDF
+from pySDC.projects.DAE.sweepers.implicit_euler_DAE import implicit_euler_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted
@@ -43,7 +43,7 @@ def main():
     description = dict()
     description['problem_class'] = one_transistor_amplifier
     description['problem_params'] = problem_params
-    description['sweeper_class'] = fully_implicit_BDF
+    description['sweeper_class'] = implicit_euler_DAE
     description['sweeper_params'] = sweeper_params
     description['level_params'] = level_params
     description['step_params'] = step_params

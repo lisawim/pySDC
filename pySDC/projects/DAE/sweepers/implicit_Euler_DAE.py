@@ -5,7 +5,7 @@ from pySDC.core.Errors import ParameterError
 from pySDC.core.Sweeper import sweeper
 
 
-class implicit_euler_DAE(sweeper):
+class implicit_Euler_DAE(sweeper):
     """
     Custom sweeper class, implements Sweeper.py
 

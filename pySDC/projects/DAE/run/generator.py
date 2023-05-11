@@ -5,7 +5,7 @@ import pickle
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.sweepers.fully_implicit_BDF import fully_implicit_BDF
+from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted

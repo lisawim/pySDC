@@ -12,7 +12,9 @@ from pySDC.projects.PinTSimE.piline_model import setup_mpl
 import pySDC.helpers.plot_helper as plt_helper
 
 
-def get_description(dt, nvars, problem_class, newton_tol, sweeper=implicit_Euler_DAE, quad_type='LOBATTO', num_nodes=2):
+def get_description(
+    dt, nvars, problem_class, newton_tol, hookclass, sweeper=implicit_Euler_DAE, quad_type='LOBATTO', num_nodes=2
+):
     """
     Returns the description for one simulation run.
     Args:
@@ -50,7 +52,8 @@ def get_description(dt, nvars, problem_class, newton_tol, sweeper=implicit_Euler
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 30
-    controller_params['hook_class'] = [approx_solution_hook, error_hook]
+    if hookclass is not None:
+        controller_params['hook_class'] = hookclass
 
     # Fill description dictionary for easy hierarchy creation
     description = dict()
@@ -145,9 +148,12 @@ def main():
 
     Path("data").mkdir(parents=True, exist_ok=True)
 
+    hookclass = [approx_solution_hook, error_hook]
+
     nvars = 3
     problem_class = simple_dae_1
     newton_tol = 1e-12
+    order = 1
 
     t0 = 0.0
     Tend = 1.0
@@ -159,7 +165,7 @@ def main():
     for dt_item in dt_list:
         print(f'Controller run -- Simulation for step size: {dt_item}')
 
-        description, controller_params = get_description(dt_item, nvars, problem_class, newton_tol)
+        description, controller_params = get_description(dt_item, nvars, problem_class, newton_tol, hookclass)
 
         stats = controller_run(t0, Tend, controller_params, description)
 
@@ -171,7 +177,7 @@ def main():
         if dt_item == random_dt:
             plot_solution(stats)
 
-    plot_order(dt_list, global_errors)
+    plot_order(dt_list, global_errors, order)
 
 
 if __name__ == "__main__":

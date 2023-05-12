@@ -9,13 +9,17 @@ def test_predict_main():
     from pySDC.projects.DAE.run.simple_dae import get_description
     from pySDC.core.Step import step
 
-    dt = 1e-2
+    dt = 0.25 #1e-2
     nvars = 3
-    problem_class = simple_dae
+    problem_class = simple_dae_1
     newton_tol = 1e-12
     hookclass = None
+    sweeper = implicit_Euler_DAE
+    quad_type = 'LOBATTO'
+    num_nodes = 2
 
-    description, _ = get_description(dt, nvars, problem_class, newton_tol, hookclass)
+    description, _ = get_description(dt, nvars, problem_class, newton_tol, hookclass, sweeper, quad_type, num_nodes)
+    description['sweeper_params']['initial_guess'] = 'zero'
 
     S = step(description=description)
     L = S.levels[0]
@@ -28,15 +32,13 @@ def test_predict_main():
     L.sweep.predict()
     # check correct initialisation
     assert np.array_equal(L.f[0], np.zeros(3))
-    for i in range(sweeper_params['num_nodes']):
+    for i in range(description['sweeper_params']['num_nodes']):
         assert np.array_equal(L.u[i + 1], np.zeros(3))
         assert np.array_equal(L.f[i + 1], np.zeros(3))
 
     # rerun check for random initialisation
     # expecting that random initialisation does not initialise to zero
-    sweeper_params['initial_guess'] = 'random'
-    description['sweeper_params'] = sweeper_params
-
+    description['sweeper_params']['initial_guess'] = 'random'
     S = step(description=description)
     L = S.levels[0]
     P = L.prob
@@ -46,6 +48,6 @@ def test_predict_main():
     L.u[0] = P.u_exact(L.time)
     L.sweep.predict()
     assert np.array_equal(L.f[0], np.zeros(3))
-    for i in range(sweeper_params['num_nodes']):
+    for i in range(description['sweeper_params']['num_nodes']):
         assert np.not_equal(L.u[i + 1], np.zeros(3)).any()
         assert np.not_equal(L.f[i + 1], np.zeros(3)).any()

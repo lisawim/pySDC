@@ -22,7 +22,9 @@ class implicit_Euler_DAE(sweeper):
         """
 
         assert params['num_nodes'] == 2, 'Implicit Euler (BDF method) only uses the value from t0'
-        assert params['quad_type'] == 'LOBATTO', 'quad_type has to be LOBATTO due to both end points corresponding to nodes'
+        assert (
+            params['quad_type'] == 'LOBATTO'
+        ), 'quad_type has to be LOBATTO due to both end points corresponding to nodes'
 
         # call parent's initialization routine
         super(implicit_Euler_DAE, self).__init__(params)
@@ -121,7 +123,7 @@ class implicit_Euler_DAE(sweeper):
         # compute the residual at the end of the interval
         res_norm = []
         for m in range(self.coll.num_nodes):
-            res_norm.append(abs(P.eval_f(L.u[m+1], L.f[m], L.time + L.dt * self.coll.nodes[m])))
+            res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m], L.time + L.dt * self.coll.nodes[m])))
 
         # find maximal residual over the nodes
         if L.params.residual_type == 'full_abs':

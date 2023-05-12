@@ -122,13 +122,14 @@ def plot_order(dt_list, global_errors, p=1):
         p (int): order of accuracy to be plotted and considered
     """
 
-    order_ref = [dt ** p for dt in dt_list]
+    order_ref = [dt**p for dt in dt_list]
+    global_err_dt = [err[1] for err in global_errors]
 
     setup_mpl()
     fig_order, ax_order = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
     ax_order.set_title('Order of accuracy')
     ax_order.loglog(dt_list, order_ref, 'k--', label='Reference order $p={}$'.format(p))
-    ax_order.loglog(dt_list, [err[1] for err in global_errors], 'o-', label='Order reached')
+    ax_order.loglog(dt_list, global_err_dt, 'o-', label='Order reached')
     ax_order.set_xlabel(r'$\Delta t$', fontsize=8)
     ax_order.set_ylabel(r'$||\bar{u}-\tilde{u}||_\infty$', fontsize=8)
     ax_order.legend(frameon=False, fontsize=8, loc='lower right')

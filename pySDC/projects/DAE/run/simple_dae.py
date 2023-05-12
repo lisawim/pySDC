@@ -8,6 +8,8 @@ from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted
+from pySDC.projects.PinTSimE.piline_model import setup_mpl
+import pySDC.helpers.plot_helper as plt_helper
 
 
 def get_description(dt, nvars, problem_class, newton_tol, sweeper=implicit_Euler_DAE, quad_type='LOBATTO', num_nodes=2):
@@ -88,9 +90,56 @@ def controller_run(t0, Tend, controller_params, description):
     return stats
 
 
+def plot_solution(stats):
+    """
+    Plots the solution of the problem class integrated by the sweeper.
+    Args:
+        stats (dict): Raw statistics from a controller run
+    """
+
+    u1 = np.array([me[1][0] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
+    u2 = np.array([me[1][1] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
+    u3 = np.array([me[1][2] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
+    t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
+
+    setup_mpl()
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+    ax.set_title('Numerical solution')
+    ax.plot(t, u1, label=r'$u_1$')
+    ax.plot(t, u2, label=r'$u_2$')
+    ax.plot(t, u3, label=r'$u_3$')
+    ax.legend(frameon=False, fontsize=8, loc='upper right')
+    fig.savefig('data/simple_dae_solution.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
+
+
+def plot_order(dt_list, global_errors, p=1):
+    """
+    Plots the order of accuracy p for the sweeper used for the computation.
+    Args:
+        dt_list (list): list of step sizes
+        global_errors (list): contains the global errors for each step size
+        p (int): order of accuracy to be plotted and considered
+    """
+
+    order_ref = [dt ** p for dt in dt_list]
+
+    setup_mpl()
+    fig_order, ax_order = plt_helper.plt.subplots(1, 1, figsize=(3, 3))
+    ax_order.set_title('Order of accuracy')
+    ax_order.loglog(dt_list, order_ref, 'k--', label='Reference order $p={}$'.format(p))
+    ax_order.loglog(dt_list, [err[1] for err in global_errors], 'o-', label='Order reached')
+    ax_order.set_xlabel(r'$\Delta t$', fontsize=8)
+    ax_order.set_ylabel(r'$||\bar{u}-\tilde{u}||_\infty$', fontsize=8)
+    ax_order.legend(frameon=False, fontsize=8, loc='lower right')
+    fig_order.savefig('data/simple_dae_accuracy_order.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig_order)
+
+
 def main():
     """
-    Main function, it executes the simulation of a problem class using a DAE sweeper
+    Main function, it executes the simulation of a problem class using a DAE sweeper for different step sizes.
+    Also, it plots the solution for some random step size.
     """
 
     Path("data").mkdir(parents=True, exist_ok=True)
@@ -103,12 +152,25 @@ def main():
     Tend = 1.0
     dt_list = [2 ** (-m) for m in range(2, 12)]
 
+    random_dt = np.random.choice(dt_list)
+
+    global_errors = list()
     for dt_item in dt_list:
         print(f'Controller run -- Simulation for step size: {dt_item}')
 
         description, controller_params = get_description(dt_item, nvars, problem_class, newton_tol)
 
         stats = controller_run(t0, Tend, controller_params, description)
+
+        err = np.array([me[1] for me in get_sorted(stats, type='error_post_step', recomputed=False)])
+        global_err_dt = max(err)
+        global_errors.append([dt_list, global_err_dt])
+
+        # plot solution of one random step size
+        if dt_item == random_dt:
+            plot_solution(stats)
+
+    plot_order(dt_list, global_errors)
 
 
 if __name__ == "__main__":

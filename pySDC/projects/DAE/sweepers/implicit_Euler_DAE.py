@@ -21,10 +21,21 @@ class implicit_Euler_DAE(sweeper):
             params: parameters for the sweeper
         """
 
-        assert params['num_nodes'] == 2, 'Implicit Euler (BDF method) only uses the value from t0'
-        assert (
-            params['quad_type'] == 'LOBATTO'
-        ), 'quad_type has to be LOBATTO due to both end points corresponding to nodes'
+        #assert params['num_nodes'] == 2, 'Implicit Euler (BDF method) only uses the value from t0'
+        #assert (
+        #    params['quad_type'] == 'LOBATTO'
+        #), 'quad_type has to be LOBATTO due to both end points corresponding to nodes'
+
+        for key in ['quad_type', 'num_nodes']:
+            if key == 'quad_type':
+                if key != 'LOBATTO':
+                    msg = f'Sweeper only uses LOBATTO as "{key}"'
+                    self.logger.error(msg)
+
+            elif key == 'num_nodes':
+                if key > 2:
+                    msg = f'Sweeper does not use collocation nodes, please initialise "{key}" as two'
+                    self.logger.error(msg)
 
         # call parent's initialization routine
         super(implicit_Euler_DAE, self).__init__(params)
@@ -98,6 +109,7 @@ class implicit_Euler_DAE(sweeper):
             elif self.params.initial_guess == 'zero':
                 L.u[m] = P.dtype_u(init=P.init, val=0.0)
                 L.f[m] = P.dtype_f(init=P.init, val=0.0)
+                print(m, L.u[m])
             # start with random initial guess
             elif self.params.initial_guess == 'random':
                 L.u[m] = P.dtype_u(init=P.init, val=np.random.rand(1)[0])
@@ -156,7 +168,6 @@ class implicit_Euler_DAE(sweeper):
         L = self.level
         P = L.prob
 
-        # a copy is sufficient
-        L.uend = P.dtype_u(L.u[2])
+        L.uend = P.dtype_u(L.u[-1])
 
         return None

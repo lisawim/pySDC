@@ -39,7 +39,7 @@ def get_description(
     sweeper_params = dict()
     sweeper_params['quad_type'] = quad_type
     sweeper_params['num_nodes'] = num_nodes
-
+    sweeper_params['initial_guess'] = 'zero'
     # initialize problem parameters
     problem_params = dict()
     problem_params['newton_tol'] = newton_tol  # tolerance for implicit solver

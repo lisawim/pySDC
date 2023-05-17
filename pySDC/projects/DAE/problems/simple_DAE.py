@@ -3,6 +3,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 class pendulum_2d(ptype_dae):
@@ -11,11 +12,15 @@ class pendulum_2d(ptype_dae):
     The pendulum is used in most introductory literature on DAEs, for example on page 8 of "The numerical solution of differential-algebraic systems by Runge-Kutta methods" by Hairer et al.
     """
 
+    dtype_u = mesh
+    dtype_f = mesh
+
     def __init__(self, nvars, newton_tol):
         """
         Initialization routine for the problem class
         """
         super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
         # load reference solution
         # data file must be generated and stored under misc/data and self.t_end = t[-1]
         # data = np.load(r'pySDC/projects/DAE/misc/data/pendulum.npy')
@@ -66,6 +71,18 @@ class simple_dae_1(ptype_dae):
     See, for example, page 267 of "computer methods for ODEs and DAEs" by Ascher and Petzold
     """
 
+    dtype_u = mesh
+    dtype_f = mesh
+
+    def __init__(self, nvars, newton_tol):
+        """
+        Initialization routine
+        """
+
+        # invoke super init, passing number of dofs
+        super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
+
     def eval_f(self, u, du, t):
         """
         Routine to evaluate the implicit representation of the problem i.e. F(u', u, t)
@@ -75,6 +92,7 @@ class simple_dae_1(ptype_dae):
         Returns:
             Current value of F(), 3 components
         """
+
         # Smooth index-2 DAE pg. 267 Ascher and Petzold (also the first example in KDC Minion paper)
         a = 10.0
         f = self.dtype_f(self.init)

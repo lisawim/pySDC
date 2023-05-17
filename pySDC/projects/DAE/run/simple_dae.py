@@ -5,6 +5,8 @@ import pickle
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
 from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
+from pySDC.projects.DAE.sweepers.BDF_DAE import BDF_DAE
+from pySDC.projects.DAE.sweepers.Multi_Step_DAE import BDF
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted
@@ -13,7 +15,7 @@ import pySDC.helpers.plot_helper as plt_helper
 
 
 def get_description(
-    dt, nvars, problem_class, newton_tol, hookclass, sweeper=implicit_Euler_DAE, quad_type='LOBATTO', num_nodes=2
+    dt, nvars, problem_class, newton_tol, hookclass, BDF_sweeper, k_step
 ):
     """
     Returns the description for one simulation run.
@@ -22,8 +24,9 @@ def get_description(
         nvars (int): number of variables of the problem
         problem_class (pySDC.core.Problem.ptype_dae): problem class that wants to be simulated
         newton_tol (float): Tolerance for solving the nonlinear system of DAE solver
-        quad_type (str): Quadrature type
-        num_nodes (int): Number of nodes inside a time step
+        hookclass (pySDC.core.Hooks): hook class to log the data
+        BDF_sweeper (pySDC.core.Sweeper): sweeper class for solving the problem class
+        k_step (int): number of k-steps used for the multi-step (BDF) method
 
     Returns:
         description (dict): contains all information for a controller run
@@ -37,9 +40,9 @@ def get_description(
 
     # initialize sweeper parameters
     sweeper_params = dict()
-    sweeper_params['quad_type'] = quad_type
-    sweeper_params['num_nodes'] = num_nodes
-    sweeper_params['initial_guess'] = 'zero'
+    sweeper_params['starting_values'] = None
+    sweeper_params['k_step'] = k_step
+
     # initialize problem parameters
     problem_params = dict()
     problem_params['newton_tol'] = newton_tol  # tolerance for implicit solver
@@ -47,7 +50,7 @@ def get_description(
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 40
+    step_params['maxiter'] = 1 #40
 
     # initialize controller parameters
     controller_params = dict()
@@ -59,7 +62,7 @@ def get_description(
     description = dict()
     description['problem_class'] = problem_class
     description['problem_params'] = problem_params
-    description['sweeper_class'] = sweeper
+    description['sweeper_class'] = BDF_sweeper
     description['sweeper_params'] = sweeper_params
     description['level_params'] = level_params
     description['step_params'] = step_params
@@ -116,7 +119,7 @@ def plot_solution(stats):
     plt_helper.plt.close(fig)
 
 
-def plot_order(dt_list, global_errors, p=1):
+def plot_order(dt_list, global_errors, p):
     """
     Plots the order of accuracy p for the sweeper used for the computation.
     Args:
@@ -153,7 +156,10 @@ def main():
     nvars = 3
     problem_class = simple_dae_1
     newton_tol = 1e-12
-    order = 1
+
+    # for BDF methods, k_step defines the steps for multi-step as well as the order for BDF methods
+    k_step = 1
+    sweeper = BDF_DAE
 
     t0 = 0.0
     Tend = 1.0
@@ -165,7 +171,7 @@ def main():
     for dt_item in dt_list:
         print(f'Controller run -- Simulation for step size: {dt_item}')
 
-        description, controller_params = get_description(dt_item, nvars, problem_class, newton_tol, hookclass)
+        description, controller_params = get_description(dt_item, nvars, problem_class, newton_tol, hookclass, sweeper, k_step)
 
         stats = controller_run(t0, Tend, controller_params, description)
 
@@ -177,7 +183,7 @@ def main():
         if dt_item == random_dt:
             plot_solution(stats)
 
-    plot_order(dt_list, global_errors, order)
+    plot_order(dt_list, global_errors, k_step)
 
 
 if __name__ == "__main__":

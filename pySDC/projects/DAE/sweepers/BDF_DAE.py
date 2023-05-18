@@ -71,7 +71,7 @@ class BDF_DAE(sweeper):
     Attributes:
         k_step (int): order of BDF method using k steps
         a (np.ndarray): coefficients used for k-step BDF method
-        u_last (np.ndarray): contains the last k_step values for BDF
+        ulast (np.ndarray): contains the last k_step values for BDF (including initial value for current step)
     """
 
     def __init__(self, params):

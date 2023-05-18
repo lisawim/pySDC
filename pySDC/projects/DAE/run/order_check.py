@@ -189,7 +189,7 @@ def main():
 
             err = np.array([me[1] for me in get_sorted(stats, type='error_post_step', recomputed=False)])
             global_err_dt = max(err)
-            global_errors.append([dt_list, global_err_dt])
+            global_errors.append([dt_item, global_err_dt])
 
             # plot solution of one random step size
             if dt_item == random_dt:

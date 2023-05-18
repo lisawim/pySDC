@@ -4,9 +4,7 @@ import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
 from pySDC.projects.DAE.sweepers.BDF_DAE import BDF_DAE
-from pySDC.projects.DAE.sweepers.Multi_Step_DAE import BDF
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted
@@ -14,9 +12,7 @@ from pySDC.projects.PinTSimE.piline_model import setup_mpl
 import pySDC.helpers.plot_helper as plt_helper
 
 
-def get_description(
-    dt, nvars, problem_class, newton_tol, hookclass, BDF_sweeper, k_step
-):
+def get_description(dt, nvars, problem_class, newton_tol, hookclass, BDF_sweeper, k_step):
     """
     Returns the description for one simulation run.
     Args:
@@ -50,7 +46,7 @@ def get_description(
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 1 #40
+    step_params['maxiter'] = 1
 
     # initialize controller parameters
     controller_params = dict()
@@ -171,7 +167,9 @@ def main():
     for dt_item in dt_list:
         print(f'Controller run -- Simulation for step size: {dt_item}')
 
-        description, controller_params = get_description(dt_item, nvars, problem_class, newton_tol, hookclass, sweeper, k_step)
+        description, controller_params = get_description(
+            dt_item, nvars, problem_class, newton_tol, hookclass, sweeper, k_step
+        )
 
         stats = controller_run(t0, Tend, controller_params, description)
 

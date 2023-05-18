@@ -38,7 +38,7 @@ class StartingFramework(object):
 
     def get_starting_values(self, k_step):
         """
-        Computes starting values for BDF to start using a k_step-th order accurate method
+        Computes starting values for BDF to start using a k_step-th order accurate method.
 
         Args:
             k_step (int): order for the method to compute starting values
@@ -134,7 +134,7 @@ class BDF_DAE(sweeper):
 
     def predict(self):
         """
-        Initialises the u and the f at the level before start of the sweep of each step
+        Initialises the u and the f at the level before start of the sweep of each step.
 
         Returns:
             None
@@ -160,7 +160,7 @@ class BDF_DAE(sweeper):
 
     def update_nodes(self):
         """
-        Update the u- and f-values at the collocation nodes
+        Update the u- and f-values at the collocation nodes.
 
         Returns:
             None
@@ -177,7 +177,7 @@ class BDF_DAE(sweeper):
 
         def implicit_function(u):
             """
-            Defines the implicit function that have to be solved by a Newton's method
+            Defines the implicit function that have to be solved by a Newton's method.
 
             Args:
                 u (np.ndarray): the sought solution

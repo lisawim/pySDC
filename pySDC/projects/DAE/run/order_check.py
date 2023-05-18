@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
+from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1, problematic_f
 from pySDC.projects.DAE.sweepers.BDF_DAE import BDF_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
@@ -15,10 +15,11 @@ import pySDC.helpers.plot_helper as plt_helper
 def get_description(dt, nvars, problem_class, newton_tol, hookclass, BDF_sweeper, k_step):
     """
     Returns the description for one simulation run.
+
     Args:
         dt (float): time step size for computation
         nvars (int): number of variables of the problem
-        problem_class (pySDC.core.Problem.ptype_dae): problem class that wants to be simulated
+        problem_class (pySDC.core.Problem.ptype_dae): problem class in DAE formulation that wants to be simulated
         newton_tol (float): Tolerance for solving the nonlinear system of DAE solver
         hookclass (pySDC.core.Hooks): hook class to log the data
         BDF_sweeper (pySDC.core.Sweeper): sweeper class for solving the problem class
@@ -68,7 +69,8 @@ def get_description(dt, nvars, problem_class, newton_tol, hookclass, BDF_sweeper
 
 def controller_run(t0, Tend, controller_params, description):
     """
-    Executes a controller run for time interval to be specified in the arguments
+    Executes a controller run for time interval to be specified in the arguments.
+
     Args:
         t0 (float): initial time of simulation
         Tend (float): end time of simulation
@@ -92,16 +94,20 @@ def controller_run(t0, Tend, controller_params, description):
     return stats
 
 
-def plot_solution(stats):
+def plot_solution(nvars, problem_class, stats):
     """
     Plots the solution of the problem class integrated by the sweeper.
+
     Args:
+        nvars (int): number of unknowns in the problem class
+        problem_class (pySDC.core.Problem.ptype_dae): problem class in DAE formulation that wants to be simulated
         stats (dict): Raw statistics from a controller run
     """
 
     u1 = np.array([me[1][0] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
     u2 = np.array([me[1][1] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
-    u3 = np.array([me[1][2] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
+    if nvars == 3:
+        u3 = np.array([me[1][2] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
     t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', recomputed=False)])
 
     setup_mpl()
@@ -109,19 +115,22 @@ def plot_solution(stats):
     ax.set_title('Numerical solution')
     ax.plot(t, u1, label=r'$u_1$')
     ax.plot(t, u2, label=r'$u_2$')
-    ax.plot(t, u3, label=r'$u_3$')
+    if nvars == 3:
+       ax.plot(t, u3, label=r'$u_3$')
     ax.legend(frameon=False, fontsize=8, loc='upper right')
-    fig.savefig('data/simple_dae_solution.png', dpi=300, bbox_inches='tight')
+    fig.savefig('data/{}_solution.png'.format(problem_class.__name__), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 
-def plot_order(dt_list, global_errors, p):
+def plot_order(dt_list, global_errors, p, problem_class):
     """
     Plots the order of accuracy p for the sweeper used for the computation.
+
     Args:
         dt_list (list): list of step sizes
         global_errors (list): contains the global errors for each step size
         p (int): order of accuracy to be plotted and considered
+        problem_class (pySDC.core.Problem.ptype_dae): problem class in DAE formulation that wants to be simulated
     """
 
     order_ref = [dt**p for dt in dt_list]
@@ -135,7 +144,7 @@ def plot_order(dt_list, global_errors, p):
     ax_order.set_xlabel(r'$\Delta t$', fontsize=8)
     ax_order.set_ylabel(r'$||\bar{u}-\tilde{u}||_\infty$', fontsize=8)
     ax_order.legend(frameon=False, fontsize=8, loc='lower right')
-    fig_order.savefig('data/simple_dae_accuracy_order.png', dpi=300, bbox_inches='tight')
+    fig_order.savefig('data/{}_accuracy_order.png'.format(problem_class.__name__), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig_order)
 
 
@@ -149,8 +158,8 @@ def main():
 
     hookclass = [approx_solution_hook, error_hook]
 
-    nvars = 3
-    problem_class = simple_dae_1
+    nvars = [3, 2]
+    problem_classes = [simple_dae_1, problematic_f]
     newton_tol = 1e-12
 
     # for BDF methods, k_step defines the steps for multi-step as well as the order for BDF methods
@@ -158,30 +167,37 @@ def main():
     sweeper = BDF_DAE
 
     t0 = 0.0
-    Tend = 1.0
     dt_list = [2 ** (-m) for m in range(2, 12)]
 
     random_dt = np.random.choice(dt_list)
 
     global_errors = list()
-    for dt_item in dt_list:
-        print(f'Controller run -- Simulation for step size: {dt_item}')
+    for problem_class, n in zip(problem_classes, nvars):
+        for dt_item in dt_list:
+            print(f'Controller run -- Simulation for step size: {dt_item}')
 
-        description, controller_params = get_description(
-            dt_item, nvars, problem_class, newton_tol, hookclass, sweeper, k_step
-        )
+            description, controller_params = get_description(
+                dt_item, n, problem_class, newton_tol, hookclass, sweeper, k_step
+            )
 
-        stats = controller_run(t0, Tend, controller_params, description)
+            if problem_class.__name__ == 'simple_dae_1':
+                Tend = 1.0
+            else:
+                Tend = np.pi
 
-        err = np.array([me[1] for me in get_sorted(stats, type='error_post_step', recomputed=False)])
-        global_err_dt = max(err)
-        global_errors.append([dt_list, global_err_dt])
+            stats = controller_run(t0, Tend, controller_params, description)
 
-        # plot solution of one random step size
-        if dt_item == random_dt:
-            plot_solution(stats)
+            err = np.array([me[1] for me in get_sorted(stats, type='error_post_step', recomputed=False)])
+            global_err_dt = max(err)
+            global_errors.append([dt_list, global_err_dt])
 
-    plot_order(dt_list, global_errors, k_step)
+            # plot solution of one random step size
+            if dt_item == random_dt:
+                plot_solution(n, problem_class, stats)
+
+        plot_order(dt_list, global_errors, k_step, problem_class)
+
+        global_errors = list()
 
 
 if __name__ == "__main__":

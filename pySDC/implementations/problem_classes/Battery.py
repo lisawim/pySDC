@@ -6,10 +6,38 @@ from pySDC.implementations.datatype_classes.mesh import mesh, imex_mesh
 
 
 class battery_n_capacitors(ptype):
-    """
+    r"""
     Example implementing the battery drain model with N capacitors, where N is an arbitrary integer greater than 0.
-    Attributes:
-        nswitches: number of switches
+
+    Parameters
+    ----------
+    ncapacitors : int
+        Number of capacitors in the circuit.
+    Vs : float
+        Voltage of the voltage source.
+    Rs : float
+        Resistance at the voltage source.
+    C : np.ndarray
+        Capacitances of the capacitors. Length of array must equal to number of capacitors.
+    R : float
+        Resistance for the load.
+    L : float
+        Inductance of inductor.
+    alpha : float
+        Factor greater than zero to describe the storage of the capacitor(s).
+    V_ref : float
+        Reference value greater than zero for the battery to switch to the voltage source.
+
+    Attributes
+    ----------
+    A: matrix
+        Coefficients matrix of the linear system of ordinary differential equations (ODEs).
+    switch_A: dict
+        Dictionary that contains the coefficients for the coefficient matrix A.
+    switch_f: dict
+        Dictionary that contains the coefficients of the right-hand side f of the ODE system.
+    nswitches: int
+        Number of switches found by switch estimation.
     """
 
     dtype_u = mesh
@@ -33,23 +61,39 @@ class battery_n_capacitors(ptype):
 
     def eval_f(self, u, t):
         """
-        Routine to evaluate the RHS. No Switch Estimator is used: For N = 3 there are N + 1 = 4 different states of the battery:
-            1. u[1] > V_ref[0] and u[2] > V_ref[1] and u[3] > V_ref[2]    -> C1 supplies energy
-            2. u[1] <= V_ref[0] and u[2] > V_ref[1] and u[3] > V_ref[2]   -> C2 supplies energy
-            3. u[1] <= V_ref[0] and u[2] <= V_ref[1] and u[3] > V_ref[2]  -> C3 supplies energy
-            4. u[1] <= V_ref[0] and u[2] <= V_ref[1] and u[3] <= V_ref[2] -> Vs supplies energy
-        max_index is initialized to -1. List "switch" contains a True if u[k] <= V_ref[k-1] is satisfied.
-            - Is no True there (i.e. max_index = -1), we are in the first case.
-            - max_index = k >= 0 means we are in the (k+1)-th case.
-              So, the actual RHS has key max_index-1 in the dictionary self.switch_f.
-        In case of using the Switch Estimator, we count the number of switches which illustrates in which case of voltage source we are.
+        Routine to evaluate the right-hand side of the problem. No switch estimator is used: For :math:`N = 3` there are
+        :math:`N + 1 = 4` different states of the battery:
 
-        Args:
-            u (dtype_u): current values
-            t (float): current time
+        :math:`C_1` supplies energy if:
+        .. math::
+            \vec{u}_1 > V_{ref,0}, \vec{u}_2 > V_{ref,1}, \vec{u}_3 > V_{ref,2},
+        :math:`C_2` supplies energy if:
+            .. math::
+            \vec{u}_1 \leq V_{ref,0}, \vec{u}_2 > V_{ref,1}, \vec{u}_3 > V_{ref,2},
+        :math:`C_3` supplies energy if:
+            .. math::
+            \vec{u}_1 \leq V_{ref,0}, \vec{u}_2 \leq V_{ref,1}, \vec{u}_3 > V_{ref,2},
+        :math:`V_s` supplies energy if:
+            .. math::
+            \vec{u}_1 \leq V_{ref,0}, \vec{u}_2 \leq V_{ref,1}, \vec{u}_3 \leq V_{ref,2}.
 
-        Returns:
-            dtype_f: the RHS
+        :math:`max_{index}` is initialized to :math:`-1`. List "switch" contains a True if :math:`u_k \leq V_{ref,k-1}` is satisfied.
+            - Is no True there (i.e., :math:`max_{index}=-1`), we are in the first case.
+            - :math:`max_{index}=k\geq 0` means we are in the :math:`(k+1)`-th case.
+              So, the actual RHS has key :math:`max_{index}`-1 in the dictionary self.switch_f.
+        In case of using the switch estimator, we count the number of switches which illustrates in which case of voltage source we are.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution.
+        t : float
+            Current time of the numerical solution is computed.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of the problem.
         """
 
         f = self.dtype_f(self.init, val=0.0)
@@ -73,16 +117,23 @@ class battery_n_capacitors(ptype):
 
     def solve_system(self, rhs, factor, u0, t):
         """
-        Simple linear solver for (I-factor*A)u = rhs
+        Simple linear solver for :math:`(I-factor\cdot A)\vec{u}=\vec{rhs}`.
 
-        Args:
-            rhs (dtype_f): right-hand side for the linear system
-            factor (float): abbrev. for the local stepsize (or any other factor required)
-            u0 (dtype_u): initial guess for the iterative solver
-            t (float): current time (e.g. for time-dependent BCs)
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the linear system.
+        factor : float
+            Abbrev. for the local stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (e.g. for time-dependent BCs).
 
-        Returns:
-            dtype_u: solution as mesh
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
         """
 
         if self.t_switch is not None:
@@ -104,13 +155,17 @@ class battery_n_capacitors(ptype):
 
     def u_exact(self, t):
         """
-        Routine to compute the exact solution at time t
+        Routine to compute the exact solution at time t.
 
-        Args:
-            t (float): current time
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
 
-        Returns:
-            dtype_u: exact solution
+        Returns
+        -------
+        me : dtype_u
+            The exact solution.
         """
         assert t == 0, 'ERROR: u_exact only valid for t=0'
 
@@ -124,14 +179,21 @@ class battery_n_capacitors(ptype):
         """
         Provides information about a discrete event for one subinterval.
 
-        Args:
-            u (dtype_u): current values
-            t (float): current time
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution.
+        t : float
+            Current time of the numerical solution is computed.
 
-        Returns:
-            switch_detected (bool): Indicates if a switch is found or not
-            m_guess (np.int): Index of collocation node inside one subinterval of where the discrete event was found
-            vC_switch (list): Contains function values of switching condition (for interpolation)
+        Returns
+        -------
+        switch_detected : bool
+            Indicates if a switch is found or not.
+        m_guess : np.int
+            Index of collocation node inside one subinterval of where the discrete event was found.
+        vC_switch : list
+            Contains function values of switching condition (for interpolation).
         """
 
         switch_detected = False
@@ -157,7 +219,7 @@ class battery_n_capacitors(ptype):
     def count_switches(self):
         """
         Counts the number of switches. This function is called when a switch is found inside the range of tolerance
-        (in switch_estimator.py)
+        (in pySDC/projects/PinTSimE/switch_estimator.py).
         """
 
         self.nswitches += 1
@@ -180,22 +242,38 @@ class battery_n_capacitors(ptype):
 
 
 class battery(battery_n_capacitors):
-    """
+    r"""
     Example implementing the battery drain model with one capacitor, inherits from battery_n_capacitors.
+
+    Attributes
+    ----------
+    A: matrix
+        Coefficients matrix of the linear system of ordinary differential equations (ODEs).
+    switch_A: dict
+        Dictionary that contains the coefficients for the coefficient matrix A.
+    switch_f: dict
+        Dictionary that contains the coefficients of the right-hand side f of the ODE system.
+    nswitches: int
+        Number of switches found by switch estimation.
     """
 
     dtype_f = imex_mesh
 
     def eval_f(self, u, t):
         """
-        Routine to evaluate the RHS
+        Routine to evaluate the right-hand side.
 
-        Args:
-            u (dtype_u): current values
-            t (float): current time
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution.
+        t : float
+            Current time of the numerical solution is computed.
 
-        Returns:
-            dtype_f: the RHS
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of the problem.
         """
 
         f = self.dtype_f(self.init, val=0.0)
@@ -213,16 +291,23 @@ class battery(battery_n_capacitors):
 
     def solve_system(self, rhs, factor, u0, t):
         """
-        Simple linear solver for (I-factor*A)u = rhs
+        Simple linear solver for :math:`(I-factor\cdot A)\vec{u}=\vec{rhs}`.
 
-        Args:
-            rhs (dtype_f): right-hand side for the linear system
-            factor (float): abbrev. for the local stepsize (or any other factor required)
-            u0 (dtype_u): initial guess for the iterative solver
-            t (float): current time (e.g. for time-dependent BCs)
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the linear system.
+        factor : float
+            Abbrev. for the local stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (e.g. for time-dependent BCs).
 
-        Returns:
-            dtype_u: solution as mesh
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
         """
         self.A = np.zeros((2, 2))
 
@@ -240,13 +325,17 @@ class battery(battery_n_capacitors):
 
     def u_exact(self, t):
         """
-        Routine to compute the exact solution at time t
+        Routine to compute the exact solution at time t.
 
-        Args:
-            t (float): current time
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
 
-        Returns:
-            dtype_u: exact solution
+        Returns
+        -------
+        me : dtype_u
+            The exact solution.
         """
         assert t == 0, 'ERROR: u_exact only valid for t=0'
 
@@ -259,6 +348,47 @@ class battery(battery_n_capacitors):
 
 
 class battery_implicit(battery):
+    r"""
+    Example implementing the battery drain model as above. The method solve_system uses a fully-implicit computation.
+
+    Parameters
+    ----------
+    ncapacitors : int
+        Number of capacitors in the circuit.
+    Vs : float
+        Voltage of the voltage source.
+    Rs : float
+        Resistance at the voltage source.
+    C : np.ndarray
+        Capacitances of the capacitors. Length of array must equal to number of capacitors.
+    R : float
+        Resistance for the load.
+    L : float
+        Inductance of inductor.
+    alpha : float
+        Factor greater than zero to describe the storage of the capacitor(s).
+    V_ref : float
+        Reference value greater than zero for the battery to switch to the voltage source.
+    newton_maxiter : int
+        Number of maximum iterations for the Newton solver.
+    newton_tol : float
+        Tolerance for determination of the Newton solver.
+
+    Attributes
+    ----------
+    A: matrix
+        Coefficients matrix of the linear system of ordinary differential equations (ODEs).
+    switch_A: dict
+        Dictionary that contains the coefficients for the coefficient matrix A.
+    switch_f: dict
+        Dictionary that contains the coefficients of the right-hand side f of the ODE system.
+    nswitches: int
+        Number of switches found by switch estimation.
+    newton_itercount: int
+        Counts the number of Newton iterations.
+    newton_ncalls: int
+        Counts the number of how often Newton is called in the simulation of the problem.
+    """
     dtype_f = mesh
 
     def __init__(self, ncapacitors, Vs, Rs, C, R, L, alpha, V_ref, newton_maxiter, newton_tol):
@@ -266,20 +396,23 @@ class battery_implicit(battery):
         self._makeAttributeAndRegister('newton_maxiter', 'newton_tol', localVars=locals(), readOnly=True)
 
         self.newton_itercount = 0
-        self.lin_itercount = 0
         self.newton_ncalls = 0
-        self.lin_ncalls = 0
 
     def eval_f(self, u, t):
         """
-        Routine to evaluate the RHS
+        Routine to evaluate the right-hand side.
 
-        Args:
-            u (dtype_u): current values
-            t (float): current time
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution.
+        t : float
+            Current time of the numerical solution is computed.
 
-        Returns:
-            dtype_f: the RHS
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of the problem.
         """
 
         f = self.dtype_f(self.init, val=0.0)
@@ -300,16 +433,23 @@ class battery_implicit(battery):
 
     def solve_system(self, rhs, factor, u0, t):
         """
-        Simple Newton solver
+        Simple Newton solver.
 
-        Args:
-            rhs (dtype_f): right-hand side for the linear system
-            factor (float): abbrev. for the local stepsize (or any other factor required)
-            u0 (dtype_u): initial guess for the iterative solver
-            t (float): current time (e.g. for time-dependent BCs)
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the linear system.
+        factor : float
+            Abbrev. for the local stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver
+        t : float
+            Current time (e.g. for time-dependent BCs).
 
-        Returns:
-            dtype_u: solution as mesh
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
         """
 
         u = self.dtype_u(u0)

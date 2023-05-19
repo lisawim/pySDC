@@ -5,11 +5,11 @@ from pySDC.implementations.datatype_classes.mesh import mesh, imex_mesh
 
 
 class buck_converter(ptype):
-    """
+    r"""
     Example implementing the model of a buck converter, which is also called a step-down converter. The problem of simulating the
     converter consists of a nonhomogeneous linear system of ordinary differential equations (ODEs)
 
-    .. math:
+    .. math::
         \frac{\partial u}{\partial t} = Au+\vec{f}
 
     using an initial condition. A fully description of the buck converter can be found in the description of the PinTSimE project.
@@ -22,21 +22,19 @@ class buck_converter(ptype):
     fsw : int
         Switching frequency, it is used to determine the number of time steps after the switching state is changed.
     Vs : float
-        Voltage of the voltage source.
+        Voltage at the voltage source :math:`V_s`.
     Rs : float
-        Resistance at the voltage source.
+        Resistance of the resistor :math:`R_s` at the voltage source.
     C1 : float
-        Capacitance of capacitor C1.
-    C1 : float
-        Capacitance of capacitor C1.
+        Capacitance of the capacitor :math:`C_1`.
     Rp : float
         Resistance of the resistor in front of the inductor.
     L1 : float
-        Inductance of the inductor.
+        Inductance of the inductor :math:`L_1`.
     C2 : float
-        Capacitance of the capacitor C2.
+        Capacitance of the capacitor :math:`C_2`.
     Rl : float
-        Resistance of the resistive load.
+        Resistance of the resistor :math:`R_{\pi}`
 
     Attributes
     ----------
@@ -60,7 +58,7 @@ class buck_converter(ptype):
 
     def eval_f(self, u, t):
         """
-        Routine to evaluate the right-hand side.
+        Routine to evaluate the right-hand side of the problem.
 
         Parameters
         ----------

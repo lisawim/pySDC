@@ -7,16 +7,25 @@ from pySDC.implementations.datatype_classes.mesh import mesh, imex_mesh
 
 class battery_n_capacitors(ptype):
     r"""
-    Example implementing the battery drain model with N capacitors, where N is an arbitrary integer greater than 0.
+    Example implementing the battery drain model with :math:`N` capacitors, where :math:`N` is an arbitrary integer greater than zero.
+    First, the capacitor :math:`C` serves as a battery and provides energy. When the voltage of the capacitor :math:`v_{C_n}` for
+    :math:`n=1,..,N` drops below the reference value :math:`V_{ref,n}', the circuit switches to the next capacitor. If all capacitors
+    has dropped below their reference value, the voltage source :math:`V_s` provides further energy. The problem of simulating the
+    battery draining consists of a nonhomogeneous linear system of ordinary differential equations (ODEs)
+
+    .. math::
+        \frac{\partial u}{\partial t} = Au+\vec{f}
+
+    using an initial condition. A fully description of the battery drain model can be found in the description of the PinTSimE project.
 
     Parameters
     ----------
     ncapacitors : int
         Number of capacitors in the circuit.
     Vs : float
-        Voltage of the voltage source.
+        Voltage at the voltage source :math:`V_s`.
     Rs : float
-        Resistance at the voltage source.
+        Resistance of the resistor :math:`R_s` at the voltage source.
     C : np.ndarray
         Capacitances of the capacitors. Length of array must equal to number of capacitors.
     R : float
@@ -25,8 +34,8 @@ class battery_n_capacitors(ptype):
         Inductance of inductor.
     alpha : float
         Factor greater than zero to describe the storage of the capacitor(s).
-    V_ref : float
-        Reference value greater than zero for the battery to switch to the voltage source.
+    V_ref : np.ndarray
+        Array contains the reference values greater than zero for each capacitor to switch to the next energy source.
 
     Attributes
     ----------
@@ -36,6 +45,8 @@ class battery_n_capacitors(ptype):
         Dictionary that contains the coefficients for the coefficient matrix A.
     switch_f: dict
         Dictionary that contains the coefficients of the right-hand side f of the ODE system.
+    t_switch: float
+        Time point of the discrete event found by switch estimation.
     nswitches: int
         Number of switches found by switch estimation.
     """
@@ -190,7 +201,7 @@ class battery_n_capacitors(ptype):
         -------
         switch_detected : bool
             Indicates if a switch is found or not.
-        m_guess : np.int
+        m_guess : int
             Index of collocation node inside one subinterval of where the discrete event was found.
         vC_switch : list
             Contains function values of switching condition (for interpolation).
@@ -253,6 +264,8 @@ class battery(battery_n_capacitors):
         Dictionary that contains the coefficients for the coefficient matrix A.
     switch_f: dict
         Dictionary that contains the coefficients of the right-hand side f of the ODE system.
+    t_switch: float
+        Time point of the discrete event found by switch estimation.
     nswitches: int
         Number of switches found by switch estimation.
     """
@@ -261,7 +274,7 @@ class battery(battery_n_capacitors):
 
     def eval_f(self, u, t):
         """
-        Routine to evaluate the right-hand side.
+        Routine to evaluate the right-hand side of the problem.
 
         Parameters
         ----------
@@ -356,9 +369,9 @@ class battery_implicit(battery):
     ncapacitors : int
         Number of capacitors in the circuit.
     Vs : float
-        Voltage of the voltage source.
+        Voltage at the voltage source :math:`V_s`.
     Rs : float
-        Resistance at the voltage source.
+        Resistance of the resistor :math:`R_s` at the voltage source.
     C : np.ndarray
         Capacitances of the capacitors. Length of array must equal to number of capacitors.
     R : float
@@ -382,6 +395,8 @@ class battery_implicit(battery):
         Dictionary that contains the coefficients for the coefficient matrix A.
     switch_f: dict
         Dictionary that contains the coefficients of the right-hand side f of the ODE system.
+    t_switch: float
+        Time point of the discrete event found by switch estimation.
     nswitches: int
         Number of switches found by switch estimation.
     newton_itercount: int
@@ -400,7 +415,7 @@ class battery_implicit(battery):
 
     def eval_f(self, u, t):
         """
-        Routine to evaluate the right-hand side.
+        Routine to evaluate the right-hand side of the problem.
 
         Parameters
         ----------

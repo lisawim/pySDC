@@ -5,8 +5,7 @@ import pickle
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1, problematic_f
 from pySDC.projects.DAE.sweepers.BDF_DAE import BDF_DAE
-from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
-from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
+from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook, error_hook
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.PinTSimE.piline_model import setup_mpl
 import pySDC.helpers.plot_helper as plt_helper
@@ -116,7 +115,7 @@ def plot_solution(nvars, problem_class, stats):
     ax.plot(t, u1, label=r'$u_1$')
     ax.plot(t, u2, label=r'$u_2$')
     if nvars == 3:
-       ax.plot(t, u3, label=r'$u_3$')
+        ax.plot(t, u3, label=r'$u_3$')
     ax.legend(frameon=False, fontsize=8, loc='upper right')
     fig.savefig('data/{}_solution.png'.format(problem_class.__name__), dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)

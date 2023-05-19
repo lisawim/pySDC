@@ -290,7 +290,7 @@ class battery(battery_n_capacitors):
         return f
 
     def solve_system(self, rhs, factor, u0, t):
-        """
+        r"""
         Simple linear solver for :math:`(I-factor\cdot A)\vec{u}=\vec{rhs}`.
 
         Parameters

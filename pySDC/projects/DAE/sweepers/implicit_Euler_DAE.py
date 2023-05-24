@@ -25,7 +25,7 @@ class implicit_Euler_DAE(sweeper):
         assert params['quad_type'] == 'LOBATTO', 'quad_type has to be LOBATTO due to both end points corresponding to nodes'
 
         # call parent's initialization routine
-        super(implicit_euler_DAE, self).__init__(params)
+        super(implicit_Euler_DAE, self).__init__(params)
 
     def update_nodes(self):
         """

@@ -20,12 +20,12 @@ def run():
     Routine to run model problem
     """
 
-    use_SE = True
+    use_SE = False
 
     # initialize level parameters
     level_params = dict()
     level_params['restol'] = 1e-6
-    level_params['dt'] = 1e-4
+    level_params['dt'] = 1e-3
 
     # initialize sweeper parameters
     sweeper_params = dict()
@@ -77,7 +77,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 2.758
+    Tend = 5.0
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob

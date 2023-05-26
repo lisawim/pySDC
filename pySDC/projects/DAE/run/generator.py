@@ -20,12 +20,12 @@ def run():
     # initialize level parameters
     level_params = dict()
     level_params['restol'] = 1e-9
-    level_params['dt'] = 1e-4
+    level_params['dt'] = 1e-3
 
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 5
+    sweeper_params['num_nodes'] = 3
     sweeper_params['QI'] = 'LU'
 
     # initialize problem parameters
@@ -60,7 +60,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 1.0 #4.0
+    Tend = 4.0
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob

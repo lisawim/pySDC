@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+import scipy as sp
 
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
 from pySDC.implementations.datatype_classes.mesh import mesh
@@ -11,6 +12,15 @@ def input_torque(t):
         else:
             Tm = 0.854 - 0.5
         return Tm
+
+def update_vBus(t):
+    if round(t, 14) < 1:
+        vBus = 0.6920 - 0.4064j  # original value
+    elif 1 <= round(t, 14) < 2:
+        vBus = 0.75 * (0.6920 - 0.4064j)
+    else:
+        vBus = 0.6920 - 0.4064j
+    return vBus
 
 
 class SynchronousGenerator(ptype_dae):
@@ -70,11 +80,8 @@ class SynchronousGenerator(ptype_dae):
 
         dphi_d, dphi_q, dphi_F, dphi_D, dphi_Q1, dphi_Q2 = du[0], du[1], du[2], du[3], du[4], du[5]
         domega_m, ddelta_r = du[12], du[13]
-        print(t, du)
-        # compute stator voltages
-        #re_I = i_d * np.sin(delta_r) + i_q * np.cos(delta_r)
-        #im_I = -i_d * np.cos(delta_r) + i_q * np.sin(delta_r)
 
+        self.V_g = update_vBus(t)
         #V = 1.0
         #print(t, omega_m * self.wb / (2*np.pi))
         #if (omega_m * self.wb / (2*np.pi) < 49 or omega_m * self.wb / (2*np.pi) > 51) and self.set_switch == False:
@@ -83,14 +90,6 @@ class SynchronousGenerator(ptype_dae):
             #print(t)
         #else:
         #V = self.vbus - self.Zline * (-1) * (re_I + 1j * im_I)
-
-        #v_d = V.real * np.sin(delta_r) - V.imag * np.cos(delta_r)
-        #v_q = V.real * np.cos(delta_r) + V.imag * np.sin(delta_r)
-        #if t == 0.0015505102572168283:
-        #    print(v_d, v_q)
-
-        # electromagnetic torque
-        Te = phi_q * i_d - phi_d * i_q
 
         f = self.dtype_f(self.init)
         f[:] = (

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 import scipy as sp
+import pandapower
 
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
 from pySDC.implementations.datatype_classes.mesh import mesh
@@ -148,6 +149,192 @@ class SynchronousGenerator(ptype_dae):
         me[17] = 0  # V_im
         me[18] = 0.9 # I_re
         me[19] = -0.436  # I_im
+
+        return me
+
+
+class SynchronousGenerator_5Ybus(ptype_dae):
+    """
+    Example implementing the synchronous generator model from PinTSimE project
+    """
+
+    dtype_u = mesh
+    dtype_f = mesh
+
+    def __init__(self, nvars, newton_tol):
+        """
+        Initialization routine
+        """
+
+        # invoke super init, passing number of dofs
+        super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
+
+        self.Ld = 1.8099
+        self.Lq = 1.76
+        self.LF = 1.824652
+        self.LD = 1.83149
+        self.LQ1 = 2.578217
+        self.LQ2 = 1.729817
+        self.Lmd = 1.6599
+        self.Lmq = 1.61
+        self.Rs = 3 * 1e-3
+        self.R_F = 0.000742259
+        self.R_D = 0.0333636
+        self.R_Q1 = 0.0104167
+        self.R_Q2 = 2.5953e-2
+        self.H = 6
+        self.Kd = 0.0
+        self.wb = 100 * np.pi
+        #self.vbus = 0.5419999999999999 - 0.4064j
+        self.v_F = 0.00108242466673301
+        self.R_shunt = 1e9
+        self.set_switch = False
+        self.V_g = 0.6920 - 0.4064j
+        self.G = np.real(1 / (0.1 + 0.5j))
+        self.B = np.imag(1 / (0.1 + 0.5j))
+        self.i = np.array([0.4   -0.3072516j , 3.2349-1.9465472j , 4.6651+0.38209623j, 0.0, 0.0])
+        self.net = pandapower.networks.case5()
+        pandapower.run.runpp(self.net)
+        self.Ybus = self.net._ppc["internal"]["Ybus"].todense()
+        self.Tm = 0.0
+        pload = self.net.load['p_mw'].values / self.net.sn_mva
+        qload = self.net.load['q_mvar'].values / self.net.sn_mva
+
+        vload = self.net.res_bus.vm_pu[self.net.res_load.index] * np.cos(self.net.res_bus.va_degree[self.net.res_load.index]*np.pi/180) + 1j * self.net.res_bus.vm_pu[self.net.res_load.index] * np.sin(self.net.res_bus.va_degree[self.net.res_load.index]*np.pi/180)
+        yload = 0j * np.zeros(np.shape(self.Ybus)[0])
+
+        yload[self.net.res_load.index] = (pload - 1j*qload)/(abs(vload)*abs(vload))
+
+        for i in range(np.shape(self.Ybus)[0]):
+            self.Ybus[i,i] = self.Ybus[i,i] + yload[i]
+
+    def eval_f(self, u, du, t):
+        """
+        Routine to evaluate implicit representation of the problem
+        """
+
+        Ybus = self.Ybus
+        phi_d, phi_q, phi_F, phi_D, phi_Q1, phi_Q2 = u[0], u[1], u[2], u[3], u[4], u[5]
+        i_d, i_q, i_F, i_D, i_Q1, i_Q2 = u[6], u[7], u[8], u[9], u[10], u[11]
+        omega_m, delta_r = u[12], u[13]
+        v_d, v_q = u[14], u[15]
+        I_re, I_im = u[16], u[17]
+        v1_re, v1_im, v2_re, v2_im  = u[18], u[19], u[20], u[21]
+        v3_re, v3_im, v4_re, v4_im, v5_re, v5_im = u[22], u[23], u[24], u[25], u[26], u[27]
+
+        dphi_d, dphi_q, dphi_F, dphi_D, dphi_Q1, dphi_Q2 = du[0], du[1], du[2], du[3], du[4], du[5]
+        domega_m, ddelta_r = du[12], du[13]
+
+        v_re = [v1_re, v2_re, v3_re, v4_re, v5_re]
+        v_im = [v1_im, v2_im, v3_im, v4_im, v5_im]
+        #print(du)
+        f = self.dtype_f(self.init)
+        f[:] = (
+            -dphi_d + self.wb * (v_d + self.Rs * i_d + omega_m * phi_q),
+            -dphi_q + self.wb * (v_q + self.Rs * i_q - omega_m * phi_d),
+            -dphi_F + self.wb * (self.v_F - self.R_F * i_F),
+            -dphi_D - self.wb * self.R_D * i_D,
+            -dphi_Q1 - self.wb * self.R_Q1 * i_Q1,
+            -dphi_Q2 - self.wb * self.R_Q2 * i_Q2,
+            -ddelta_r + self.wb * (omega_m-1),
+            -domega_m + (self.wb / (2 * self.H)) * (self.Tm - (phi_q * i_d - phi_d * i_q) - self.Kd * self.wb * (omega_m-1)),
+            # algebraic generator
+            -phi_d + self.Ld * i_d + self.Lmd * i_F + self.Lmd * i_D,
+            -phi_q + self.Lq * i_q + self.Lmq * i_Q1 + self.Lmq * i_Q2,
+            -phi_F + self.Lmd * i_d + self.LF * i_F + self.Lmd * i_D,
+            -phi_D + self.Lmd * i_d + self.Lmd * i_F + self.LD * i_D,
+            -phi_Q1 + self.Lmq * i_q + self.LQ1 * i_Q1 + self.Lmq * i_Q2,
+            -phi_Q2 + self.Lmq * i_q + self.Lmq * i_Q1 + self.LQ2 * i_Q2,
+            v_d - v_re[0] * np.sin(delta_r) + v_im[0] * np.cos(delta_r),
+            v_q - v_re[0] * np.cos(delta_r) - v_im[0] * np.sin(delta_r),
+            I_re - (-1) * (i_d * np.sin(delta_r) + i_q * np.cos(delta_r)),
+            I_im + (-1) * (i_d * np.cos(delta_r) - i_q * np.sin(delta_r)),
+            # 5 Ybus connections
+            np.real(Ybus[0,0])*v_re[0] - np.imag(Ybus[0,0])*v_im[0] + np.real(Ybus[0,1])*v_re[1] - np.imag(Ybus[0,1])*v_im[1] + np.real(Ybus[0,2])*v_re[2] - np.imag(Ybus[0,2])*v_im[2] + np.real(Ybus[0,3])*v_re[3] - np.imag(Ybus[0,3])*v_im[3] + np.real(Ybus[0,4])*v_re[4] - np.imag(Ybus[0,4])*v_im[4] - np.real(self.i[0]),
+            np.real(Ybus[1,0])*v_re[0] - np.imag(Ybus[1,0])*v_im[0] + np.real(Ybus[1,1])*v_re[1] - np.imag(Ybus[1,1])*v_im[1] + np.real(Ybus[1,2])*v_re[2] - np.imag(Ybus[1,2])*v_im[2] + np.real(Ybus[1,3])*v_re[3] - np.imag(Ybus[1,3])*v_im[3] + np.real(Ybus[1,4])*v_re[4] - np.imag(Ybus[1,4])*v_im[4] - np.real(self.i[1]),
+            np.real(Ybus[2,0])*v_re[0] - np.imag(Ybus[2,0])*v_im[0] + np.real(Ybus[2,1])*v_re[1] - np.imag(Ybus[2,1])*v_im[1] + np.real(Ybus[2,2])*v_re[2] - np.imag(Ybus[2,2])*v_im[2] + np.real(Ybus[2,3])*v_re[3] - np.imag(Ybus[2,3])*v_im[3] + np.real(Ybus[2,4])*v_re[4] - np.imag(Ybus[2,4])*v_im[4] - np.real(self.i[2]),
+            np.real(Ybus[3,0])*v_re[0] - np.imag(Ybus[3,0])*v_im[0] + np.real(Ybus[3,1])*v_re[1] - np.imag(Ybus[3,1])*v_im[1] + np.real(Ybus[3,2])*v_re[2] - np.imag(Ybus[3,2])*v_im[2] + np.real(Ybus[3,3])*v_re[3] - np.imag(Ybus[3,3])*v_im[3] + np.real(Ybus[3,4])*v_re[4] - np.imag(Ybus[3,4])*v_im[4] - np.real(self.i[3]),
+            np.real(Ybus[4,0])*v_re[0] - np.imag(Ybus[4,0])*v_im[0] + np.real(Ybus[4,1])*v_re[1] - np.imag(Ybus[4,1])*v_im[1] + np.real(Ybus[4,2])*v_re[2] - np.imag(Ybus[4,2])*v_im[2] + np.real(Ybus[4,3])*v_re[3] - np.imag(Ybus[4,3])*v_im[3] + np.real(Ybus[4,4])*v_re[4] - np.imag(Ybus[4,4])*v_im[4] - np.real(self.i[4]),
+            (np.imag(Ybus[0,0])*v_re[0] + np.real(Ybus[0,0])*v_im[0]) + (np.imag(Ybus[0,1])*v_re[1] + np.real(Ybus[0,1])*v_im[1]) + (np.imag(Ybus[0,2])*v_re[2] + np.real(Ybus[0,2])*v_im[2]) + (np.imag(Ybus[0,3])*v_re[3] + np.real(Ybus[0,3])*v_im[3]) + (np.imag(Ybus[0,4])*v_re[4] + np.real(Ybus[0,4])*v_im[4]) - np.imag(self.i[0]),
+            (np.imag(Ybus[1,0])*v_re[0] + np.real(Ybus[1,0])*v_im[0]) + (np.imag(Ybus[1,1])*v_re[1] + np.real(Ybus[1,1])*v_im[1]) + (np.imag(Ybus[1,2])*v_re[2] + np.real(Ybus[1,2])*v_im[2]) + (np.imag(Ybus[1,3])*v_re[3] + np.real(Ybus[1,3])*v_im[3]) + (np.imag(Ybus[1,4])*v_re[4] + np.real(Ybus[1,4])*v_im[4]) - np.imag(self.i[1]),
+            (np.imag(Ybus[2,0])*v_re[0] + np.real(Ybus[2,0])*v_im[0]) + (np.imag(Ybus[2,1])*v_re[1] + np.real(Ybus[2,1])*v_im[1]) + (np.imag(Ybus[2,2])*v_re[2] + np.real(Ybus[2,2])*v_im[2]) + (np.imag(Ybus[2,3])*v_re[3] + np.real(Ybus[2,3])*v_im[3]) + (np.imag(Ybus[2,4])*v_re[4] + np.real(Ybus[2,4])*v_im[4]) - np.imag(self.i[2]),
+            (np.imag(Ybus[3,0])*v_re[0] + np.real(Ybus[3,0])*v_im[0]) + (np.imag(Ybus[3,1])*v_re[1] + np.real(Ybus[3,1])*v_im[1]) + (np.imag(Ybus[3,2])*v_re[2] + np.real(Ybus[3,2])*v_im[2]) + (np.imag(Ybus[3,3])*v_re[3] + np.real(Ybus[3,3])*v_im[3]) + (np.imag(Ybus[3,4])*v_re[4] + np.real(Ybus[3,4])*v_im[4]) - np.imag(self.i[3]),
+            (np.imag(Ybus[4,0])*v_re[0] + np.real(Ybus[4,0])*v_im[0]) + (np.imag(Ybus[4,1])*v_re[1] + np.real(Ybus[4,1])*v_im[1]) + (np.imag(Ybus[4,2])*v_re[2] + np.real(Ybus[4,2])*v_im[2]) + (np.imag(Ybus[4,3])*v_re[3] + np.real(Ybus[4,3])*v_im[3]) + (np.imag(Ybus[4,4])*v_re[4] + np.real(Ybus[4,4])*v_im[4]) - np.imag(self.i[4]),
+        )
+        return f
+
+    def u_exact(self, t):
+        """
+        Approximating the exact solution
+
+        Todo:docu
+        """
+
+        assert t == 0, 'ERROR: u_exact only valid for t=0'
+
+        phi_0 = abs(np.angle(self.i[0]))
+        v1_re = 1.0
+        v1_im = 0.0
+        Vt0_abs = abs(v1_re+1j*v1_im)
+        iline0 = self.i[0]
+        I_line_0_abs = abs(iline0)
+        delta_r_0 = np.arctan((self.Lq*I_line_0_abs*np.cos(phi_0)-self.Rs*I_line_0_abs*np.sin(phi_0))/(Vt0_abs+self.Rs*I_line_0_abs*np.cos(phi_0)+self.Lq * I_line_0_abs * np.sin(phi_0)))
+        e_d0 = Vt0_abs * np.sin(delta_r_0)
+        e_q0 = Vt0_abs * np.cos(delta_r_0)
+        i_d0 = I_line_0_abs * np.sin(delta_r_0+phi_0)
+        i_q0 = I_line_0_abs * np.cos(delta_r_0+phi_0)
+        i_fd0 = (e_q0 + self.Rs * i_q0 + self.Ld*i_d0)/ self.Lmd
+        self.v_F = self.R_F * i_fd0
+
+        psi_fd0 = self.LF *i_fd0 - self.Lmd * i_d0
+        psi_kd0 = self.Lmd * (i_fd0 - i_d0)
+        psi_kq1_0 = -self.Lmq * i_q0
+        psi_kq2_0 = psi_kq1_0
+        psi_ds0 = -self.Ld * i_d0 + self.Lmd * i_fd0
+        psi_qs0 = -self.Lq * i_q0
+
+        P0 = self.net.res_gen.p_mw.values [0] / self.net.sn_mva
+        Q0 = self.net.res_gen.q_mvar.values [0] / self.net.sn_mva
+
+        T_e_0 = P0 + I_line_0_abs * I_line_0_abs * self.Rs  # ~= phi_q * i_d - phi_d * i_q
+        self.Tm = T_e_0
+
+        e_0 = 0
+        e_kd0 = 0
+        e_kq1_0 = 0
+        e_kq2_0 = 0
+        u_0 = [e_d0, e_q0, e_0, self.v_F, e_kd0, e_kq1_0, e_kq2_0]
+
+        me = self.dtype_u(self.init)
+        me[0] = psi_ds0 #0.7466010519363004  # phi_d
+        me[1] = psi_qs0 #-0.6693249361197048  # phi_q
+        me[2] = psi_fd0 #1.125593681235877  # phi_F
+        me[3] = psi_kd0 #0.8853384216922447  # phi_D
+        me[4] = psi_kq1_0 #-0.6122801972459051  # phi_Q1
+        me[5] = psi_kq2_0 #-0.6122801972459051  # phi_Q2
+        me[6] = i_d0 #-0.9249157983734856  # i_d
+        me[7] = i_q0 #-0.3802982591590532  # i_q
+        me[8] = i_fd0 #1.458284327617462  # i_F
+        me[9] = 0.0  # i_D
+        me[10] = 0.0  # i_Q1
+        me[11] = 0.0  # i_Q2
+        me[12] = 1.0  # omega_m
+        me[13] = delta_r_0 #0.7295713955883498  # delta_r (rad)
+        me[14] = e_d0 #0.6665501887246269 # v_d
+        me[15] = e_q0 #0.7454601571587608 # v_q
+        me[16] = np.real(self.i[0]) #0.9 # I_re
+        me[17] = np.imag(self.i[0]) #-0.436  # I_im
+        me[18] =  v1_re
+        me[19] =  v1_im
+        me[20] =  0.98926124  # v2_re
+        me[21] =  0.0  # v2_im
+        me[22] =  1.0  # v3_re
+        me[23] =  0.0  # v3_im
+        me[24] =  1.0  # v4_re
+        me[25] =  0.0  # v4_im
+        me[26] =  1.0  # v5_re
+        me[27] =  0.0  # v5_im
 
         return me
 

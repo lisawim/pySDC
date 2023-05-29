@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline
+from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline, SynchronousGenerator_5Ybus
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
@@ -30,7 +30,7 @@ def run():
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['nvars'] = 20
+    problem_params['nvars'] = 28
     problem_params['newton_tol'] = 1e-12
 
     # initialize controller parameters
@@ -43,7 +43,7 @@ def run():
     step_params['maxiter'] = 10
 
 
-    problem = SynchronousGenerator
+    problem = SynchronousGenerator_5Ybus
     # Fill description dictionary for easy hierarchy creation
     description = dict()
     description['problem_class'] = problem
@@ -60,7 +60,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 4.0
+    Tend = 0.05 #1e-3 #1.0
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
@@ -75,22 +75,17 @@ def run():
     delta_r = np.array([me[1][13] for me in get_sorted(stats, type='approx_solution')])
     v_d = np.array([me[1][14] for me in get_sorted(stats, type='approx_solution')])
     v_q = np.array([me[1][15] for me in get_sorted(stats, type='approx_solution')])
-    V_re = np.array([me[1][16] for me in get_sorted(stats, type='approx_solution')])
-    V_im = np.array([me[1][17] for me in get_sorted(stats, type='approx_solution')])
+    #V_re = np.array([me[1][16] for me in get_sorted(stats, type='approx_solution')])
+    #V_im = np.array([me[1][17] for me in get_sorted(stats, type='approx_solution')])
     t = np.array([me[0] for me in get_sorted(stats, type='approx_solution')])
-    print('v_d=', v_d)
-    print('v_q=', v_q)
-    print('delta_r=', delta_r)
-    print('V_re', V_re)
-    print('V_im', V_im)
+
     Tm = np.zeros(len(t))
     for m in range(len(t)):
         if round(t[m], 14) < 0.2:
             Tm[m] = 0.854
         else:
             Tm[m] = 0.354
-    #print ('i_d=', id)
-    #print('i_q=', iq)
+
     wb = 100 * np.pi
     freq = omega_m * wb / (2*np.pi)
 

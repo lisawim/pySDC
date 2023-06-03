@@ -48,7 +48,7 @@ class IdealGasLiquid(ptype_dae):
                 self.V - ((MG * self.R * self.T) / P + ML / self.rho_L),
                 G - self.k_L * self.x * (P - self.P_out)
             )
-            #print(t, 'Liquid')
+            print(t, 'Liquid')
 
         elif ML / self.rho_L < self.V_d or (ML / self.rho_L < self.V_d and t >= t_switch):  # gas
             f[:] = (
@@ -57,7 +57,7 @@ class IdealGasLiquid(ptype_dae):
                 self.V - ((MG * self.R * self.T) / P + ML / self.rho_L),
                 G - self.k_G * self.x * (P - self.P_out)
             )
-            #print(t, 'Gas')
+            print(t, 'Gas')
 
         return f
 
@@ -115,3 +115,75 @@ class IdealGasLiquid(ptype_dae):
         """
 
         self.nswitches += 1
+
+
+class IdealGasLiquid2(ptype_dae):
+    def __init__(self, nvars, newton_tol):
+        """
+        Initialization routine
+        """
+
+        # invoke super init, passing number of dofs
+        super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
+
+        self.F1 = 0.5
+        self.F2 = 7.5
+        self.kc = 0.4333 / 4000
+        self.V = 10
+        self.kl = 2.5
+        self.kg = 3
+        self.X = 1
+        self.Pout = 1
+        self.R = 0.0820574587
+        self.T = 293
+        self.rho_a = 16
+        self.rho_l = 50
+        self.Vd = 2.25
+        self.t_switch = None
+        self.nswitches = 0
+
+    def eval_f(self, u, du, t):
+
+        f = self.dtype_f(self.init)
+
+        y1, y2, y3, z = u[0], u[1], u[2], u[3]
+        dy1, dy2, dy3 = du[0], du[1], du[2]
+
+        P = (y1 * self.R * self.T) / (self.V - y2 / self.rho_l - y3 / self.rho_a)
+        Ml = (P * (y2 + y3)) / (1640 - P)
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        # define state
+        h = y2 / self.rho_l + y3 / self.rho_a - self.Vd
+
+        if h > 0 or (h > 0 and t >= t_switch):
+            f[:] = (
+                dy1 - self.F1 + z + self.kc * (y1 * y2) / self.V,
+                dy2 - self.F2 + y3 / (Ml + y2 + y3) * self.kl * self.X * (P - self.Pout) + self.kc * (y1 * y2) / self.V,
+                dy3 + y3 / (Ml + y2 + y3) * self.kl * self.X * (P - self.Pout) - self.kc * (y1 * y2) / self.V,
+                z - self.kl * self.X * (P - self.Pout) + (y2 + y3) / (Ml + y2 + y3) * self.kl * self.X * (P - self.Pout),
+            )
+        elif h < 0 or (h < 0 and t >= t_switch):
+            f[:] = (
+                dy1 - self.F1 + z + self.kc * (y1 * y2) / self.V,
+                dy2 - self.F2 + self.kc * (y1 * y2) / self.V,
+                dy3 - self.kc * (y1 * y2) / self.V,
+                z - self.kg * self.X * (P - self.Pout),
+            )
+
+        return f
+
+    def u_exact(self, t):
+
+        assert t == 0, 'ERROR: u_exact only valid for t=0'
+
+        me = self.dtype_u(self.init)
+
+        me[0] = 0.72  # y1
+        me[1] = 95.0  # y2
+        me[2] = 0.0  # y3
+        me[3] = 3.4  # z
+
+        return me

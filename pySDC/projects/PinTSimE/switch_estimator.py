@@ -75,54 +75,57 @@ class SwitchEstimator(ConvergenceController):
 
         if S.status.iter == S.params.maxiter:
             self.status.switch_detected, m_guess, vC_switch = L.prob.get_switching_info(L.u, L.time)
-
+            print(self.status.switch_detected, vC_switch)
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
+                print(L.time, vC_switch)
+                index_switch = m_guess if m_guess < len(vC_switch) else -1
 
                 # only find root if vc_switch[0], vC_switch[-1] have opposite signs (intermediate value theorem)
-                if vC_switch[0] * vC_switch[-1] < 0:
-                    self.status.t_switch = self.get_switch(t_interp, vC_switch, m_guess)
+                #if vC_switch[0] * vC_switch[-1] < 0:
+                #if vC_switch[0] * vC_switch[index_switch] < 0:
+                self.status.t_switch = self.get_switch(t_interp, vC_switch, m_guess)
 
-                    if L.time <= self.status.t_switch <= L.time + L.dt:
-                        dt_switch = self.status.t_switch - L.time
-                        if not np.isclose(self.status.t_switch - L.time, L.dt, atol=self.params.tol):
-                            self.log(
-                                f"Located Switch at time {self.status.t_switch:.6f} is outside the range of tol={self.params.tol:.4e}",
-                                S,
-                            )
-
-                        else:
-                            self.log(
-                                f"Switch located at time {self.status.t_switch:.6f} inside tol={self.params.tol:.4e}", S
-                            )
-
-                            L.prob.t_switch = self.status.t_switch
-                            controller.hooks[0].add_to_stats(
-                                process=S.status.slot,
-                                time=L.time,
-                                level=L.level_index,
-                                iter=0,
-                                sweep=L.status.sweep,
-                                type='switch',
-                                value=self.status.t_switch,
-                            )
-
-                            L.prob.count_switches()
-
-                        dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
-
-                        # when a switch is found, time step to match with switch should be preferred
-                        if self.status.switch_detected:
-                            L.status.dt_new = dt_switch
-
-                        else:
-                            L.status.dt_new = min([dt_planned, dt_switch])
+                if L.time <= self.status.t_switch <= L.time + L.dt:
+                    dt_switch = self.status.t_switch - L.time
+                    if not np.isclose(self.status.t_switch - L.time, L.dt, atol=self.params.tol):
+                        self.log(
+                            f"Located Switch at time {self.status.t_switch:.6f} is outside the range of tol={self.params.tol:.4e}",
+                            S,
+                        )
 
                     else:
-                        self.status.switch_detected = False
+                        self.log(
+                            f"Switch located at time {self.status.t_switch:.6f} inside tol={self.params.tol:.4e}", S
+                        )
+
+                        L.prob.t_switch = self.status.t_switch
+                        controller.hooks[0].add_to_stats(
+                            process=S.status.slot,
+                            time=L.time,
+                            level=L.level_index,
+                            iter=0,
+                            sweep=L.status.sweep,
+                            type='switch',
+                            value=self.status.t_switch,
+                        )
+
+                        L.prob.count_switches()
+
+                    dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
+
+                    # when a switch is found, time step to match with switch should be preferred
+                    if self.status.switch_detected:
+                        L.status.dt_new = dt_switch
+
+                    else:
+                        L.status.dt_new = min([dt_planned, dt_switch])
 
                 else:
                     self.status.switch_detected = False
+
+            else:
+                self.status.switch_detected = False
 
     def determine_restart(self, controller, S, **kwargs):
         """
@@ -173,15 +176,16 @@ class SwitchEstimator(ConvergenceController):
             m_guess (np.float): Index at which the difference drops below zero
 
         Returns:
-            t_switch (np.float): time point of th switch
+            t_switch (np.float): time point of the switch
         """
 
-        p = sp.interpolate.interp1d(t_interp, vC_switch, 'cubic', bounds_error=False)
+        print(t_interp, vC_switch)
+        p = sp.interpolate.interp1d(t_interp, vC_switch, 'quadratic', bounds_error=False)
 
         SwitchResults = sp.optimize.root_scalar(
             p,
             method='brentq',
-            bracket=[t_interp[0], t_interp[m_guess]],
+            bracket=[t_interp[0], t_interp[-1]],
             x0=t_interp[m_guess],
             xtol=1e-10,
         )

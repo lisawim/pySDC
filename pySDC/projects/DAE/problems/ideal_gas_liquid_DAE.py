@@ -104,7 +104,7 @@ class IdealGasLiquid(ptype_dae):
                 switch_detected = True
                 m_guess = m - 1
                 break
-
+        print([ML[m] / self.rho_L - self.V_d for m in range(len(ML))])
         vC_switch = [ML[m] / self.rho_L - self.V_d for m in range(len(ML))] if switch_detected else []
 
         return switch_detected, m_guess, vC_switch

@@ -50,7 +50,7 @@ class fully_implicit_DAE(sweeper):
         M = self.coll.num_nodes
 
         me = []
-
+        print('integrate:')
         # integrate gradient over all collocation nodes
         for m in range(1, M + 1):
             # new instance of dtype_u, initialize values with 0
@@ -90,7 +90,7 @@ class fully_implicit_DAE(sweeper):
                 integral[m - 1] -= L.dt * self.QI[m, j] * L.f[j]
             # add initial value
             integral[m - 1] += u_0
-
+        print('update_nodes:')
         # do the sweep
         for m in range(1, M + 1):
             # build implicit function, consisting of the known values from above and new values from previous nodes (at k+1)
@@ -110,7 +110,7 @@ class fully_implicit_DAE(sweeper):
                 # these do not directly affect the output of eval_f but rather indirectly via QI
                 local_u_approx += L.dt * self.QI[m, m] * params_mesh
                 return P.eval_f(local_u_approx, params_mesh, L.time + L.dt * self.coll.nodes[m - 1])
-
+            print('Newton:')
             # get U_k+1
             # note: not using solve_system here because this solve step is the same for any problem
             # See link for how different methods use the default tol parameter
@@ -126,7 +126,7 @@ class fully_implicit_DAE(sweeper):
             )
             # update gradient (recall L.f is being used to store the gradient)
             L.f[m][:] = opt.x
-
+        print('Update solution:')
         # Update solution approximation
         integral = self.integrate()
         for m in range(M):
@@ -147,6 +147,7 @@ class fully_implicit_DAE(sweeper):
         # get current level and problem description
         L = self.level
         P = L.prob
+        print('predict:')
         # set initial guess for gradient to zero
         L.f[0] = P.dtype_f(init=P.init, val=0.0)
         for m in range(1, self.coll.num_nodes + 1):
@@ -195,7 +196,7 @@ class fully_implicit_DAE(sweeper):
         # assert L.status.updated
 
         # compute the residual for each node
-
+        print('Compute residual:')
         res_norm = []
         for m in range(self.coll.num_nodes):
             # use abs function from data type here

@@ -117,7 +117,7 @@ class SwitchEstimator(ConvergenceController):
 
                         else:
                             L.status.dt_new = min([dt_planned, dt_switch])
-
+                        self.log(f"Restart with new time step size {L.status.dt_new:.4f}", S)
                     else:
                         self.status.switch_detected = False
 
@@ -159,6 +159,7 @@ class SwitchEstimator(ConvergenceController):
 
         if self.status.t_switch is None:
             L.status.dt_new = L.status.dt_new if L.status.dt_new is not None else L.params.dt_initial
+            #L.prob.t_switch = None
 
         super().post_step_processing(controller, S, **kwargs)
 
@@ -181,7 +182,7 @@ class SwitchEstimator(ConvergenceController):
         SwitchResults = sp.optimize.root_scalar(
             p,
             method='brentq',
-            bracket=[t_interp[0], t_interp[m_guess]],
+            bracket=[t_interp[0], t_interp[-1]],
             x0=t_interp[m_guess],
             xtol=1e-10,
         )

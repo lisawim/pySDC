@@ -67,10 +67,10 @@ class IdealGasLiquid(ptype_dae):
 
         me = self.dtype_u(self.init)
 
-        me[0] = 251.0  # ML
-        me[1] = 0.20229727148  # MG
-        me[2] = 1.0  # P
-        me[3] = 0.0  # G
+        me[0] = 249.0 # ML
+        me[1] = 0.203922149167 # MG
+        me[2] = 1.0 # P
+        me[3] = 0.0 # G
 
         return me
 

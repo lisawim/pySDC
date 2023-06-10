@@ -79,6 +79,11 @@ class SwitchEstimator(ConvergenceController):
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
 
+                if not L.sweep.coll.left_is_node:
+                    t_interp.insert(0, L.time)
+                else:
+                    del vC_switch[0]
+
                 # only find root if vc_switch[0], vC_switch[-1] have opposite signs (intermediate value theorem)
                 if vC_switch[0] * vC_switch[-1] < 0:
                     self.status.t_switch = self.get_switch(t_interp, vC_switch, m_guess)
@@ -117,7 +122,8 @@ class SwitchEstimator(ConvergenceController):
 
                         else:
                             L.status.dt_new = min([dt_planned, dt_switch])
-                        self.log(f"Restart with new time step size {L.status.dt_new:.4f}", S)
+                        self.log(f"Restart with new time step size {L.status.dt_new:.8f}", S)
+
                     else:
                         self.status.switch_detected = False
 
@@ -159,7 +165,6 @@ class SwitchEstimator(ConvergenceController):
 
         if self.status.t_switch is None:
             L.status.dt_new = L.status.dt_new if L.status.dt_new is not None else L.params.dt_initial
-            #L.prob.t_switch = None
 
         super().post_step_processing(controller, S, **kwargs)
 

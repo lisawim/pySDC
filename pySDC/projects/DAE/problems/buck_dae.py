@@ -111,13 +111,13 @@ class BuckConverter_DAE(ptype_dae):
         Resistance of the resistor :math:`R_\ell`
     V_refmax : float, optional
         Reference at which the states will be changed.
+    nvars : int, optional
+        Number of unknowns in the DAE system.
     newton_tol : float, optional
         Tolerance of the Newton-like solver.
 
     Attributes
     ----------
-    nvars: int
-        Number of unknowns in the DAE system.
     t_switch: float
         Time point of the discrete event found by switch estimation.
     nswitches: int
@@ -127,7 +127,7 @@ class BuckConverter_DAE(ptype_dae):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, Vs=10.0, Rs=1.0, C1=1.0, Rp=0.2, Lp=1.0, C2=1.0, Rl=5.0, V_refmax=8, newton_tol=1e-12):
+    def __init__(self, Vs=10.0, Rs=1.0, C1=1.0, Rp=0.2, Lp=1.0, C2=1.0, Rl=5.0, V_refmax=8, nvars=13, newton_tol=1e-12):
         """Initialization routine"""
 
         # invoke super init, passing number of dofs
@@ -141,12 +141,12 @@ class BuckConverter_DAE(ptype_dae):
             'C2',
             'Rl',
             'V_refmax',
+            'nvars',
             'newton_tol',
             localVars=locals(),
             readOnly=True,
         )
 
-        self.nvars = 13
         self.t_switch = None
         self.nswitches = 0
 
@@ -211,11 +211,11 @@ class BuckConverter_DAE(ptype_dae):
         if self.V_refmax > u[4] and t < t_switch:
             f[:] = first_state_f
         elif self.V_refmax <= u[4] and t >= t_switch:
-           f[:] = second_state_f
+            f[:] = second_state_f
         elif self.V_refmax <= u[4] and t < t_switch:
-           f[:] = second_state_f
+            f[:] = second_state_f
         elif self.V_refmax > u[4] and t >= t_switch:
-           f[:] = first_state_f
+            f[:] = first_state_f
 
         return f
 

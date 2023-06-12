@@ -88,7 +88,7 @@ class SwitchEstimator(ConvergenceController):
                 if vC_switch[0] * vC_switch[-1] < 0:
                     self.status.t_switch = self.get_switch(t_interp, vC_switch, m_guess)
 
-                    if L.time <= self.status.t_switch <= L.time + L.dt:
+                    if L.time < self.status.t_switch < L.time + L.dt:
                         dt_switch = self.status.t_switch - L.time
                         if not np.isclose(self.status.t_switch - L.time, L.dt, atol=self.params.tol):
                             self.log(

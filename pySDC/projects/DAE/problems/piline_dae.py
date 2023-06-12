@@ -99,10 +99,10 @@ class Piline_DAE(ptype_dae):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, Vs=150.0, Rs=1.0, C1=1e-2, Rp=0.2, Lp=1e-2, C2=1e-2, Rl=0.5, c=0.2, newton_tol=1e-12):
+    def __init__(self, Vs=150.0, Rs=1.0, C1=1e-2, Rp=0.2, Lp=1e-2, C2=1e-2, Rl=0.5, c=0.2, nvars=12, newton_tol=1e-12):
         """Initialization routine"""
 
-       # invoke super init, passing number of dofs
+        # invoke super init, passing number of dofs
         super().__init__(nvars, newton_tol)
         self._makeAttributeAndRegister(
             'Vs',
@@ -113,6 +113,7 @@ class Piline_DAE(ptype_dae):
             'C2',
             'Rl',
             'c',
+            'nvars',
             'newton_tol',
             localVars=locals(),
             readOnly=True,
@@ -120,7 +121,6 @@ class Piline_DAE(ptype_dae):
 
         assert 0 < self.c < 1, 'c needs to be between 0 and 1!'
 
-        self.nvars = 12
         self.power_outage = False
         self.t_outage = 0.05
         self.t_switch = None
@@ -198,20 +198,20 @@ class Piline_DAE(ptype_dae):
 
         me = self.dtype_u(self.init)
         me[0] = 0.0  # vRs
-        me[1] = 61.764705876572364  # vC1
+        me[1] = 0.0  # vC1
         me[2] = 0.0  # vRp
         me[3] = 0.0  # vLp
-        me[4] = 44.11764706251437  # vC2
-        me[5] = 44.11764706251437  # vRl
+        me[4] = 0.0  # vC2
+        me[5] = 0.0  # vRl
         me[6] = 0.0  # iRs
         me[7] = 0.0  # iC1
         me[8] = 0.0  # iRp
-        me[9] = 88.23529411989813  # iLp
+        me[9] = 0.0  # iLp
         me[10] = 0.0  # iC2
         me[11] = 0.0  # iRl
 
-        if me[5] < self.c * self.Vs:
-            raise ParameterError(f"vRl has to be initialized greater than {self.c*self.Vs}!")
+        #if me[5] < self.c * self.Vs:
+        #    raise ParameterError(f"vRl has to be initialized greater than {self.c*self.Vs}!")
 
         return me
 
@@ -249,7 +249,7 @@ class Piline_DAE(ptype_dae):
 
         state_function = [u[m][5] - self.c * self.Vs for m in range(len(u))] if switch_detected else []
 
-        return switch_detected, m_guess, vC_switch
+        return switch_detected, m_guess, state_function
 
     def count_switches(self):
         """

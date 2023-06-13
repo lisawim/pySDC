@@ -238,7 +238,7 @@ class BDF_DAE(sweeper):
         # compute the residual at the end of the interval
         res_norm = []
         for m in range(self.coll.num_nodes):
-            res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m], L.time + m * L.dt)))
+            res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m + 1], L.time + m * L.dt)))
 
         # find maximal residual over the nodes
         if L.params.residual_type == 'full_abs':

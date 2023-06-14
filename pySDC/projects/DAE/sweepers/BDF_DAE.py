@@ -147,7 +147,7 @@ class BDF_DAE(sweeper):
         L.f[0] = P.dtype_f(init=P.init, val=0.0)
 
         for m in range(self.coll.num_nodes):
-            L.u[m + 1] = P.dtype_u(init=P.init, val=0.0)
+            L.u[m + 1] = P.dtype_u(L.u[0])
             L.f[m + 1] = P.dtype_f(init=P.init, val=0.0)
 
         # fill the attribute ulast with values from last k_step steps for BDF to start with new step

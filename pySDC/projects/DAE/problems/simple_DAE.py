@@ -138,6 +138,11 @@ class simple_dae_1(ptype_dae):
         equations. Society for Industrial and Applied Mathematics (1998).
     """
 
+    def __init__(self, nvars=3, newton_tol=1e-12):
+        """Initialization routine"""
+        super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals())
+
     def eval_f(self, u, du, t):
         r"""
         Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.

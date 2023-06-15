@@ -33,6 +33,8 @@ class fully_implicit_DAE(sweeper):
 
         self.QI = self.get_Qdelta_implicit(coll=self.coll, qd_type=self.params.QI)
 
+        self.nfev = 0
+
     # TODO: hijacking this function to return solution from its gradient i.e. fundamental theorem of calculus.
     # This works well since (ab)using level.f to store the gradient. Might need to change this for release?
     def integrate(self):
@@ -126,7 +128,8 @@ class fully_implicit_DAE(sweeper):
             )
             # update gradient (recall L.f is being used to store the gradient)
             L.f[m][:] = opt.x
-
+            self.nfev += opt.nfev
+            print('Iterations:', opt.nfev)
         # Update solution approximation
         integral = self.integrate()
         for m in range(M):

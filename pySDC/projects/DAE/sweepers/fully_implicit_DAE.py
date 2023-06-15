@@ -133,7 +133,7 @@ class fully_implicit_DAE(sweeper):
             # update gradient (recall L.f is being used to store the gradient)
             L.f[m][:] = opt.x
             self.nfev += opt.nfev
-            print('Iterations:', opt.nfev)
+
         # Update solution approximation
         integral = self.integrate()
         for m in range(M):

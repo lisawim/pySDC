@@ -5,7 +5,7 @@ import pickle
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 from pySDC.projects.DAE.run.piline import get_description
-from pySDC.projects.DAE.problems.buck_dae import BuckConverter_DAE
+from pySDC.projects.DAE.problems.buck_dae import BuckConverterDAE
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
@@ -61,7 +61,7 @@ def main():
 
     # Fill description dictionary for easy hierarchy creation
     description = dict()
-    description['problem_class'] = BuckConverter_DAE
+    description['problem_class'] = BuckConverterDAE
     description['problem_params'] = problem_params
     description['sweeper_class'] = fully_implicit_DAE
     description['sweeper_params'] = sweeper_params

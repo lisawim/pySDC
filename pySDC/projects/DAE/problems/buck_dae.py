@@ -5,7 +5,7 @@ from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
 from pySDC.implementations.datatype_classes.mesh import mesh
 
 
-class BuckConverter_DAE(ptype_dae):
+class BuckConverterDAE(ptype_dae):
     """
     Example implementing the buck converter model in a manipulated fashion, modelled as system of differential-algebraic
     equations (DAEs). When the state function :math:`h(V_{C_2} (t)) := V_{refmax} - V_{C_2}(t)` changes the sign, the

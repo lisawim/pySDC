@@ -4,14 +4,14 @@ import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
-from pySDC.projects.DAE.problems.piline_dae import Piline_DAE
+from pySDC.projects.DAE.problems.piline_dae import PilineDAE, PilinePowerOutageDAE
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.BDF_DAE import BDF_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
 from pySDC.projects.PinTSimE.battery_model import get_recomputed
-from pySDC.helpers.stats_helper import get_sorted
+from pySDC.helpers.stats_helper import get_list_of_types, get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 
@@ -46,16 +46,16 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = -1 #1e-12
+    level_params['restol'] = 1e-11
     level_params['dt'] = dt
 
     # initialize sweeper parameters
     sweeper_params = dict()
-    #sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    #sweeper_params['num_nodes'] = 5
-    #sweeper_params['QI'] = 'LU'
-    #sweeper_params['initial_guess'] = 'spread'
-    sweeper_params['k_step'] = 1
+    sweeper_params['quad_type'] = 'RADAU-RIGHT'
+    sweeper_params['num_nodes'] = 3
+    sweeper_params['QI'] = 'LU'
+    sweeper_params['initial_guess'] = 'spread'
+
 
     # initialize problem parameters
     problem_params = dict()
@@ -64,11 +64,11 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 1 #3
+    step_params['maxiter'] = 25
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 30
     controller_params['hook_class'] = hookclass
 
     convergence_controllers = dict()
@@ -126,8 +126,30 @@ def controller_run(t0, Tend, controller_params, description):
 
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
+    nfev = controller.MS[0].levels[0].sweep.nfev
 
-    return stats
+    # filter statistics by number of iterations
+    iter_counts = get_sorted(stats, type='niter', sortby='time')
+
+    # compute and print statistics
+    min_iter = 20
+    max_iter = 0
+    f = open('data/PilinePowerOutageDAE_out.txt', 'w')
+    for item in iter_counts:
+        out = 'Number of iterations for time %4.2f: %1i' % item
+        f.write(out + '\n')
+        print(out)
+        min_iter = min(min_iter, item[1])
+        max_iter = max(max_iter, item[1])
+
+    mean_niter = np.mean([me[1] for me in iter_counts])
+    out = 'Mean number of ierations: {}'.format(mean_niter)
+    f.write(out + '\n')
+    print(out)
+
+    f.close()
+
+    return stats, nfev
 
 def plot_solution(stats, use_detection=False, cwd='./'):
     """
@@ -315,6 +337,47 @@ def diffs_over_time(c, Vs, dt_list, use_detection, results_simulations, results_
         plt_helper.plt.close(fig)
 
 
+def plot_nfev_against_residual(res_norm_against_nfev):
+    """
+    Plots different newtol's against the residual (max) norm, where the residuals after one step is considered.
+
+    Parameters
+    ----------
+    res_norm_against_nfev : dict
+        Contains the residual norm and corresponding number of function evaluations for one specific newton_tol.
+    """
+
+    lists = sorted(res_norm_against_nfev.items())
+    newton_tols, res_norm_against_nfev_list = zip(*lists)
+    res_norms, nfev = [me[0] for me in res_norm_against_nfev_list], [me[1] for me in res_norm_against_nfev_list]
+
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(5, 3))
+    ax.loglog(newton_tols, res_norms, color='firebrick', marker='.', linewidth=0.8)
+    for m in range(len(newton_tols)):
+        ax.annotate(nfev[m], (newton_tols[m], res_norms[m]), xytext=(-8.5, 10), textcoords="offset points", fontsize=8)
+
+    ax.tick_params(axis='both', which='major', labelsize=8)
+    ax.set_ylim(1e-14, 1e-10)
+    ax.set_xscale('log', base=10)
+    ax.set_yscale('log', base=10)
+    ax.set_xlabel(r'Inner tolerance', fontsize=8)
+    ax.set_ylabel(r'$||r_\mathrm{DAE}||_\infty$', fontsize=8)
+    ax.grid(visible=True)
+    ax.minorticks_off()
+    fig.savefig('data/residual_against_tolerances.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
+
+
+def plot_residual_post_step(residual_post_step, dt, newton_tol):
+    """
+    Plots the residuals after each step for different time stp sizes and newton tolerances.
+    """
+
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(5, 3))
+    ax.plot([me[0] for me in residual_post_step],[me[1] for me in residual_post_step])
+    fig.savefig('data/residual_post_step_dt{}_newtontol{}.png'.format(dt, newton_tol), dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
+
 def main():
     """
     Main function that executes all the stuff containing:
@@ -328,55 +391,66 @@ def main():
     hookclass = approx_solution_hook
 
     nvars = 12
-    problem_class = Piline_DAE
+    problem_class = PilinePowerOutageDAE
     c = 0.2
     Vs = 150.0
 
-    sweeper = BDF_DAE #fully_implicit_DAE
-    newton_tol = 1e-12
+    sweeper = fully_implicit_DAE
+    newton_tolerances = [1e-7, 1e-1]
 
     use_detection = [False] #[False, True]
 
     t0 = 0.0
     Tend = 0.15
 
-    dt_list = [1e-3] #[5e-3, 1e-3, 5e-4, 1e-4]
+    dt_list = [5e-3, 1e-3, 5e-4, 1e-4]
 
     results_dt = dict()
     switching_dt = dict()
     results_simulations = dict()
     results_events = dict()
+
+    res_norm_against_nfev = dict()
     for use_SE in use_detection:
         for dt_item in dt_list:
-            print(f'Controller run -- Simulation for step size: {dt_item}')
+            for newton_tol in newton_tolerances:
+                print(f'Controller run -- Simulation for step size: {dt_item}')
 
-            description, controller_params = get_description(dt_item, nvars, problem_class, hookclass, sweeper, use_SE)
+                description, controller_params = get_description(dt_item, nvars, problem_class, hookclass, sweeper, use_SE, newton_tol)
 
-            description['problem_params']['c'] = c
-            description['problem_params']['Vs'] = Vs
+                description['problem_params']['c'] = c
+                description['problem_params']['Vs'] = Vs
 
-            stats = controller_run(t0, Tend, controller_params, description)
+                stats, nfev = controller_run(t0, Tend, controller_params, description)
 
-            plot_solution(stats, use_SE)
+                plot_solution(stats, use_SE)
 
-            vRl = np.array([me[1][5] for me in get_sorted(stats, type='approx_solution')])
-            t = np.array([me[0] for me in get_sorted(stats, type='approx_solution')])
+                residual_post_step = get_sorted(stats, type='residual_post_step', sortby='time')
+                res_norm = max([me[1] for me in residual_post_step])
+                res_norm_against_nfev[newton_tol] = [res_norm, nfev]
+                print('Max. residual: ', res_norm, 'with newton_tol=', newton_tol)
+                plot_residual_post_step(residual_post_step, dt_item, newton_tol)
 
-            results_dt[dt_item] = pack_solution_data(t, vRl)
+    plot_nfev_against_residual(res_norm_against_nfev)
 
-            t_switches = (
-                np.array([me[1] for me in get_recomputed(stats, type='switch', sortby='time')])
-                if use_SE
-                else np.zeros(1)
-            )
-            switching_dt[dt_item] = t_switches
+            #vRl = np.array([me[1][5] for me in get_sorted(stats, type='approx_solution')])
+            #t = np.array([me[0] for me in get_sorted(stats, type='approx_solution')])
 
-        results_simulations[use_SE] = results_dt
-        results_events[use_SE] = switching_dt
+            #results_dt[dt_item] = pack_solution_data(t, vRl)
 
-    diffs_around_event(c, Vs, dt_list, use_detection, results_simulations, results_events)
+            #t_switches = (
+            #    np.array([me[1] for me in get_recomputed(stats, type='switch', sortby='time')])
+            #    if use_SE
+            #    else np.zeros(1)
+            #)
+            #switching_dt[dt_item] = t_switches
 
-    diffs_over_time(c, Vs, dt_list, use_detection, results_simulations, results_events)
+        #results_simulations[use_SE] = results_dt
+        #results_events[use_SE] = switching_dt
+
+    #diffs_around_event(c, Vs, dt_list, use_detection, results_simulations, results_events)
+
+    #diffs_over_time(c, Vs, dt_list, use_detection, results_simulations, results_events)
 
 
 if __name__ == "__main__":

@@ -9,13 +9,8 @@ from pySDC.implementations.datatype_classes.mesh import mesh
 class PilineDAE(ptype_dae):
     r"""
     This class implements the piline from the PinTSimE project modelled as system of differential-algebraic
-    equations (DAEs). It serves as a transmission line in an energy grid. The voltage source :math:`V_s` is a
-    generator that provides energy. Hence, the consumer modelled as resistor :math:`R_\ell` is always supplied
-    with :math:`c V_s` with :math:`0 < c < 1`. At time :math:`t_{outage}` there is a power outage (and :math:`V_s`
-    will be set to zero). When the energy :math:`V_{R_\ell}` drops below :math:`c V_s`, i.e., when the
-    state function :math:`h(V_{R_\ell}) := V_{R_\ell} - c V_s` changes from positive to negative, a backup
-    generator starts to continue to supply the consumer with energy, and :math:`V_s` will be set back to its
-    old value. The system of DAEs is given by:
+    equations (DAEs). It serves as a transmission line in an energy grid. The system of DAEs modelling the
+    purely piline is given by:
 
     .. math::
         \dfrac{d V_{C_1} (t)}{dt} = \dfrac{1}{C_1} i_{C_1} (t),

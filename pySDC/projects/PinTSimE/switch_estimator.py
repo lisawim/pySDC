@@ -182,7 +182,8 @@ class SwitchEstimator(ConvergenceController):
             t_switch (np.float): time point of th switch
         """
 
-        p = sp.interpolate.interp1d(t_interp, vC_switch, 'cubic', bounds_error=False)
+        kind = 'quadratic' if len(t_interp) <= 4 else 'cubic'
+        p = sp.interpolate.interp1d(t_interp, vC_switch, kind, bounds_error=False)
 
         SwitchResults = sp.optimize.root_scalar(
             p,

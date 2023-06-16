@@ -15,7 +15,7 @@ from pySDC.helpers.stats_helper import get_list_of_types, get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 
-def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection, newton_tol=1e-12):
+def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection, restol, newton_tol=1e-12):
     """
     Returns the description for one simulation run.
 
@@ -52,7 +52,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 3
+    sweeper_params['num_nodes'] = 2
     sweeper_params['QI'] = 'LU'
     sweeper_params['initial_guess'] = 'spread'
 
@@ -68,7 +68,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 30
+    controller_params['logger_level'] = 15
     controller_params['hook_class'] = hookclass
 
     convergence_controllers = dict()
@@ -138,14 +138,14 @@ def controller_run(t0, Tend, controller_params, description):
     for item in iter_counts:
         out = 'Number of iterations for time %4.2f: %1i' % item
         f.write(out + '\n')
-        print(out)
+        # print(out)
         min_iter = min(min_iter, item[1])
         max_iter = max(max_iter, item[1])
 
     mean_niter = np.mean([me[1] for me in iter_counts])
-    out = 'Mean number of ierations: {}'.format(mean_niter)
+    out = 'Mean number of iterations: {}'.format(mean_niter)
     f.write(out + '\n')
-    print(out)
+    # print(out)
 
     f.close()
 
@@ -416,7 +416,7 @@ def main():
             for newton_tol in newton_tolerances:
                 print(f'Controller run -- Simulation for step size: {dt_item}')
 
-                description, controller_params = get_description(dt_item, nvars, problem_class, hookclass, sweeper, use_SE, newton_tol)
+                description, controller_params = get_description(dt_item, nvars, problem_class, hookclass, sweeper, use_SE, 1e-12, newton_tol)
 
                 description['problem_params']['c'] = c
                 description['problem_params']['Vs'] = Vs

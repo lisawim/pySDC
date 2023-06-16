@@ -8,110 +8,67 @@ from pySDC.projects.DAE.run.piline import get_description
 from pySDC.projects.DAE.problems.buck_dae import BuckConverterDAE
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
+from pySDC.projects.DAE.run.piline import get_description, controller_run, pack_solution_data
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
 from pySDC.projects.PinTSimE.battery_model import get_recomputed
 from pySDC.helpers.stats_helper import get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 
-def main():
+def diffs_over_time(V_refmax, dt_list, use_detection, results_simulations, results_events):
     """
-    A simple test program to see the fully implicit SDC solver in action
+    Plots the state function over time. It can be investigated how large the error is.
+
+    Parameters
+    ----------
+    V_refmax : float
+        Value at which the switching states change (used to compute difference at event).
+    dt_list : list
+        Contains multiple time step sizes.
+    use_detection : list
+        Contains the iterable object for indicating whether a detection of events is used.
+    results_simulations : dict
+        Results of the solution for each time step size.
+    results_events : dict
+        Switching results for each time step size.
     """
 
-    use_SE = True
+    for dt_item in dt_list:
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(5, 5))
+        ax.set_title(r'Evaluating state function over time for $\Delta t=%s$' % dt_item, fontsize=8)
+        for use_SE in use_detection:
+            u = results_simulations[use_SE][dt_item]
 
-    # initialize level parameters
-    level_params = dict()
-    level_params['restol'] = -1
-    level_params['dt'] = 5e-3
+            t_switches = results_events[use_SE][dt_item]
+            t_switch = t_switches[-1]
 
-    # initialize sweeper parameters
-    sweeper_params = dict()
-    sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 5
-    sweeper_params['initial_guess'] = 'spread'
-    sweeper_params['QI'] = 'LU'
-
-    # initialize problem parameters
-    problem_params = dict()
-    problem_params['newton_tol'] = 1e-12  # tollerance for implicit solver
-    problem_params['nvars'] = 13
-
-    # initialize step parameters
-    step_params = dict()
-    step_params['maxiter'] = 4
-
-    # initialize controller parameters
-    controller_params = dict()
-    controller_params['logger_level'] = 15
-    controller_params['hook_class'] = approx_solution_hook
-
-    convergence_controllers = dict()
-    if use_SE:
-        switch_estimator_params = {}
-        convergence_controllers.update({SwitchEstimator: switch_estimator_params})
-
-    max_restarts = 1
-    if max_restarts is not None:
-        convergence_controllers[BasicRestartingNonMPI] = {
-            'max_restarts': max_restarts,
-            'crash_after_max_restarts': False,
-        }
-
-    # Fill description dictionary for easy hierarchy creation
-    description = dict()
-    description['problem_class'] = BuckConverterDAE
-    description['problem_params'] = problem_params
-    description['sweeper_class'] = fully_implicit_DAE
-    description['sweeper_params'] = sweeper_params
-    description['level_params'] = level_params
-    description['step_params'] = step_params
-    description['convergence_controllers'] = convergence_controllers
-
-    Path("data").mkdir(parents=True, exist_ok=True)
-
-    # instantiate the controller
-    controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
-
-    # set time parameters
-    t0 = 0.0
-    Tend = 10.0  #3.47 #10.0
-
-    # get initial values on finest level
-    P = controller.MS[0].levels[0].prob
-    uinit = P.u_exact(t0)
-
-    # call main function to get things done...
-    uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
-
-    vC1 = np.array([me[1][1] for me in get_sorted(stats, type='approx_solution')])
-    vC2 = np.array([me[1][4] for me in get_sorted(stats, type='approx_solution')])
-    iLp = np.array([me[1][9] for me in get_sorted(stats, type='approx_solution')])
-    t = np.array([me[0] for me in get_sorted(stats, type='approx_solution')])
-
-    if use_SE:
-        switches = get_recomputed(stats, type='switch', sortby='time')
-        assert len(switches) >= 1, 'No switches found!'
-        t_switch = [v[1] for v in switches]
-        print(t_switch)
-
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax.set_title(r'Solution of Buck Converter', fontsize=8)
-    ax.plot(t, vC1, 'k-', label=r'$v_{C1}$', linewidth=1)
-    ax.plot(t, vC2, 'b-', label=r'$v_{C2}$', linewidth=1)
-    ax.plot(t, iLp, 'g-', label=r'$i_L$', linewidth=1)
-    if use_SE:
-        for m in range(len(t_switch)):
-            if m == 0:
-                ax.axvline(x=t_switch[m], linestyle='--', linewidth=0.8, color='r', label='{} Events'.format(len(t_switch)))
+            if use_SE:
+                ax.plot(u[0, :], V_refmax - u[1, :], 'r--', linewidth=0.8, label=r'Detection - {}'.format(use_SE))
+                #ax.plot(u[0, :], u[1, :], 'r--', linewidth=0.8, label=r'Detection - {}'.format(use_SE))
             else:
-                ax.axvline(x=t_switch[m], linestyle='--', linewidth=0.8, color='r')
-    ax.legend(frameon=False, fontsize=8, loc='upper right')
-    fig.savefig('data/buck_solution.png', dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig)
+                ax.plot(u[0, :], V_refmax - u[1, :], 'k-', linewidth=0.8, label=r'Detection - {}'.format(use_SE))
+                #ax.plot(u[0, :], u[1, :], 'k-', linewidth=0.8, label=r'Detection - {}'.format(use_SE))
 
-def main2():
+
+        for m in range(len(t_switches)):
+            if m == 0:
+                ax.axvline(x=t_switches[m], linestyle='--', linewidth=0.8, color='g', label='{} Event(s) found'.format(len(t_switches)))
+            else:
+                ax.axvline(x=t_switches[m], linestyle='--', linewidth=0.8, color='g')
+
+        ax.legend(frameon=False, fontsize=8, loc='lower right')
+
+        #ax.set_xlim(3.462769188733114-0.001, 3.462769188733114+0.001)
+        ax.set_ylim(-1, 1)
+        ax.set_yscale('symlog', linthresh=1e-11)
+        ax.set_xlabel(r'Time[s]', fontsize=8)
+        ax.set_ylabel(r'$V_\mathrm{refmax} - V_\mathrm{C_2}$', fontsize=8)
+
+        fig.savefig('data/buck_diffs_over_time_{}.png'.format(dt_item), dpi=300, bbox_inches='tight')
+        plt_helper.plt.close(fig)
+
+
+def main():
     """
     Main function that executes all the stuff containing:
         - plotting the solution for one single time step size,
@@ -123,7 +80,71 @@ def main2():
     hookclass = approx_solution_hook
 
     nvars = 13
-    problem_class = BuckConverter_DAE
+    problem_class = BuckConverterDAE
+    V_refmax = 8
+
+    sweeper = fully_implicit_DAE
+    newton_tol = 1e-7
+
+    use_detection = [False, True]
+
+    t0 = 0.0
+    Tend = 6.1
+
+    dt_list = [1e-2]
+
+    results_dt = dict()
+    switching_dt = dict()
+    results_simulations = dict()
+    results_events = dict()
+
+    for use_SE in use_detection:
+        for dt_item in dt_list:
+            print(f'Controller run -- Simulation for step size: {dt_item}')
+
+            if use_SE:
+                restol = -1
+                recomputed = False
+            else:
+                restol = 1e-12
+                recomputed = None
+
+            description, controller_params = get_description(dt_item, nvars, problem_class, hookclass, sweeper, use_SE, restol, newton_tol)
+
+            description['problem_params']['V_refmax'] = V_refmax
+
+            stats, nfev = controller_run(t0, Tend, controller_params, description)
+
+            vC2 = np.array([me[1][4] for me in get_sorted(stats, type='approx_solution', recomputed=recomputed)])
+            t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', recomputed=recomputed)])
+
+            results_dt[dt_item] = pack_solution_data(t, vC2)
+            res_array = pack_solution_data(t, vC2)
+
+            t_switches = (
+                np.array([me[1] for me in get_recomputed(stats, type='switch', sortby='time')])
+                if use_SE
+                else np.zeros(1)
+            )
+            switching_dt[dt_item] = t_switches
+            if use_SE:
+                print('use_SE:', use_SE)
+                for m in range(res_array.shape[1]):
+                    if np.isclose(t_switches[-1], res_array[0, m]):
+                        for l in range(m - 3, m + 3):
+                            print(t_switches[-1], res_array[0, l], V_refmax - res_array[1, l])
+            else:
+                print('use_SE:', use_SE)
+                for m in range(1, res_array.shape[1]):
+                    t_switch = 3.2400029447686314
+                    if res_array[0, m - 1] <= t_switch <= res_array[0, m]:
+                        for l in range(m - 3, m + 3):
+                            print(t_switch, res_array[0, l], V_refmax - res_array[1, l])
+
+        results_simulations[use_SE] = results_dt
+        results_events[use_SE] = switching_dt
+
+    diffs_over_time(V_refmax, dt_list, use_detection, results_simulations, results_events)
 
 
 if __name__ == "__main__":

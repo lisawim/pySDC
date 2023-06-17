@@ -158,7 +158,7 @@ class IdealGasLiquid(ptype_dae):
 
         # state function
         h = ML / self.rho_L - self.V_d
-        if h >= 0 or (h >= 0 and t >= t_switch):
+        if h > 0 or (h > 0 and t >= t_switch):
             f[:] = (
                 dMG - self.F_G,
                 dML - self.F_L + G,

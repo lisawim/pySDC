@@ -6,8 +6,7 @@ from pySDC.implementations.controller_classes.controller_nonMPI import controlle
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 from pySDC.projects.DAE.problems.ideal_gas_liquid_DAE import IdealGasLiquid
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
-from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
+from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook, sweeper_data
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
 from pySDC.projects.PinTSimE.battery_model import get_recomputed
 from pySDC.helpers.stats_helper import get_sorted
@@ -57,6 +56,73 @@ class event_data(hooks):
         )
 
 
+def main():
+    """
+    Routine to run model problem
+    """
+
+    Path("data").mkdir(parents=True, exist_ok=True)
+
+    hookclass = [approx_solution_hook, event_data, sweeper_data]
+
+    nvars = 4
+    problem_class = IdealGasLiquid
+
+    sweeper = fully_implicit_DAE
+    newton_tolerances = [1e-5] #[1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1] #1e-12
+
+    use_detection = [False, True] #[False, True]
+
+    # set time parameters
+    t0 = 0.0
+    Tend = 5.0 #1.3
+    dt_list = [3e-2] #[1.035e-1]
+    N_dt = int(Tend / dt_list[0])
+
+    state_function_eval = dict()
+    state_function_eval_dt = dict()
+    switches_dt = dict()
+
+    res_norm_against_newton_tol = dict()
+    for newton_tol in newton_tolerances:
+        for use_SE in use_detection:
+            for dt in dt_list:
+                print(f'Controller run -- Simulation for step size: {dt}')
+
+                restol = -1 if use_SE else 1e-14
+
+                description, controller_params = get_description(dt, nvars, problem_class, hookclass, sweeper, use_SE, restol, newton_tol)
+
+                stats = controller_run(t0, Tend, controller_params, description)
+
+                plot_solution(stats, use_SE)
+
+                t = [me[0] for me in get_sorted(stats, type='state_function', recomputed=False)]
+                h = [me[1] for me in get_sorted(stats, type='state_function', recomputed=False)]
+                state_function_eval_dt[dt] = pack_solution_data(t, h)
+
+                t_switches = (
+                    np.array([me[1] for me in get_recomputed(stats, type='switch', sortby='time')])
+                    if use_SE
+                    else np.zeros(1)
+                )
+                switches_dt[dt] = t_switches
+
+                # Could also be an indicator to reduce costs after SE or to indicate the costs in general?
+                nfev = [me[1] for me in get_sorted(stats, type='nfev', sortby='time', recomputed=False)]
+                nfev = round(sum(nfev) / N_dt)  # average of nfev across all time steps
+                residual_post_step = get_sorted(stats, type='residual_post_step', sortby='time', recomputed=False)
+                res_norm = max([me[1] for me in residual_post_step])
+                res_norm_against_newton_tol[newton_tol] = [res_norm, nfev]
+
+            state_function_eval[use_SE] = state_function_eval_dt
+
+        diffs_over_time(dt_list, use_detection, state_function_eval, switches_dt)
+
+    # only use for use_SE = False
+    plot_nfev_against_residual(res_norm_against_newton_tol)
+
+
 def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection, restol, newton_tol=1e-12):
     """
     Returns the description for one simulation run.
@@ -94,7 +160,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 3
+    sweeper_params['num_nodes'] = 5
     sweeper_params['QI'] = 'LU'
     sweeper_params['initial_guess'] = 'spread'
 
@@ -106,7 +172,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 25
+    step_params['maxiter'] = 7
 
     # initialize controller parameters
     controller_params = dict()
@@ -136,6 +202,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
     description['convergence_controllers'] = convergence_controllers
 
     return description, controller_params
+
 
 def controller_run(t0, Tend, controller_params, description):
     """
@@ -168,7 +235,14 @@ def controller_run(t0, Tend, controller_params, description):
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
+    # filter statistics by number of iterations
+    iter_counts = get_sorted(stats, type='niter', sortby='time')
+    mean_niter = np.mean([me[1] for me in iter_counts])
+    out = 'Mean number of iterations: %f4.2' % mean_niter
+    print(out)
+
     return stats
+
 
 def plot_solution(stats, use_detection=False, cwd='./'):
     """
@@ -257,23 +331,30 @@ def diffs_over_time(dt_list, use_detection, state_function_eval_dt, switches_dt)
         for use_SE in use_detection:
             h = state_function_eval_dt[use_SE][dt]
             t_switches = switches_dt[dt]
+            t_switch = t_switches[-1]
 
             if use_SE:
-                ax.plot(h[0, :], h[1, :], 'r--', linewidth=0.8, label=r'Detection - {}'.format(use_SE))
-            else:
-                ax.plot(h[0, :], h[1, :], 'k-', linewidth=0.8, label=r'Detection - {}'.format(use_SE))
+                ax.plot(h[0, :], h[1, :], 'r--', linewidth=0.5, label=r'Detection - {}'.format(use_SE))
 
-            for m in range(len(t_switches)):
-                if m == 0:
-                    ax.axvline(x=t_switches[m], linestyle='--', linewidth=0.8, color='g', label='{} Event(s) found'.format(len(t_switches)))
-                else:
-                    ax.axvline(x=t_switches[m], linestyle='--', linewidth=0.8, color='g')
+                for m in range(len(t_switches)):
+                    if m == 0:
+                        ax.axvline(
+                            x=t_switches[m],
+                            linestyle='--',
+                            linewidth=0.5,
+                            color='g',
+                            label='{} Event(s) found'.format(len(t_switches)),
+                        )
+                    else:
+                        ax.axvline(x=t_switches[m], linestyle='--', linewidth=0.5, color='g')
+            else:
+                ax.plot(h[0, :], h[1, :], 'k-', linewidth=0.5, label=r'Detection - {}'.format(use_SE))
 
         ax.legend(frameon=False, fontsize=8, loc='lower right')
 
-        #ax.set_xlim(t_switch - 0.0000001, t_switch + 0.0000001)
+        #ax.set_xlim(t_switch - 0.001, t_switch + 0.001)
         ax.set_ylim(-1, 1)
-        ax.set_yscale('symlog', linthresh=1e-6)
+        ax.set_yscale('symlog', linthresh=1e-10)
         ax.set_xlabel(r'Time[s]', fontsize=8)
         ax.set_ylabel(r'State function $h(M_L)$', fontsize=8)
 
@@ -281,60 +362,35 @@ def diffs_over_time(dt_list, use_detection, state_function_eval_dt, switches_dt)
         plt_helper.plt.close(fig)
 
 
-
-def main():
+def plot_nfev_against_residual(res_norm_against_newton_tol):
     """
-    Routine to run model problem
+    Plots different newtol's against the residual (max) norm, where the residuals after one step is considered.
+
+    Parameters
+    ----------
+    res_norm_against_newton_tol : dict
+        Contains the residual norm and corresponding number of function evaluations for one specific newton_tol.
     """
 
-    Path("data").mkdir(parents=True, exist_ok=True)
+    lists = sorted(res_norm_against_newton_tol.items())
+    newton_tols, res_norm_against_newton_tol_list = zip(*lists)
+    res_norms, nfev = [me[0] for me in res_norm_against_newton_tol_list], [me[1] for me in res_norm_against_newton_tol_list]
 
-    hookclass = [approx_solution_hook, event_data]
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(5, 3))
+    ax.loglog(newton_tols, res_norms, color='firebrick', marker='.', linewidth=0.8)
+    for m in range(len(newton_tols)):
+        ax.annotate(nfev[m], (newton_tols[m], res_norms[m]), xytext=(-8.5, 10), textcoords="offset points", fontsize=8)
 
-    nvars = 4
-    problem_class = IdealGasLiquid
-    rho_L = 50
-    V_d = 5.0
-
-    sweeper = fully_implicit_DAE
-    newton_tol = 1e-12
-
-    use_detection = [False, True]
-
-    # set time parameters
-    t0 = 0.0
-    Tend = 1.3
-    dt_list = [3e-2]
-
-    state_function_eval = dict()
-    state_function_eval_dt = dict()
-    switches_dt = dict()
-    for use_SE in use_detection:
-        for dt in dt_list:
-            print(f'Controller run -- Simulation for step size: {dt}')
-
-            restol = -1 if use_SE else 1e-12
-
-            description, controller_params = get_description(dt, nvars, problem_class, hookclass, sweeper, use_SE, restol, newton_tol)
-
-            stats = controller_run(t0, Tend, controller_params, description)
-
-            plot_solution(stats, use_SE)
-
-            t = [me[0] for me in get_sorted(stats, type='state_function', recomputed=False)]
-            h = [me[1] for me in get_sorted(stats, type='state_function', recomputed=False)]
-            state_function_eval_dt[dt] = pack_solution_data(t, h)
-
-            t_switches = (
-                np.array([me[1] for me in get_recomputed(stats, type='switch', sortby='time')])
-                if use_SE
-                else np.zeros(1)
-            )
-            switches_dt[dt] = t_switches
-
-        state_function_eval[use_SE] = state_function_eval_dt
-
-    diffs_over_time(dt_list, use_detection, state_function_eval, switches_dt)
+    ax.tick_params(axis='both', which='major', labelsize=8)
+    ax.set_ylim(1e-16, 1e+1)
+    ax.set_xscale('log', base=10)
+    ax.set_yscale('log', base=10)
+    ax.set_xlabel(r'Inner tolerance', fontsize=8)
+    ax.set_ylabel(r'$||r_\mathrm{DAE}||_\infty$', fontsize=8)
+    ax.grid(visible=True)
+    ax.minorticks_off()
+    fig.savefig('data/ideal_gas_liquid_residual_against_tolerances.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
 
 
 if __name__ == "__main__":

@@ -82,3 +82,42 @@ class error_hook(hooks):
             type='error_post_step',
             value=err,
         )
+
+
+class sweeper_data(hooks):
+    """
+    Hook class to get statistics of the sweeper.
+    """
+
+    def __init__(self):
+        """
+        Initialization routine for the custom hook
+        """
+        super(sweeper_data, self).__init__()
+
+    def post_step(self, step, level_number):
+        """
+        Default routine called after each step
+        Args:
+            step: the current step
+            level_number: the current level number
+        """
+
+        super(sweeper_data, self).post_step(step, level_number)
+
+        # some abbreviations
+        L = step.levels[level_number]
+        P = L.prob
+
+        # TODO: is it really necessary to recompute the end point? Hasn't this been done already?
+        L.sweep.compute_end_point()
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='nfev',
+            value=L.sweep.nfev,
+        )

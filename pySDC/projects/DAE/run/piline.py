@@ -15,7 +15,7 @@ from pySDC.helpers.stats_helper import get_list_of_types, get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 
-def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection, restol, newton_tol=1e-12):
+def get_description(dt, nvars, problem_class, hookclass, sweeper, num_nodes, use_detection, restol, tol_SE, maxiter=25, newton_tol=1e-12):
     """
     Returns the description for one simulation run.
 
@@ -31,8 +31,14 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
         Hook class to log the data.
     sweeper : pySDC.core.Sweeper
         Sweeper class for solving the problem class.
+    num_nodes : int
+        Number of collocation nodes used for integration.
     use_detection : bool
         Indicate whether switch detection should be used or not.
+    restol : float
+        Residual tolerance used as stopping criterion.
+    maxiter : int
+        Maximum number of iterations done per time step.
     newton_tol : float, optional
         Tolerance for solving the nonlinear system of DAE solver.
 
@@ -46,13 +52,13 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-11
+    level_params['restol'] = restol
     level_params['dt'] = dt
 
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 2
+    sweeper_params['num_nodes'] = num_nodes
     sweeper_params['QI'] = 'LU'
     sweeper_params['initial_guess'] = 'spread'
 
@@ -64,7 +70,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 25
+    step_params['maxiter'] = maxiter
 
     # initialize controller parameters
     controller_params = dict()
@@ -73,7 +79,7 @@ def get_description(dt, nvars, problem_class, hookclass, sweeper, use_detection,
 
     convergence_controllers = dict()
     if use_detection:
-        switch_estimator_params = {}
+        switch_estimator_params = {'tol': tol_SE}
         convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 
     max_restarts = 1
@@ -397,6 +403,7 @@ def main():
 
     sweeper = fully_implicit_DAE
     newton_tolerances = [1e-7, 1e-1]
+    num_nodes = 3
 
     use_detection = [False] #[False, True]
 
@@ -416,7 +423,19 @@ def main():
             for newton_tol in newton_tolerances:
                 print(f'Controller run -- Simulation for step size: {dt_item}')
 
-                description, controller_params = get_description(dt_item, nvars, problem_class, hookclass, sweeper, use_SE, 1e-12, newton_tol)
+                description, controller_params = get_description(
+                    dt_item,
+                    nvars,
+                    problem_class,
+                    hookclass,
+                    sweeper,
+                    num_nodes,
+                    use_SE,
+                    1e-12,
+                    dt_item,
+                    25,
+                    newton_tol,
+                )
 
                 description['problem_params']['c'] = c
                 description['problem_params']['Vs'] = Vs

@@ -34,7 +34,7 @@ class SwitchEstimator(ConvergenceController):
 
         defaults = {
             'control_order': 100,
-            'tol': description['level_params']['dt'],
+            #'tol': 1.2 * description['level_params']['dt'],
             'nodes': coll.nodes,
         }
         return {**defaults, **params}
@@ -79,11 +79,12 @@ class SwitchEstimator(ConvergenceController):
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
 
+                # if t0 is not a left node then t0 has to be added to interpolation axis, otherwise u-value has to be deleted
                 if not L.sweep.coll.left_is_node:
                     t_interp.insert(0, L.time)
                 else:
                     del vC_switch[0]
-
+                print(t_interp, vC_switch)
                 # only find root if vc_switch[0], vC_switch[-1] have opposite signs (intermediate value theorem)
                 if vC_switch[0] * vC_switch[-1] < 0:
                     self.status.t_switch = self.get_switch(t_interp, vC_switch, m_guess)
@@ -182,7 +183,7 @@ class SwitchEstimator(ConvergenceController):
             t_switch (np.float): time point of th switch
         """
 
-        kind = 'quadratic' if len(t_interp) <= 4 else 'cubic'
+        kind = 'quadratic' if len(t_interp) <= 3 else 'cubic'
         p = sp.interpolate.interp1d(t_interp, vC_switch, kind, bounds_error=False)
 
         SwitchResults = sp.optimize.root_scalar(

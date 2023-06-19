@@ -127,7 +127,7 @@ class BuckConverterDAE(ptype_dae):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, Vs=10.0, Rs=1.0, C1=1.0, Rp=0.2, Lp=1.0, C2=1.0, Rl=5.0, V_refmax=8, nvars=13, newton_tol=1e-12):
+    def __init__(self, Vs=10.0, Rs=1.0, C1=1e-1, Rp=0.2, Lp=1e-1, C2=1e-1, Rl=5.0, V_ref=4.0, nvars=13, newton_tol=1e-12):
         """Initialization routine"""
 
         # invoke super init, passing number of dofs
@@ -140,7 +140,7 @@ class BuckConverterDAE(ptype_dae):
             'Lp',
             'C2',
             'Rl',
-            'V_refmax',
+            'V_ref',
             'nvars',
             'newton_tol',
             localVars=locals(),
@@ -208,14 +208,34 @@ class BuckConverterDAE(ptype_dae):
         )
 
         f = self.dtype_f(self.init)
-        if self.V_refmax > u[4] and t < t_switch:
-            f[:] = first_state_f
-        elif self.V_refmax <= u[4] and t >= t_switch:
+        #if self.V_refmax > u[4] and t < t_switch:
+        #    f[:] = first_state_f
+        #elif self.V_refmax <= u[4] and t >= t_switch:
+        #    f[:] = second_state_f
+        #elif self.V_refmax <= u[4] and t < t_switch:
+        #    f[:] = second_state_f
+        #elif self.V_refmax > u[4] and t >= t_switch:
+        #    f[:] = first_state_f
+        #if self.V_ref > u[1]:
+        #    f[:] = second_state_f
+        #    print(t, 'if')
+        #else:
+        #    f[:] = first_state_f
+        #    print(t, 'else')
+        #if self.V_ref <= u[1] or t >= t_switch:
+        #    f[:] = first_state_f
+        #    print(t, 'if')
+        #else:
+        #    f[:] = second_state_f
+        #    print(t, 'else')
+
+        h = self.V_ref - u[1]
+        if h > 0 or (h > 0 and t < t_switch): #if self.V_ref > u[1] or t < t_switch:
             f[:] = second_state_f
-        elif self.V_refmax <= u[4] and t < t_switch:
-            f[:] = second_state_f
-        elif self.V_refmax > u[4] and t >= t_switch:
+        #    print(t, 'if')
+        elif h < 0 or (h < 0 and t >= t_switch): #elif self.V_ref < u[1] or t >= t_switch: #else:
             f[:] = first_state_f
+        #    print(t, 'else')
 
         return f
 
@@ -276,19 +296,19 @@ class BuckConverterDAE(ptype_dae):
 
         switch_detected = False
         m_guess = -100
-
+        #print([self.V_ref - u[m][1] for m in range(len(u))])
         for m in range(len(u)):
-            if self.V_refmax - u[m - 1][4] > 0 and self.V_refmax - u[m][4] <= 0:
+            if self.V_ref - u[m - 1][1] > 0 and self.V_ref - u[m][1] <= 0:
                 switch_detected = True
                 m_guess = m - 1
                 break
 
-            elif self.V_refmax - u[m - 1][4] <= 0 and self.V_refmax - u[m][4] > 0:
+            elif self.V_ref - u[m - 1][1] <= 0 and self.V_ref - u[m][1] > 0:
                 switch_detected = True
                 m_guess = m - 1
                 break
 
-        state_function = [self.V_refmax - u[m][4] for m in range(len(u))] if switch_detected else []
+        state_function = [self.V_ref - u[m][1] for m in range(len(u))] if switch_detected else []
 
         return switch_detected, m_guess, state_function
 

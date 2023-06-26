@@ -6,7 +6,7 @@ from pySDC.implementations.controller_classes.controller_nonMPI import controlle
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.problems.test_DAE import ScalarTestDAE
-from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook, error_hook
+from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook, error_hook, sweeper_data
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
 from pySDC.projects.PinTSimE.battery_model import get_recomputed
 from pySDC.helpers.stats_helper import get_sorted
@@ -20,58 +20,78 @@ def main():
 
     Path("data").mkdir(parents=True, exist_ok=True)
 
-    hookclass = [approx_solution_hook, error_hook]
+    hookclass = [approx_solution_hook, error_hook, sweeper_data]
 
     nvars = 2
     problem_class = ScalarTestDAE
 
     sweeper = fully_implicit_DAE
-    num_nodes = 3
-    newton_tol = 1e-12
-    maxiter = 25
+    nnodes = [2]
+    newton_tolerances = [1e-5]  # [1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]  # 1e-12
+    maxiter = 7
 
     use_detection = [True]
 
-    t0 = 2.6
+    t0 = 1.0
     Tend = 2.7
 
-    dt_list = [1e-5]
+    dt_list = [4e-4]
+    N_dt = int(Tend / dt_list[0])
 
-    for use_SE in use_detection:
-        for dt in dt_list:
-            print(f'Controller run -- Simulation for step size: {dt}')
+    res_norm_against_newton_tol = dict()
+    res_norm_against_newton_tol_M = dict()
 
-            restol = -1 if use_SE else 1e-12
-            recomputed = False if use_SE else None
+    for num_nodes in nnodes:
+        for use_SE in use_detection:
+            for dt in dt_list:
+                for newton_tol in newton_tolerances:
+                    print(num_nodes)
+                    print(f'Controller run -- Simulation for step size: {dt}')
 
-            description, controller_params = get_description(
-                dt,
-                nvars,
-                problem_class,
-                hookclass,
-                sweeper,
-                num_nodes,
-                use_SE,
-                restol,
-                0.6 * dt,
-                maxiter,
-                newton_tol,
-            )
+                    restol = 1e-15
+                    recomputed = False #False if use_SE else None
 
-            stats, t_switch_exact = controller_run(t0, Tend, controller_params, description)
+                    description, controller_params = get_description(
+                        dt,
+                        nvars,
+                        problem_class,
+                        hookclass,
+                        sweeper,
+                        num_nodes,
+                        use_SE,
+                        restol,
+                        0.6 * dt,
+                        maxiter,
+                        newton_tol,
+                    )
 
-            plot_solution(stats, recomputed, use_SE)
+                    stats, t_switch_exact = controller_run(t0, Tend, controller_params, description)
 
-            err = get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed)
-            fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-            ax.set_title(r'Error', fontsize=8)
-            ax.plot([me[0] for me in err], [me[1] for me in err])
-            ax.set_yscale('log', base=10)
-            fig.savefig('data/scalar_test_DAE_error.png', dpi=300, bbox_inches='tight')
-            plt_helper.plt.close(fig)
+                    plot_solution(stats, recomputed, use_SE)
 
-            if use_SE:
-                print_event_time_error(stats, t_switch_exact)
+                    err = get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed)
+                    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+                    ax.set_title(r'Error', fontsize=8)
+                    ax.plot([me[0] for me in err], [me[1] for me in err])
+                    ax.set_yscale('log', base=10)
+                    fig.savefig('data/scalar_test_DAE_error.png', dpi=300, bbox_inches='tight')
+                    plt_helper.plt.close(fig)
+
+                    if use_SE:
+                        print_event_time_error(stats, t_switch_exact)
+
+                    # plot_vector_field(t0, Tend)
+
+                    nfev = [me[1] for me in get_sorted(stats, type='nfev_post_step', sortby='time')]
+                    nfev = round(sum(nfev) / N_dt)  # average of nfev across all time steps
+                    residual_post_step = get_sorted(stats, type='residual_post_step', sortby='time', recomputed=False)
+                    res_norm = max([me[1] for me in residual_post_step])
+                    res_norm_against_newton_tol[newton_tol] = [res_norm, nfev]
+
+        res_norm_against_newton_tol_M[num_nodes] = res_norm_against_newton_tol
+        res_norm_against_newton_tol = dict()
+
+    plot_nfev_against_residual(dt_list[0], res_norm_against_newton_tol_M, nnodes)
 
 
 def get_description(
@@ -125,7 +145,7 @@ def get_description(
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['newton_tol'] = newton_tol  # tollerance for implicit solver
+    problem_params['newton_tol'] = newton_tol  # tolerance for implicit solver
     problem_params['nvars'] = nvars
 
     # initialize step parameters
@@ -229,7 +249,7 @@ def plot_solution(stats, recomputed, use_detection=False, cwd='./'):
 
     if use_detection:
         switches = get_recomputed(stats, type='switch', sortby='time')
-        assert len(switches) >= 1, 'No switches found!'
+        # assert len(switches) >= 1, 'No switches found!'
         t_switch = [v[1] for v in switches]
 
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
@@ -276,6 +296,83 @@ def print_event_time_error(stats, t_switch_exact):
     for m in range(len(t_switches)):
         err = abs(t_switch_exact - t_switches[m])
         print(f'Switch found: {t_switches[m]} -- Error to exact event time: {err}')
+
+
+def plot_nfev_against_residual(dt, res_norm_against_newton_tol_M, nnodes):
+    """
+    Plots different newtol's against the residual (max) norm, where the residuals after one step is considered.
+
+    Parameters
+    ----------
+    dt : float
+        Time step size used for the simulation(s).
+    res_norm_against_newton_tol_M : dict
+        Contains the residual norm and corresponding number of function evaluations for one specific newton_tol
+        for all considered number of collocation nodes.
+    nnodes : list
+        Different number of collocation nodes considered.
+    """
+
+    colors = {
+        2: 'limegreen',
+        3: 'firebrick',
+        4: 'deepskyblue',
+        5:'purple',
+    }
+    linestyles = {
+        2: 'solid',
+        3: 'dashed',
+        4: 'dashdot',
+        5: 'dotted',
+    }
+    markers = {
+        2: 's',
+        3: 'o',
+        4: '*',
+        5: 'd',
+    }
+    xytext = {
+        2: (-8.0, 10),
+        3: (-5.0, -13),
+        4: (5.0, -10),
+        5: (-8.0, 10),
+    }
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(6, 5))
+    for num_nodes in nnodes:
+        lists = sorted(res_norm_against_newton_tol_M[num_nodes].items())
+        newton_tols, res_norm_against_newton_tol_list = zip(*lists)
+        res_norms, nfev = [me[0] for me in res_norm_against_newton_tol_list], [me[1] for me in res_norm_against_newton_tol_list]
+
+        ax.loglog(
+            newton_tols,
+            res_norms,
+            color=colors[num_nodes],
+            linestyle=linestyles[num_nodes],
+            marker=markers[num_nodes],
+            linewidth=0.8,
+            label=r'$M={}$'.format(num_nodes),
+        )
+        for m in range(len(newton_tols)):
+            ax.annotate(
+                nfev[m],
+                (newton_tols[m], res_norms[m]),
+                xytext=xytext[num_nodes],
+                textcoords="offset points",
+                color=colors[num_nodes],
+                fontsize=8,
+            )
+
+    ax.tick_params(axis='both', which='major', labelsize=8)
+    ax.set_ylim(1e-16, 1e-8)
+    ax.set_xscale('log', base=10)
+    ax.set_yscale('log', base=10)
+    ax.set_xlabel(r'Inner tolerance', fontsize=8)
+    ax.set_ylabel(r'$||r_\mathrm{DAE}||_\infty$', fontsize=8)
+    ax.grid(visible=True)
+    ax.legend(frameon=False, fontsize=8, loc='upper right')
+    ax.minorticks_off()
+    fig.savefig('data/scalar_test_DAE_residual_against_tolerances_dt{}.png'.format(dt), dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
 
 
 if __name__ == "__main__":

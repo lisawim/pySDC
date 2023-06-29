@@ -102,10 +102,11 @@ class ScalarTestDAE(ptype_dae):
             y**2 - z**2 - 1,
         )
 
-        if self.t_switch is not None:
-            f[:] = f_before_event if t <= self.t_switch else f_after_event
+        if h > 0 or t >= t_switch:
+            f[:] = f_after_event
         else:
-            f[:] = f_before_event if h <= 0 else f_after_event
+            f[:] = f_before_event
+
         return f
 
     def u_exact(self, t):
@@ -168,7 +169,7 @@ class ScalarTestDAE(ptype_dae):
                 break
 
         state_function = [2 * u[m][0] * u[m][1] - 100 for m in range(len(u))] if switch_detected else []
-
+        print('Get_switching_info:', [2 * u[m][0] * u[m][1] - 100 for m in range(len(u))])
         return switch_detected, m_guess, state_function
 
     def count_switches(self):

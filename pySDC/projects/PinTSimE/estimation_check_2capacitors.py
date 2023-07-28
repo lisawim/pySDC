@@ -68,6 +68,7 @@ def run(cwd='./'):
                     problem,
                     sweeper,
                     num_nodes,
+                    quad_type,
                     hook_class,
                     False,
                     use_SE,

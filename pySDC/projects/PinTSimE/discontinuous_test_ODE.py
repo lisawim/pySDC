@@ -51,6 +51,7 @@ def main():
 
     sweeper = generic_implicit
     nnodes = [2, 3, 4]
+    quad_type = 'LOBATTO'
     maxiter = 8
     newton_tol = 1e-11
 
@@ -77,6 +78,7 @@ def main():
                     problem_class,
                     sweeper,
                     num_nodes,
+                    quad_type,
                     hookclass,
                     False,
                     use_SE,

@@ -50,6 +50,7 @@ def generate_description(
     problem,
     sweeper,
     num_nodes,
+    quad_type,
     hook_class,
     use_adaptivity,
     use_switch_estimator,
@@ -72,6 +73,8 @@ def generate_description(
         Sweeper class for solving the problem class numerically.
     num_nodes : int
         Number of collocation nodes.
+    quad_type : str
+        Type of collocation nodes used, e.g. 'LOBATTO' or 'RADAU-RIGHT'.
     hook_class : pySDC.core.Hooks
         Logged data for a problem.
     use_adaptivity : bool
@@ -108,7 +111,7 @@ def generate_description(
 
     # initialize sweeper parameters
     sweeper_params = dict()
-    sweeper_params['quad_type'] = 'LOBATTO'
+    sweeper_params['quad_type'] = quad_type
     sweeper_params['num_nodes'] = num_nodes
     sweeper_params['QI'] = 'IE'
     sweeper_params['initial_guess'] = 'spread'
@@ -211,6 +214,7 @@ def run():
 
     problem_classes = [battery, battery_implicit]
     sweeper_classes = [imex_1st_order, generic_implicit]
+    quad_type = 'LOBATTO'
     num_nodes = 4
     restol = -1
     maxiter = 8
@@ -243,6 +247,7 @@ def run():
                     problem,
                     sweeper,
                     num_nodes,
+                    quad_type,
                     hook_class,
                     use_A,
                     use_SE,

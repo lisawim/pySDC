@@ -68,6 +68,7 @@ def run():
     problem_classes = [battery_n_capacitors]
     sweeper_classes = [imex_1st_order]
     num_nodes = 4
+    quad_type = 'LOBATTO'
     restol = -1
     maxiter = 8
 
@@ -96,6 +97,7 @@ def run():
                 problem,
                 sweeper,
                 num_nodes,
+                quad_type,
                 hook_class,
                 False,
                 use_SE,

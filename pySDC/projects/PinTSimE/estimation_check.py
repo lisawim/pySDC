@@ -45,6 +45,7 @@ def run(cwd='./'):
     problem_classes = [battery, battery_implicit]
     sweeper_classes = [imex_1st_order, generic_implicit]
     num_nodes = 4
+    quad_type = 'LOBATTO'
     restol = -1
     maxiter = 8
 
@@ -78,6 +79,7 @@ def run(cwd='./'):
                         problem,
                         sweeper,
                         num_nodes,
+                        quad_type,
                         hook_class,
                         use_A,
                         use_SE,

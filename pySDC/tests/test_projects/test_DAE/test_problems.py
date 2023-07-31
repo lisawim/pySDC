@@ -112,7 +112,7 @@ def test_pendulum_main():
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['newton_tol'] = 1e-3  # tollerance for implicit solver
+    problem_params['newton_tol'] = 1e-8  # 1e-3  # tollerance for implicit solver
     problem_params['nvars'] = 5
 
     # initialize step parameters
@@ -175,7 +175,7 @@ def test_one_transistor_amplifier_main():
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['newton_tol'] = 1e-3  # tollerance for implicit solver
+    problem_params['newton_tol'] = 1e-10  # 1e-3  # tollerance for implicit solver
     problem_params['nvars'] = 5
 
     # initialize step parameters
@@ -239,7 +239,7 @@ def test_two_transistor_amplifier_main():
 
     # initialize problem parameters
     problem_params = dict()
-    problem_params['newton_tol'] = 1e-3  # tollerance for implicit solver
+    problem_params['newton_tol'] = 1e-10  # 1e-3  # tollerance for implicit solver
     problem_params['nvars'] = 8
 
     # initialize step parameters

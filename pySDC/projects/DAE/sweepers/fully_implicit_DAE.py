@@ -6,15 +6,32 @@ from pySDC.core.Sweeper import sweeper
 
 
 class fully_implicit_DAE(sweeper):
-    """
-    Custom sweeper class, implements Sweeper.py
+    r"""
+    Custom sweeper class to implement the fully-implicit SDC for solving DAEs. It solves DAE problems of the form
 
-    Sweeper to solve first order differential equations in fully implicit form
-    Primarily implemented to be used with differential algebraic equations
-    Based on the concepts outlined in "Arbitrary order Krylov deferred correction methods for differential algebraic equations" by Huang et al.
+    .. math::
+        F(u, u', t) = 0.
 
-    Attributes:
-        QI: implicit Euler integration matrix
+    It solves a collocation problem of the form
+
+    .. math::
+        F(\tau, \vec{U}_0 + \Delta t (\mathbf{Q} \otimes \mathbf{I}_n) \vec{U}, \vec{U}) = 0.
+
+    The sweeper implementation bases on the concepts outlined in the KDC publication [1]_.
+
+    Attributes
+    ----------
+    QI : np.2darray
+        Implicit Euler integration matrix.
+    newton_maxiter : float
+        Maximum number of iterations the Newton solver should do.
+    work_counters : WorkCounter
+        Counts iterations, here: the number of Newton iterations.
+
+    References
+    ----------
+    .. [1] J. Huang, J. Jun, M. L. Minion. Arbitrary order Krylov deferred correction methods for differential algebraic equation.
+       J. Comput. Phys. Vol. 221 No. 2 (2007).
     """
 
     def __init__(self, params):
@@ -36,16 +53,21 @@ class fully_implicit_DAE(sweeper):
             raise ParameterError(msg)
 
         self.QI = self.get_Qdelta_implicit(coll=self.coll, qd_type=self.params.QI)
+        self.newton_maxiter = 100
+        self.counter_newton = 0
 
     # TODO: hijacking this function to return solution from its gradient i.e. fundamental theorem of calculus.
     # This works well since (ab)using level.f to store the gradient. Might need to change this for release?
     def integrate(self):
         """
-        Returns the solution by integrating its gradient (fundamental theorem of calculus)
-        Note that level.f stores the gradient values in the fully implicit case, rather than the evaluation of the rhs as in the ODE case
+        Returns the solution by integrating its gradient (fundamental theorem of calculus). Note that level.f
+        stores the gradient values in the fully-implicit case, rather than the evaluation of the right-hand side
+        as in the ODE case.
 
-        Returns:
-            list of dtype_u: containing the integral as values
+        Returns
+        -------
+        me : dtype_u:
+            Integrated numerical solution as mesh.
         """
 
         # get current level and problem description
@@ -66,10 +88,12 @@ class fully_implicit_DAE(sweeper):
 
     def update_nodes(self):
         """
-        Update the u- and f-values at the collocation nodes -> corresponds to a single iteration of the preconditioned Richardson iteration in "ordinary" SDC
+        Updates the values of u and u' at the collocation nodes. This procedure corresponds to a single iteration
+        of the preconditioned Richardson iteration in the ordinary SDC.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
 
         # get current level and problem description
@@ -103,33 +127,70 @@ class fully_implicit_DAE(sweeper):
             for j in range(1, m):
                 u_approx += L.dt * self.QI[m, j] * L.f[j]
 
-            # params contains U = u'
-            def impl_fn(params):
-                # make params into a mesh object
-                params_mesh = P.dtype_f(P.init)
-                params_mesh[:] = params
-                # build parameters to pass to implicit function
-                local_u_approx = u_approx
-                # note that derivatives of algebraic variables are taken into account here too
-                # these do not directly affect the output of eval_f but rather indirectly via QI
-                local_u_approx += L.dt * self.QI[m, m] * params_mesh
-                return P.eval_f(local_u_approx, params_mesh, L.time + L.dt * self.coll.nodes[m - 1])
+            def F(U):
+                """
+                Helper function to define an implicit function that can be solved using an iterative solver.
 
-            # get U_k+1
-            # note: not using solve_system here because this solve step is the same for any problem
-            # See link for how different methods use the default tol parameter
-            # https://github.com/scipy/scipy/blob/8a6f1a0621542f059a532953661cd43b8167fce0/scipy/optimize/_root.py#L220
-            # options['xtol'] = P.params.newton_tol
-            # options['eps'] = 1e-16
-            opt = optimize.root(
-                impl_fn,
-                L.f[m],
-                method='hybr',
-                tol=P.newton_tol
-                # callback= lambda x, f: print("solution:", x, " residual: ", f)
-            )
-            # update gradient (recall L.f is being used to store the gradient)
-            L.f[m][:] = opt.x
+                Parameters
+                ----------
+                U : dtype_u
+                    The current numerical solution as mesh.
+                """
+
+                U_mesh = P.dtype_f(P.init)
+                U_mesh[:] = U
+                local_u_approx = u_approx
+                local_u_approx += L.dt * self.QI[m, m] * U_mesh
+                return P.eval_f(local_u_approx, U_mesh, L.time + L.dt * self.coll.nodes[m - 1])
+
+            def Fprime(U, dt_jac=1e-9):
+                """
+                Approximates the Jacobian of F using finite differences.
+
+                Parameters
+                ----------
+                U : dtype_u
+                    Vector for which the Jacobian is computed.
+                dt_jac : float, optional
+                    Step size for finite differences.
+
+                Returns
+                -------
+                jac : np.ndarray
+                    The Jacobian.
+                """
+
+                if P.jac:
+                    N, M = len(U), len(F(U))
+                    jac = np.zeros((N, M))
+                    e = np.zeros(N)
+                    e[0] = 1
+                    for k in range(N):
+                        jac[:, k] = 1 / dt_jac * (F(U + dt_jac * e) - F(U))
+                        e = np.roll(e, 1)
+                else:
+                    jac = P.get_Jacobian(L.time + L.dt * self.coll.nodes[m - 1], U)
+
+                return jac
+
+            n = 0
+            u0 = L.f[m]  # initial guess
+            while n < self.newton_maxiter:
+                res = np.linalg.norm(F(u0), np.inf)
+
+                if res < P.newton_tol:
+                    break
+
+                J_inv = np.linalg.inv(Fprime(u0))
+
+                u0 -= J_inv.dot(F(u0))
+
+                n += 1
+
+                self.counter_newton += 1
+
+            # Update of U' (stored in L.f)
+            L.f[m][:] = u0
 
         # Update solution approximation
         integral = self.integrate()
@@ -142,11 +203,15 @@ class fully_implicit_DAE(sweeper):
 
     def predict(self):
         """
-        Predictor to fill values at nodes before first sweep
+        Predictor to fill values at nodes before first sweep. It can decides whether the
 
-        Default prediction for the sweepers, only copies the values to all collocation nodes
-        This function overrides the base implementation by always initialising level.f to zero
-        This is necessary since level.f stores the solution derivative in the fully implicit case, which is not initially known
+            - initial condition is spread to each node ('initial_guess' = 'spread'),
+            - zero values are spread to each node ('initial_guess' = 'zero'),
+            - or random values are spread to each collocation node ('initial_guess' = 'random').
+
+        Default prediction for the sweepers, only copies the values to all collocation nodes. This function
+        overrides the base implementation by always initialising level.f to zero. This is necessary since
+        level.f stores the solution derivative in the fully implicit case, which is not initially known
         """
         # get current level and problem description
         L = self.level
@@ -174,15 +239,18 @@ class fully_implicit_DAE(sweeper):
         L.status.updated = True
 
     def compute_residual(self, stage=None):
-        """
-        Overrides the base implementation
-        Uses the absolute value of the implicit function ||F(u', u, t)|| as the residual
+        r"""
+        Computes the residual of the DAE, which is the absolute value of the implicit function
+        :math:`||F(u, u', t)||` as the residual.
 
-        Args:
-            stage (str): The current stage of the step the level belongs to
+        Parameters
+        ----------
+        stage : str
+            The current stage of the step the level belongs to.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
 
         # get current level and problem description
@@ -250,3 +318,39 @@ class fully_implicit_DAE(sweeper):
                 L.uend += L.dt * self.coll.weights[m] * L.f[m + 1]
 
         return None
+
+def newton(u0, F, Fprime, newton_tol, newton_maxiter=100):
+    """
+    Multi-dimensional Newton's method to find the root of the nonlinear system.
+
+    Parameters
+    ----------
+    u0 : np.ndarray
+        Initial condition
+    F : callable function
+        Nonlinear function where Newton's method is applied at.
+    Fprime : callable function
+        Jacobian matrix of function F approximated by finite differences.
+    newton_tol : float
+        Tolerance for Newton to terminate.
+    newton_maxiter : int, optional
+        Maximum number of iterations that Newton should do.
+    """
+
+    n = 0
+    while n < newton_maxiter:
+        res = np.linalg.norm(F(u0), np.inf)
+
+        if res < newton_tol:
+            break
+
+        J_inv = np.linalg.inv(Fprime(u0))
+
+        u0 -= J_inv.dot(F(u0))
+
+        n += 1
+
+        self.work_counters['newton']()
+
+    root = u0
+    return root

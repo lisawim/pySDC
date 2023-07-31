@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline, SynchronousGenerator_5Ybus
+from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline, SynchronousGenerator_5Ybus, IEEE9BusSystem
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
@@ -43,7 +43,7 @@ def run():
     step_params['maxiter'] = 10
 
 
-    problem = SynchronousGenerator_5Ybus
+    problem = IEEE9BusSystem
     # Fill description dictionary for easy hierarchy creation
     description = dict()
     description['problem_class'] = problem
@@ -60,7 +60,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 0.05 #1e-3 #1.0
+    Tend = 0.001 #1e-3 #1.0
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
@@ -69,42 +69,55 @@ def run():
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    id = np.array([me[1][6] for me in get_sorted(stats, type='approx_solution')])
-    iq = np.array([me[1][7] for me in get_sorted(stats, type='approx_solution')])
-    omega_m = np.array([me[1][12] for me in get_sorted(stats, type='approx_solution')])
-    delta_r = np.array([me[1][13] for me in get_sorted(stats, type='approx_solution')])
-    v_d = np.array([me[1][14] for me in get_sorted(stats, type='approx_solution')])
-    v_q = np.array([me[1][15] for me in get_sorted(stats, type='approx_solution')])
-    #V_re = np.array([me[1][16] for me in get_sorted(stats, type='approx_solution')])
-    #V_im = np.array([me[1][17] for me in get_sorted(stats, type='approx_solution')])
-    t = np.array([me[0] for me in get_sorted(stats, type='approx_solution')])
+    m = 3
+    n = 9
+    x0 = np.array([1.0591, 0.79193, 0.77098, 1.077, 0.76899, 0.71139, 0, 0.62385, 0.62505, 0.015514,
+             -0.71253, -0.73358, 0.061423, 1.0645, 0.94343, 376.99, 376.99, 376.99, 1.0849,
+             1.7917, 1.4051, 0.19528, 0.3225, 0.25292, 1.1077, 1.905, 1.4538, 0.71863, 1.6366,
+             0.85245, 0.71863, 1.6366, 0.85245, 1.0591, 0.79193, 0.77098, 1.077, 0.76899, 0.71139, 0, 0.62385, 0.62505, 0.015514, -0.71253, -0.73358, 0.061423, 1.0645, 0.94343, 376.99, 376.99, 376.99, 1.0849, 1.7917, 1.4051, 0.19528, 0.3225, 0.25292, 1.1077, 1.905, 1.4538, 0.71863, 1.6366, 0.85245, 0.71863, 1.6366, 0.85245, 0.30185, 1.2884, 0.56058, 0.67159, 0.93446, 0.62021, 1.04, 1.025, 1.025, 1.0258, 0.99563, 1.0127, 1.0258, 1.0159, 1.0324, 0, 0.16197, 0.081415, -0.03869, -0.069618, -0.064357, 0.064921, 0.012698, 0.034326])
+    print(P.eval_f(x0, np.zeros(57), 0.0))
+    V = np.array([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', sortby='time')])
 
-    Tm = np.zeros(len(t))
-    for m in range(len(t)):
-        if round(t[m], 14) < 0.2:
-            Tm[m] = 0.854
-        else:
-            Tm[m] = 0.354
+    Eqp = np.array([me[1][0:m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    Si1d = np.array([me[1][m:2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    Edp = np.array([me[1][2*m:3*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    ESi2q = np.array([me[1][3*m:4*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    Delta = np.array([me[1][4*m:5*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    w = np.array([me[1][5*m:6*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    Efd = np.array([me[1][6*m:7*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    RF = np.array([me[1][7*m:8*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    VR = np.array([me[1][8*m:9*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    TM = np.array([me[1][9*m:10*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    PSV = np.array([me[1][10*m:11*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    Id = np.array([me[1][11*m:11*m + m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    Iq = np.array([me[1][11*m + m:11*m + 2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    V = np.array([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    TH = np.array([me[1][11*m + 2*m + n:11*m + 2*m + 2 * n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
 
-    wb = 100 * np.pi
-    freq = omega_m * wb / (2*np.pi)
+    print('Eqp=', Eqp - x0[0:m])
+    print('Si1d=', Si1d - x0[m:2*m])
+    print('Edp=', Edp - x0[2*m:3*m])
+    print('ESi2q=', ESi2q - x0[3*m:4*m])
+    print('Delta=', Delta - x0[4*m:5*m])
+    print('w=', w - x0[5*m:6*m])
+    print('Efd=', Efd - x0[6*m:7*m])
+    print('RF=', RF - x0[7*m:8*m])
+    print('VR=', VR - x0[8*m:9*m])
+    print('TM=', TM - x0[9*m:10*m])
+    print('PSV=', PSV - x0[10*m:11*m])
+    print('Id=', Id - x0[11*m:12*m])
+    print('Iq=', Iq - x0[12*m:13*m])
+    print('V=', V - x0[11*m + 2*m:11*m + 2*m + n])
+    print('TH=', TH - x0[11*m + 2*m + n:11*m + 2*m + 2 * n])
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax.set_title('Simulation', fontsize=10)
-    ax.plot(t, id, label=r'$i_d$')
-    ax.plot(t, iq, label=r'$i_q$')
-    #ax.plot(t, Tm, label=r'$T_m$')
-    ax.legend(frameon=False, fontsize=8, loc='upper right')
-    fig.savefig('data/{}.png'.format(problem.__name__), dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig)
 
-    fig2, ax2 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax2.set_title('Frequency', fontsize=10)
-    ax2.plot(t, freq, label='Frequency')
-    ax2.plot(t, omega_m, label=r'$\omega_m$')
-    ax2.legend(frameon=False, fontsize=8, loc='upper right')
-    fig2.savefig('data/{}_frequency.png'.format(problem.__name__), dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig2)
+    fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    ax3.plot(V[0], label='V0')
+    fig3.savefig('data/V0.png', dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig3)
+
+    
 
 
 if __name__ == "__main__":

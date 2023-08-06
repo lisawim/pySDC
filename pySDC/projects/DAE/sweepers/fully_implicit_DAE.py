@@ -54,7 +54,7 @@ class fully_implicit_DAE(sweeper):
 
         self.QI = self.get_Qdelta_implicit(coll=self.coll, qd_type=self.params.QI)
         self.newton_maxiter = 100
-        self.counter_newton = 0
+        self.counter_solve = 0
 
     # TODO: hijacking this function to return solution from its gradient i.e. fundamental theorem of calculus.
     # This works well since (ab)using level.f to store the gradient. Might need to change this for release?
@@ -160,37 +160,22 @@ class fully_implicit_DAE(sweeper):
                     The Jacobian.
                 """
 
-                if P.jac:
+                if not P.jac:
                     N, M = len(U), len(F(U))
                     jac = np.zeros((N, M))
                     e = np.zeros(N)
                     e[0] = 1
                     for k in range(N):
-                        jac[:, k] = 1 / dt_jac * (F(U + dt_jac * e) - F(U))
+                        jac[:, k] = (1 / dt_jac) * (F(U + dt_jac * e) - F(U))
                         e = np.roll(e, 1)
                 else:
                     jac = P.get_Jacobian(L.time + L.dt * self.coll.nodes[m - 1], U)
-
                 return jac
-
-            n = 0
-            u0 = L.f[m]  # initial guess
-            while n < self.newton_maxiter:
-                res = np.linalg.norm(F(u0), np.inf)
-
-                if res < P.newton_tol:
-                    break
-
-                J_inv = np.linalg.inv(Fprime(u0))
-
-                u0 -= J_inv.dot(F(u0))
-
-                n += 1
-
-                self.counter_newton += 1
-
+            root_solver = 'hybr'
+            root, n = solve_nonlinear_system(root_solver, L.f[m], F, Fprime, P.newton_tol)
+            self.counter_solve += n
             # Update of U' (stored in L.f)
-            L.f[m][:] = u0
+            L.f[m][:] = root
 
         # Update solution approximation
         integral = self.integrate()
@@ -216,6 +201,7 @@ class fully_implicit_DAE(sweeper):
         # get current level and problem description
         L = self.level
         P = L.prob
+        self.counter_solve = 0
         # set initial guess for gradient to zero
         L.f[0] = P.dtype_f(init=P.init, val=0.0)
         for m in range(1, self.coll.num_nodes + 1):
@@ -272,7 +258,7 @@ class fully_implicit_DAE(sweeper):
         for m in range(self.coll.num_nodes):
             # use abs function from data type here
             res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m + 1], L.time + L.dt * self.coll.nodes[m])))
-
+            
         # find maximal residual over the nodes
         if L.params.residual_type == 'full_abs':
             L.status.residual = max(res_norm)
@@ -287,10 +273,8 @@ class fully_implicit_DAE(sweeper):
                 f'residual_type = {L.params.residual_type} not implemented, choose '
                 f'full_abs, last_abs, full_rel or last_rel instead'
             )
-
         # indicate that the residual has seen the new values
         L.status.updated = False
-
         return None
 
     def compute_end_point(self):
@@ -319,7 +303,7 @@ class fully_implicit_DAE(sweeper):
 
         return None
 
-def newton(u0, F, Fprime, newton_tol, newton_maxiter=100):
+def newton(u0, F, Fprime, newton_tol, newton_maxiter):
     """
     Multi-dimensional Newton's method to find the root of the nonlinear system.
 
@@ -333,24 +317,62 @@ def newton(u0, F, Fprime, newton_tol, newton_maxiter=100):
         Jacobian matrix of function F approximated by finite differences.
     newton_tol : float
         Tolerance for Newton to terminate.
-    newton_maxiter : int, optional
+    newton_maxiter : int
         Maximum number of iterations that Newton should do.
     """
 
     n = 0
     while n < newton_maxiter:
-        res = np.linalg.norm(F(u0), np.inf)
+        g = F(u0)
+        res = np.linalg.norm(g, np.inf)
 
         if res < newton_tol:
             break
 
         J_inv = np.linalg.inv(Fprime(u0))
 
-        u0 -= J_inv.dot(F(u0))
+        u0 -= J_inv.dot(g)
 
         n += 1
-
-        self.work_counters['newton']()
-
+    print('Newton took {} iterations with error {}'.format(n, res))
+    print()
     root = u0
-    return root
+    return root, n
+
+def solve_nonlinear_system(root_solver, u0, F, Fprime, newton_tol, newton_maxiter=100):
+    """
+    Function that solves the nonlinear system.
+
+    Parameters
+    ----------
+    root_solver : str
+        Indicates which solver should be used for the nonlinear system.
+        Either 'newton' or 'hybr'.
+    u0 : np.ndarray
+        Initial condition
+    F : callable function
+        Nonlinear function where Newton's method is applied at.
+    Fprime : callable function
+        Jacobian matrix of function F approximated by finite differences.
+    newton_tol : float
+        Tolerance for Newton to terminate.
+    newton_maxiter : int
+        Maximum number of iterations that Newton should do.
+    """
+
+    if root_solver == 'newton':
+        root, n = newton(u0, F, Fprime, newton_tol, newton_maxiter=100)
+    elif root_solver == 'hybr':
+        opt = optimize.root(
+            F,
+            u0,
+            method='hybr',
+            tol=newton_tol,
+        )
+        root = opt.x
+        n = opt.nfev
+        # print(opt)
+    else:
+        raise ParameterError("Choose either 'newton' or 'hybr'!")
+
+    return root, n

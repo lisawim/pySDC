@@ -82,3 +82,13 @@ class error_hook(hooks):
             type='error_post_step',
             value=err,
         )
+        err_z = abs(upde[1] - L.uend[1])
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='error_post_step_alg',
+            value=err_z,
+        )

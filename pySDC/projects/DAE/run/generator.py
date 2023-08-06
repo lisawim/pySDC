@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.synchronous_generator import SynchronousGenerator, SynchronousGenerator_Piline, SynchronousGenerator_5Ybus, IEEE9BusSystem
+from pySDC.projects.DAE.problems.IEEE9BusSystem import IEEE9BusSystem
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
 from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook

@@ -28,15 +28,15 @@ def update_vBus(t):
 def IEEE9Bus():
     mpc = {}
     mpc['bus'] = [
-        [1.0000, 3.0000, 0, 0, 0, 0, 1.0000, 1.0400, 0, 345.0000, 1.0000, 1.1000, 0.9000],
-        [2.0000, 2.0000, 0, 0, 0, 0, 1.0000, 1.0250, 9.2800, 345.0000, 1.0000, 1.1000, 0.9000],
-        [3.0000, 2.0000, 0, 0, 0, 0, 1.0000, 1.0250, 4.6648, 345.0000, 1.0000, 1.1000, 0.9000],
-        [4.0000, 1.0000, 0, 0, 0, 0, 1.0000, 1.0258, -2.2168, 345.0000, 1.0000, 1.1000, 0.9000],
+        [1.0000, 3.0000, 0, 	   0,       0, 0, 1.0000, 1.0400, 0,       345.0000, 1.0000, 1.1000, 0.9000],
+        [2.0000, 2.0000, 0, 	   0,       0, 0, 1.0000, 1.0250, 9.2800,  345.0000, 1.0000, 1.1000, 0.9000],
+        [3.0000, 2.0000, 0, 	   0,       0, 0, 1.0000, 1.0250, 4.6648,  345.0000, 1.0000, 1.1000, 0.9000],
+        [4.0000, 1.0000, 0, 	   0,       0, 0, 1.0000, 1.0258, -2.2168, 345.0000, 1.0000, 1.1000, 0.9000],
         [5.0000, 1.0000, 125.0000, 50.0000, 0, 0, 1.0000, 0.9956, -3.9888, 345.0000, 1.0000, 1.1000, 0.9000],
-        [6.0000, 1.0000, 90.0000, 30.0000, 0, 0, 1.0000, 1.0127, -3.6874, 345.0000, 1.0000, 1.1000, 0.9000],
-        [7.0000, 1.0000, 0, 0, 0, 0, 1.0000, 1.0258, 3.7197, 345.0000, 1.0000, 1.1000, 0.9000],
-        [8.0000, 1.0000, 100.0000, 35.0000, 0, 0, 1.0000, 1.0159, 0.7275, 345.0000, 1.0000, 1.1000, 0.9000],
-        [9.0000, 1.0000, 0, 0, 0, 0, 1.0000, 1.0324, 1.9667, 345.0000, 1.0000, 1.1000, 0.9000],
+        [6.0000, 1.0000, 90.0000,  30.0000, 0, 0, 1.0000, 1.0127, -3.6874, 345.0000, 1.0000, 1.1000, 0.9000],
+        [7.0000, 1.0000, 0,        0,       0, 0, 1.0000, 1.0258, 3.7197,  345.0000, 1.0000, 1.1000, 0.9000],
+        [8.0000, 1.0000, 100.0000, 35.0000, 0, 0, 1.0000, 1.0159, 0.7275,  345.0000, 1.0000, 1.1000, 0.9000],
+        [9.0000, 1.0000, 0,        0,       0, 0, 1.0000, 1.0324, 1.9667,  345.0000, 1.0000, 1.1000, 0.9000],
     ]
 
 
@@ -453,19 +453,19 @@ class IEEE9BusSystem(ptype_dae):
 
         self.mpc = IEEE9Bus()
 
-        self.bus1 = self.mpc['bus']
-        self.branch1 = self.mpc['branch']
-        self.gen1 = self.mpc['gen']
+        self.bus = self.mpc['bus']
+        self.branch = self.mpc['branch']
+        self.gen = self.mpc['gen']
 
 
-        self.Ybus1 = self.mpc['Ybus']
-        self.Ybus = self.Ybus1
-        self.bus = self.bus1
-        self.branch = self.branch1
-        self.gen = self.gen1
+        self.Ybus = self.mpc['Ybus']
+        #self.Ybus = self.Ybus1
+        #self.bus = self.bus1
+        #self.branch = self.branch1
+        #self.gen = self.gen1
 
-        self.Yabs = abs(self.mpc['Ybus'])
-        self.Yang = np.angle(self.mpc['Ybus']) #rad
+        self.Yabs = abs(self.Ybus)
+        self.Yang = np.angle(self.Ybus)  # rad
 
         self.Yabs = abs(self.Ybus)
         self.Yang = np.angle(self.Ybus)
@@ -572,7 +572,7 @@ class IEEE9BusSystem(ptype_dae):
         # Calculate Edp0, Si2q0, Eqp0, and Si1d0
         self.Edp0 = (self.Xq - self.Xqp) * self.Iq0
         self.Si2q0 = (self.Xls - self.Xq) * self.Iq0
-        self.Eqp0 = self.Rs * self.Iq0 + self.Xdp * self.Id0 + self.V0[:m] * np.cos(self.D0 - self.TH0[:m])
+        self.Eqp0 = self.Rs * self.Iq0 + self.Xdp * self.Id0 + self.V0[:self.m] * np.cos(self.D0 - self.TH0[:self.m])
         self.Si1d0 = self.Eqp0 - (self.Xdp - self.Xls) * self.Id0
 
         # Calculate Efd0 and TM0

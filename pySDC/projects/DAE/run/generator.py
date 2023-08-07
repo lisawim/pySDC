@@ -20,12 +20,12 @@ def run():
     # initialize level parameters
     level_params = dict()
     level_params['restol'] = 1e-9
-    level_params['dt'] = 1e-3
+    level_params['dt'] = 1e-5
 
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 3
+    sweeper_params['num_nodes'] = 4
     sweeper_params['QI'] = 'LU'
 
     # initialize problem parameters
@@ -35,12 +35,12 @@ def run():
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 30
     controller_params['hook_class'] = approx_solution_hook
 
     # initialize step parameters
     step_params = dict()
-    step_params['maxiter'] = 10
+    step_params['maxiter'] = 20
 
 
     problem = IEEE9BusSystem
@@ -60,7 +60,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 0.001 #1e-3 #1.0
+    Tend = 0.01 #1e-3 #1.0
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
@@ -75,10 +75,10 @@ def run():
              -0.71253, -0.73358, 0.061423, 1.0645, 0.94343, 376.99, 376.99, 376.99, 1.0849,
              1.7917, 1.4051, 0.19528, 0.3225, 0.25292, 1.1077, 1.905, 1.4538, 0.71863, 1.6366,
              0.85245, 0.71863, 1.6366, 0.85245, 1.0591, 0.79193, 0.77098, 1.077, 0.76899, 0.71139, 0, 0.62385, 0.62505, 0.015514, -0.71253, -0.73358, 0.061423, 1.0645, 0.94343, 376.99, 376.99, 376.99, 1.0849, 1.7917, 1.4051, 0.19528, 0.3225, 0.25292, 1.1077, 1.905, 1.4538, 0.71863, 1.6366, 0.85245, 0.71863, 1.6366, 0.85245, 0.30185, 1.2884, 0.56058, 0.67159, 0.93446, 0.62021, 1.04, 1.025, 1.025, 1.0258, 0.99563, 1.0127, 1.0258, 1.0159, 1.0324, 0, 0.16197, 0.081415, -0.03869, -0.069618, -0.064357, 0.064921, 0.012698, 0.034326])
-    print(P.eval_f(x0, np.zeros(57), 0.0))
-    V = np.array([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    # V = np.array([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    V = np.array([me[1][11*m + 2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', sortby='time')])
-
+    print(V)
     Eqp = np.array([me[1][0:m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     Si1d = np.array([me[1][m:2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     Edp = np.array([me[1][2*m:3*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
@@ -113,7 +113,7 @@ def run():
 
 
     fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax3.plot(V[0], label='V0')
+    ax3.plot(t, V, label='V0')
     fig3.savefig('data/V0.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig3)
 

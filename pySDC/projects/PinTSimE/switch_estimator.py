@@ -5,6 +5,8 @@ from pySDC.core.Collocation import CollBase
 from pySDC.core.ConvergenceController import ConvergenceController, Status
 from pySDC.implementations.convergence_controller_classes.check_convergence import CheckConvergence
 
+import pySDC.helpers.plot_helper as plt_helper
+
 
 class SwitchEstimator(ConvergenceController):
     """
@@ -41,6 +43,7 @@ class SwitchEstimator(ConvergenceController):
         defaults = {
             'control_order': 100,
             'nodes': coll.nodes,
+            'count': 0,
         }
         return {**defaults, **params}
 
@@ -84,13 +87,13 @@ class SwitchEstimator(ConvergenceController):
 
         if CheckConvergence.check_convergence(S):
             self.status.switch_detected, m_guess, state_function = L.prob.get_switching_info(L.u, L.time)
-
+            
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
                 t_interp, state_function = self.adapt_interpolation_info(
                     L.time, L.sweep.coll.left_is_node, t_interp, state_function
                 )
-
+                # print(t_interp, state_function)
                 # when the state function is already close to zero the event is already resolved well
                 if abs(state_function[-1]) <= self.params.tol:
                     self.log("Is already close enough to one of the end point!", S)
@@ -102,8 +105,8 @@ class SwitchEstimator(ConvergenceController):
 
                 # intermediate value theorem states that a root is contained in current step
                 if state_function[0] * state_function[-1] < 0 and self.status.is_zero is None:
-                    self.status.t_switch = self.get_switch(t_interp, state_function, m_guess)
-
+                    self.status.t_switch = self.get_switch(t_interp, state_function, m_guess, self.params.count, self.params.dt_FD)
+                    self.params.count += 1
                     if L.time < self.status.t_switch < L.time + L.dt:
                         dt_switch = self.status.t_switch - L.time
 
@@ -133,7 +136,7 @@ class SwitchEstimator(ConvergenceController):
                             L.status.dt_new = dt_switch
                         else:
                             L.status.dt_new = min([dt_planned, dt_switch])
-
+                        # print('New time step size: {}'.format(L.status.dt_new))
                     else:
                         # event occurs on L.time or L.time + L.dt; no restart necessary
                         boundary = 'left boundary' if self.status.t_switch == L.time else 'right boundary'
@@ -224,7 +227,7 @@ class SwitchEstimator(ConvergenceController):
         )
 
     @staticmethod
-    def get_switch(t_interp, state_function, m_guess):
+    def get_switch(t_interp, state_function, m_guess, count, dt_FD):
         """
         Routine to do the interpolation and root finding stuff.
 
@@ -261,7 +264,7 @@ class SwitchEstimator(ConvergenceController):
             """
             return Interpolator.__call__(t)
 
-        def fprime(t):
+        def fprime(t, dt_FD):
             """
             Computes the derivative of the scalar interpolant using finite differences.
 
@@ -275,12 +278,41 @@ class SwitchEstimator(ConvergenceController):
             dp : float
                 Derivative of interpolation p at time t.
             """
-            dt = 1e-8
-            dp = (p(t + dt) - p(t)) / dt
+            # dt = 1e-6
+            dp = (p(t + dt_FD) - p(t)) / dt_FD
+            # dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)
+            # dp = (3 * p(t) - 4 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (2 * dt_FD)
             return dp
+        
+        # p_int = sp.interpolate.interp1d(t_interp, state_function, 'cubic', bounds_error=False)
+        # print('Get_switch:', state_function)
+        newton_tol, newton_maxiter = 1e-12, 100
+        t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
+        #root = sp.optimize.root(p, t_interp[m_guess], method='hybr', tol=newton_tol)
+        #results = sp.optimize.root_scalar(p, method='brentq', xtol=newton_tol, bracket=[t_interp[0], t_interp[-1]], x0=t_interp[m_guess])
+        #t_switch = results.root
+        # print(results)
+        #t_switch = root.x[0]
 
-        newton_tol, newton_maxiter = 1e-8, 50
-        t_switch = newton(t_interp[m_guess], p, fprime, newton_tol, newton_maxiter)
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        if t_interp[0] <= 0.5 * np.arcsinh(100) <= t_interp[-1]:
+            ax.axvline(
+                x=0.5 * np.arcsinh(100),
+                linestyle='--',
+                linewidth=0.9,
+                color='k',
+                label='Exact event time',)
+        ax.axvline(
+            x=t_switch,
+            linestyle='--',
+            linewidth=0.9,
+            color='g',
+            label='Founded event time',)
+        ax.plot(t_interp, state_function, label='h')
+        ax.plot(t_interp, p(t_interp), label='p')
+        ax.legend(loc='upper right')
+        fig.savefig('data/interpolation/state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
+        plt_helper.plt.close(fig)
 
         return t_switch
 
@@ -320,7 +352,7 @@ class SwitchEstimator(ConvergenceController):
         return t_interp, state_function
 
 
-def newton(x0, p, fprime, newton_tol, newton_maxiter):
+def newton(x0, p, fprime, dt_FD, newton_tol, newton_maxiter):
     """
     Newton's method fo find the root of interpolant p.
 
@@ -345,10 +377,10 @@ def newton(x0, p, fprime, newton_tol, newton_maxiter):
 
     n = 0
     while n < newton_maxiter:
-        if abs(p(x0)) < newton_tol or np.isnan(p(x0)) and np.isnan(fprime(x0)):
+        if abs(p(x0)) < newton_tol or np.isnan(p(x0)) and np.isnan(fprime(x0, dt_FD)):
             break
-
-        x0 -= 1.0 / fprime(x0) * p(x0)
+        # print(n, x0, p(x0), fprime(x0))
+        x0 -= 1.0 / fprime(x0, dt_FD) * p(x0)
 
         n += 1
 

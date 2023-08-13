@@ -371,7 +371,6 @@ def solve_nonlinear_system(root_solver, u0, F, Fprime, newton_tol, newton_maxite
         )
         root = opt.x
         n = opt.nfev
-        # print(opt)
     else:
         raise ParameterError("Choose either 'newton' or 'hybr'!")
 

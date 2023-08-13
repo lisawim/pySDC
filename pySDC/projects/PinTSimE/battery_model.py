@@ -59,6 +59,7 @@ def generate_description(
     maxiter,
     max_restarts=None,
     tol_event=1e-10,
+    dt_FD=1e-9,
 ):
     """
     Generate a description for the battery models for a controller run.
@@ -131,6 +132,7 @@ def generate_description(
     if use_switch_estimator:
         switch_estimator_params = {}
         switch_estimator_params['tol'] = tol_event
+        switch_estimator_params['dt_FD'] = dt_FD
         convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 
     if use_adaptivity:

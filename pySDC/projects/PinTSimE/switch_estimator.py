@@ -95,7 +95,7 @@ class SwitchEstimator(ConvergenceController):
                 )
                 # print(t_interp, state_function)
                 # when the state function is already close to zero the event is already resolved well
-                if abs(state_function[-1]) <= self.params.tol:
+                if abs(state_function[-1]) <= self.params.tol or abs(state_function[0]) <= self.params.tol:
                     self.log("Is already close enough to one of the end point!", S)
                     self.log_event_time(
                         controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_interp[-1]
@@ -246,25 +246,63 @@ class SwitchEstimator(ConvergenceController):
            Time point of the founded switch.
         """
 
-        Interpolator = sp.interpolate.BarycentricInterpolator(t_interp, state_function)
-
-        def p(t):
+        def LagrangePolynomial(t, ti, i):
             """
-            Simplifies the call of the interpolant.
+            Computes the i-th Lagrange Polynomial.
 
             Parameters
             ----------
             t : float
-                Time t at which the interpolant is called.
-
-            Returns
-            -------
-            p(t) : float
-                The value of the interpolated function at time t.
+                Time to evaluate the polynomial.
+            ti : list
+                Data points.
+            i : int
+                Index of the Lagrange Polynomial (the index which is skipped in computation).
             """
-            return Interpolator.__call__(t)
+            poly = 1
+            for j in range(len(ti)):
+                if j == i:
+                    continue
+                poly *= (t - ti[j]) / (ti[i] - ti[j])
+            return poly
+        
+        def p(t, ti, yi):
+            """
+            Computes the interpolation polynomial based on Lagrange interpolation.
 
-        def fprime(t, dt_FD):
+            Parameters
+            ----------
+            t : float
+                Time to evaluate the polynomial.
+            ti : list
+                Data points.
+            yi : list
+                Values on these data points.
+            """
+            sum = 0
+            for j in range(len(ti)):
+                sum += yi[j] * LagrangePolynomial(t, ti, j)
+            return sum
+
+        # Interpolator = sp.interpolate.BarycentricInterpolator(t_interp, state_function)
+        
+        # def p(t, dt_FD):
+        #     """
+        #     Simplifies the call of the interpolant.
+
+        #     Parameters
+        #     ----------
+        #     t : float
+        #         Time t at which the interpolant is called.
+
+        #     Returns
+        #     -------
+        #     p(t) : float
+        #         The value of the interpolated function at time t.
+        #     """
+        #     return Interpolator.__call__(t)
+
+        def fprime(t, ti, yi, dt_FD):
             """
             Computes the derivative of the scalar interpolant using finite differences.
 
@@ -279,18 +317,19 @@ class SwitchEstimator(ConvergenceController):
                 Derivative of interpolation p at time t.
             """
             # dt = 1e-6
-            dp = (p(t + dt_FD) - p(t)) / dt_FD
-            # dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)
-            # dp = (3 * p(t) - 4 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (2 * dt_FD)
+            # dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)  # Dc
+            # dp = (p(t + dt_FD) - p(t)) / dt_FD  # Dplus
+            # dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)  # D3
+            dp = (3 * p(t, ti, yi) - 4 * p(t - dt_FD, ti, yi) + p(t - 2 * dt_FD, ti, yi)) / (2 * dt_FD)  # D2
             return dp
         
         # p_int = sp.interpolate.interp1d(t_interp, state_function, 'cubic', bounds_error=False)
         # print('Get_switch:', state_function)
         newton_tol, newton_maxiter = 1e-12, 100
-        t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
+        # t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
         #root = sp.optimize.root(p, t_interp[m_guess], method='hybr', tol=newton_tol)
-        #results = sp.optimize.root_scalar(p, method='brentq', xtol=newton_tol, bracket=[t_interp[0], t_interp[-1]], x0=t_interp[m_guess])
-        #t_switch = results.root
+        results = sp.optimize.root_scalar(p, args=(dt_FD), method='newton', fprime=fprime, xtol=newton_tol, x0=t_interp[m_guess])
+        t_switch = results.root
         # print(results)
         #t_switch = root.x[0]
 
@@ -309,7 +348,7 @@ class SwitchEstimator(ConvergenceController):
             color='g',
             label='Founded event time',)
         ax.plot(t_interp, state_function, label='h')
-        ax.plot(t_interp, p(t_interp), label='p')
+        ax.plot(t_interp, p(t_interp, dt_FD), label='p')
         ax.legend(loc='upper right')
         fig.savefig('data/interpolation/state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
         plt_helper.plt.close(fig)
@@ -389,3 +428,11 @@ def newton(x0, p, fprime, dt_FD, newton_tol, newton_maxiter):
     print(msg)
 
     return root
+
+
+class Lagrange(object):
+    """
+    This class computes an interpolation polynomial based on Lagrange interpolation.
+    """
+    def __init__(ti, yi):
+        """Initialzation routine"""

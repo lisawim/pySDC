@@ -35,7 +35,7 @@ def run():
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 30
+    controller_params['logger_level'] = 20
     controller_params['hook_class'] = approx_solution_hook
 
     # initialize step parameters
@@ -60,8 +60,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 2.0 #1e-3 #1.0
-
+    Tend = 1.0  # 0.5
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)

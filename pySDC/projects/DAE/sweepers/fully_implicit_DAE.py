@@ -143,7 +143,7 @@ class fully_implicit_DAE(sweeper):
                 local_u_approx += L.dt * self.QI[m, m] * U_mesh
                 return P.eval_f(local_u_approx, U_mesh, L.time + L.dt * self.coll.nodes[m - 1])
 
-            def Fprime(U, dt_jac=1e-9):
+            def Fprime(U, dt_jac=1e-12):
                 """
                 Approximates the Jacobian of F using finite differences.
 
@@ -166,7 +166,8 @@ class fully_implicit_DAE(sweeper):
                     e = np.zeros(N)
                     e[0] = 1
                     for k in range(N):
-                        jac[:, k] = (1 / dt_jac) * (F(U + dt_jac * e) - F(U))
+                        # jac[:, k] = (1 / (dt_jac)) * (F(U) - F(U - dt_jac * e))
+                        jac[:, k] = (3 * F(U) - 4 * F(U - dt_jac) + F(U - 2 * dt_jac)) * (1 / (2 * dt_jac))
                         e = np.roll(e, 1)
                 else:
                     jac = P.get_Jacobian(L.time + L.dt * self.coll.nodes[m - 1], U)
@@ -300,7 +301,7 @@ class fully_implicit_DAE(sweeper):
             L.uend = P.dtype_u(L.u[0])
             for m in range(self.coll.num_nodes):
                 L.uend += L.dt * self.coll.weights[m] * L.f[m + 1]
-
+        # print('L.uend:', L.time + L.dt, 2*L.u[-1][0]*L.u[-1][1]-100)
         return None
 
 def newton(u0, F, Fprime, newton_tol, newton_maxiter):
@@ -334,8 +335,8 @@ def newton(u0, F, Fprime, newton_tol, newton_maxiter):
         u0 -= J_inv.dot(g)
 
         n += 1
-    print('Newton took {} iterations with error {}'.format(n, res))
-    print()
+    # print('Newton took {} iterations with error {}'.format(n, res))
+    # print()
     root = u0
     return root, n
 
@@ -367,10 +368,11 @@ def solve_nonlinear_system(root_solver, u0, F, Fprime, newton_tol, newton_maxite
             F,
             u0,
             method='hybr',
+            # jac=Fprime,
             tol=newton_tol,
         )
         root = opt.x
-        n = opt.nfev
+        n = 1#opt.nfev
     else:
         raise ParameterError("Choose either 'newton' or 'hybr'!")
 

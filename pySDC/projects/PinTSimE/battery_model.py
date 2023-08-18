@@ -60,6 +60,7 @@ def generate_description(
     max_restarts=None,
     tol_event=1e-10,
     dt_FD=1e-9,
+    alpha=1.0,
 ):
     """
     Generate a description for the battery models for a controller run.
@@ -114,7 +115,7 @@ def generate_description(
     sweeper_params = dict()
     sweeper_params['quad_type'] = quad_type
     sweeper_params['num_nodes'] = num_nodes
-    sweeper_params['QI'] = 'IE'
+    sweeper_params['QI'] = 'LU'  # 'IE'
     sweeper_params['initial_guess'] = 'spread'
 
     # initialize step parameters
@@ -133,6 +134,7 @@ def generate_description(
         switch_estimator_params = {}
         switch_estimator_params['tol'] = tol_event
         switch_estimator_params['dt_FD'] = dt_FD
+        switch_estimator_params['alpha'] = alpha
         convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 
     if use_adaptivity:

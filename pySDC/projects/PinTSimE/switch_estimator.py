@@ -44,6 +44,7 @@ class SwitchEstimator(ConvergenceController):
             'control_order': 100,
             'nodes': coll.nodes,
             'count': 0,
+            'prepare_detection': False,
         }
         return {**defaults, **params}
 
@@ -57,7 +58,7 @@ class SwitchEstimator(ConvergenceController):
             The controller doing all the stuff in a computation.
         """
 
-        self.status = Status(['is_zero', 'switch_detected', 't_switch'])
+        self.status = Status(['is_zero', 'start_detection', 'switch_detected', 't_switch'])
 
     def reset_status_variables(self, controller, **kwargs):
         """
@@ -87,7 +88,16 @@ class SwitchEstimator(ConvergenceController):
 
         if CheckConvergence.check_convergence(S):
             self.status.switch_detected, m_guess, state_function = L.prob.get_switching_info(L.u, L.time)
-            
+            # print('Time:', L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))])
+            # print()
+            # proof here if state function comes closer to zero; if this is the case reduce step size
+            # if not self.params.prepare_detection:
+            #     for m in range(len(state_function)):
+            #         if abs(state_function[m]) <= 1e-2:
+            #             self.params.prepare_detection = True
+            #             self.status.start_detection = True
+            #             L.status.dt_new = L.dt / 16
+
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
                 t_interp, state_function = self.adapt_interpolation_info(
@@ -95,8 +105,8 @@ class SwitchEstimator(ConvergenceController):
                 )
                 # print(t_interp, state_function)
                 # when the state function is already close to zero the event is already resolved well
-                if abs(state_function[-1]) <= self.params.tol or abs(state_function[0]) <= self.params.tol:
-                    self.log("Is already close enough to one of the end point!", S)
+                if abs(state_function[-1]) <= self.params.tol:  # or abs(state_function[0]) <= self.params.tol:
+                    self.log("Is already close enough to the right end point!", S)
                     self.log_event_time(
                         controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_interp[-1]
                     )
@@ -108,13 +118,13 @@ class SwitchEstimator(ConvergenceController):
                     self.status.t_switch = self.get_switch(t_interp, state_function, m_guess, self.params.count, self.params.dt_FD)
                     self.params.count += 1
                     if L.time < self.status.t_switch < L.time + L.dt:
-                        dt_switch = self.status.t_switch - L.time
+                        dt_switch = (self.status.t_switch - L.time) * self.params.alpha
 
                         if (
                             abs(self.status.t_switch - L.time) <= self.params.tol
                             or abs((L.time + L.dt) - self.status.t_switch) <= self.params.tol
                         ):
-                            self.log(f"Switch located at time {self.status.t_switch:.12f}", S)
+                            self.log(f"Switch located at time {self.status.t_switch:.15f}", S)
                             L.prob.t_switch = self.status.t_switch
                             self.log_event_time(
                                 controller.hooks[0],
@@ -128,7 +138,7 @@ class SwitchEstimator(ConvergenceController):
                             L.prob.count_switches()
 
                         else:
-                            self.log(f"Located Switch at time {self.status.t_switch:.12f} is outside the range", S)
+                            self.log(f"Located Switch at time {self.status.t_switch:.15f} is outside the range", S)
 
                         # when an event is found, step size matching with this event should be preferred
                         dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
@@ -140,7 +150,7 @@ class SwitchEstimator(ConvergenceController):
                     else:
                         # event occurs on L.time or L.time + L.dt; no restart necessary
                         boundary = 'left boundary' if self.status.t_switch == L.time else 'right boundary'
-                        self.log(f"Estimated switch {self.status.t_switch:.12f} occurs at {boundary}", S)
+                        self.log(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}", S)
 
                         self.log_event_time(
                             controller.hooks[0],
@@ -168,7 +178,7 @@ class SwitchEstimator(ConvergenceController):
             The current step.
         """
 
-        if self.status.switch_detected:
+        if self.status.switch_detected:  # or self.status.start_detection:
             S.status.restart = True
             S.status.force_done = True
 
@@ -246,63 +256,25 @@ class SwitchEstimator(ConvergenceController):
            Time point of the founded switch.
         """
 
-        def LagrangePolynomial(t, ti, i):
+        LagrangeInterpolator = LagrangeInterpolation(t_interp, state_function)
+     
+        def p(t):
             """
-            Computes the i-th Lagrange Polynomial.
+            Simplifies the call of the interpolant.
 
             Parameters
             ----------
             t : float
-                Time to evaluate the polynomial.
-            ti : list
-                Data points.
-            i : int
-                Index of the Lagrange Polynomial (the index which is skipped in computation).
+                Time t at which the interpolant is called.
+
+            Returns
+            -------
+            p(t) : float
+                The value of the interpolated function at time t.
             """
-            poly = 1
-            for j in range(len(ti)):
-                if j == i:
-                    continue
-                poly *= (t - ti[j]) / (ti[i] - ti[j])
-            return poly
-        
-        def p(t, ti, yi):
-            """
-            Computes the interpolation polynomial based on Lagrange interpolation.
+            return LagrangeInterpolator.eval(t)
 
-            Parameters
-            ----------
-            t : float
-                Time to evaluate the polynomial.
-            ti : list
-                Data points.
-            yi : list
-                Values on these data points.
-            """
-            sum = 0
-            for j in range(len(ti)):
-                sum += yi[j] * LagrangePolynomial(t, ti, j)
-            return sum
-
-        # Interpolator = sp.interpolate.BarycentricInterpolator(t_interp, state_function)
-        
-        # def p(t, dt_FD):
-        #     """
-        #     Simplifies the call of the interpolant.
-
-        #     Parameters
-        #     ----------
-        #     t : float
-        #         Time t at which the interpolant is called.
-
-        #     Returns
-        #     -------
-        #     p(t) : float
-        #         The value of the interpolated function at time t.
-        #     """
-        #     return Interpolator.__call__(t)
-
-        def fprime(t, ti, yi, dt_FD):
+        def fprime(t, dt_FD):
             """
             Computes the derivative of the scalar interpolant using finite differences.
 
@@ -316,27 +288,28 @@ class SwitchEstimator(ConvergenceController):
             dp : float
                 Derivative of interpolation p at time t.
             """
-            # dt = 1e-6
+            # dt_FD = 1e-13
             # dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)  # Dc
             # dp = (p(t + dt_FD) - p(t)) / dt_FD  # Dplus
-            # dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)  # D3
-            dp = (3 * p(t, ti, yi) - 4 * p(t - dt_FD, ti, yi) + p(t - 2 * dt_FD, ti, yi)) / (2 * dt_FD)  # D2
+            # dp = (p(t) - p(t - dt_FD)) / dt_FD  # Dminus
+            dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)  # D3
+            # dp = (3 * p(t) - 4 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (2 * dt_FD)  # D2
             return dp
-        
-        # p_int = sp.interpolate.interp1d(t_interp, state_function, 'cubic', bounds_error=False)
-        # print('Get_switch:', state_function)
-        newton_tol, newton_maxiter = 1e-12, 100
-        # t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
-        #root = sp.optimize.root(p, t_interp[m_guess], method='hybr', tol=newton_tol)
-        results = sp.optimize.root_scalar(p, args=(dt_FD), method='newton', fprime=fprime, xtol=newton_tol, x0=t_interp[m_guess])
-        t_switch = results.root
-        # print(results)
-        #t_switch = root.x[0]
 
+        newton_tol, newton_maxiter = 1e-14, 100
+        t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
+        # results = sp.optimize.root_scalar(
+        #     p,
+        #     method='brentq',
+        #     bracket=[t_interp[0], t_interp[-1]],
+        #     x0=initial_guess,  # x0=t_interp[m_guess],
+        #     xtol=newton_tol,
+        # )
+        # t_switch=results.root
         fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
-        if t_interp[0] <= 0.5 * np.arcsinh(100) <= t_interp[-1]:
+        if t_interp[0] <= np.arccosh(50) <= t_interp[-1]:
             ax.axvline(
-                x=0.5 * np.arcsinh(100),
+                x=np.arccosh(50),
                 linestyle='--',
                 linewidth=0.9,
                 color='k',
@@ -348,7 +321,7 @@ class SwitchEstimator(ConvergenceController):
             color='g',
             label='Founded event time',)
         ax.plot(t_interp, state_function, label='h')
-        ax.plot(t_interp, p(t_interp, dt_FD), label='p')
+        ax.plot(t_interp, [p(t) for t in t_interp], label='p')
         ax.legend(loc='upper right')
         fig.savefig('data/interpolation/state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
         plt_helper.plt.close(fig)
@@ -425,14 +398,50 @@ def newton(x0, p, fprime, dt_FD, newton_tol, newton_maxiter):
 
     root = x0
     msg = "Newton's method took {} iterations".format(n)
-    print(msg)
+    # print(msg)
 
     return root
 
 
-class Lagrange(object):
-    """
-    This class computes an interpolation polynomial based on Lagrange interpolation.
-    """
-    def __init__(ti, yi):
-        """Initialzation routine"""
+class LagrangeInterpolation(object):
+    def __init__(self, ti, yi):
+        """Initialization routine"""
+        self.ti = np.asarray(ti)
+        self.yi = np.asarray(yi)
+        self.n = len(ti)
+        
+    def get_Lagrange_polynomial(self, t, i):
+        """
+        Computes the basis of the i-th Lagrange polynomial.
+        
+        Parameters
+        ----------
+        t : float
+            Time where the polynomial is computed at.
+        i : int
+            Index of the Lagrange polynomial
+            
+        Returns
+        -------
+        product : float
+            The product of the bases.
+        """
+        product = np.prod([(t - self.ti[k]) / (self.ti[i] - self.ti[k]) for k in range(self.n) if k != i])
+        return product
+        
+    def eval(self, t):
+        """
+        Evaluates the Lagrange interpolation at time t.
+        
+        Parameters
+        ----------
+        t : float
+            Time where interpolation is computed.
+            
+        Returns
+        -------
+        p : float
+            Value of interpolant at time t.
+        """
+        p = np.sum([self.yi[i] * self.get_Lagrange_polynomial(t, i) for i in range(self.n)])
+        return p

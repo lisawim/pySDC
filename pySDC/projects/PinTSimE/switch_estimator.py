@@ -88,28 +88,31 @@ class SwitchEstimator(ConvergenceController):
 
         if CheckConvergence.check_convergence(S):
             self.status.switch_detected, m_guess, state_function = L.prob.get_switching_info(L.u, L.time)
-            # print('Time:', L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))])
-            # print()
-            # proof here if state function comes closer to zero; if this is the case reduce step size
-            # if not self.params.prepare_detection:
-            #     for m in range(len(state_function)):
-            #         if abs(state_function[m]) <= 1e-2:
-            #             self.params.prepare_detection = True
-            #             self.status.start_detection = True
-            #             L.status.dt_new = L.dt / 16
 
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
                 t_interp, state_function = self.adapt_interpolation_info(
                     L.time, L.sweep.coll.left_is_node, t_interp, state_function
                 )
-                # print(t_interp, state_function)
+
                 # when the state function is already close to zero the event is already resolved well
-                if abs(state_function[-1]) <= self.params.tol:  # or abs(state_function[0]) <= self.params.tol:
-                    self.log("Is already close enough to the right end point!", S)
+                if abs(state_function[-1]) <= self.params.tol or abs(state_function[0]) <= self.params.tol:
+                    if abs(state_function[0]) <= self.params.tol:
+                        t_switch = t_interp[0]
+                        boundary = 'left'
+                    elif abs(state_function[-1]) <= self.params.tol:
+                        boundary = 'right'
+                        t_switch = t_interp[-1]
+                    else:
+                        # dangerous! in case of nonmoving state function after event, event time could be distorted! 
+                        t_switch = t_interp[0]
+                        boundary = 'left'
+
+                    self.log(f"Is already close enough to the {boundary} end point!", S)
                     self.log_event_time(
-                        controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_interp[-1]
+                        controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_switch
                     )
+
                     L.prob.count_switches()
                     self.status.is_zero = True
 
@@ -146,7 +149,7 @@ class SwitchEstimator(ConvergenceController):
                             L.status.dt_new = dt_switch
                         else:
                             L.status.dt_new = min([dt_planned, dt_switch])
-                        # print('New time step size: {}'.format(L.status.dt_new))
+                        print('New time step size: {}'.format(L.status.dt_new))
                     else:
                         # event occurs on L.time or L.time + L.dt; no restart necessary
                         boundary = 'left boundary' if self.status.t_switch == L.time else 'right boundary'
@@ -178,7 +181,7 @@ class SwitchEstimator(ConvergenceController):
             The current step.
         """
 
-        if self.status.switch_detected:  # or self.status.start_detection:
+        if self.status.switch_detected:
             S.status.restart = True
             S.status.force_done = True
 
@@ -298,14 +301,7 @@ class SwitchEstimator(ConvergenceController):
 
         newton_tol, newton_maxiter = 1e-14, 100
         t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
-        # results = sp.optimize.root_scalar(
-        #     p,
-        #     method='brentq',
-        #     bracket=[t_interp[0], t_interp[-1]],
-        #     x0=initial_guess,  # x0=t_interp[m_guess],
-        #     xtol=newton_tol,
-        # )
-        # t_switch=results.root
+
         fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
         if t_interp[0] <= np.arccosh(50) <= t_interp[-1]:
             ax.axvline(

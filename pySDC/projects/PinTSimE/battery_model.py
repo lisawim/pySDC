@@ -145,7 +145,7 @@ def generate_description(
     if max_restarts is not None:
         convergence_controllers[BasicRestartingNonMPI] = {
             'max_restarts': max_restarts,
-            'crash_after_max_restarts': False,
+            'crash_after_max_restarts': True, # False,
         }
 
     # fill description dictionary for easy step instantiation

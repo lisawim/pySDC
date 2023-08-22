@@ -16,7 +16,11 @@ class SwitchEstimator(ConvergenceController):
 
     def setup(self, controller, params, description):
         """
-        Function sets default variables to handle with the switch at the beginning.
+        Function sets default variables to handle with the switch at the beginning. The default params are:
+
+            - control_order : controls the order of the SE's call of convergence controllers
+            - coll.nodes : defines the collocation nodes for interpolation
+            - tol_zero : inner tolerance for SE; state function has to satisfy it to terminate
 
         Parameters
         ----------
@@ -44,7 +48,7 @@ class SwitchEstimator(ConvergenceController):
             'control_order': 100,
             'nodes': coll.nodes,
             'count': 0,
-            'prepare_detection': False,
+            'tol_zero': 1e-13,
         }
         return {**defaults, **params}
 
@@ -58,7 +62,7 @@ class SwitchEstimator(ConvergenceController):
             The controller doing all the stuff in a computation.
         """
 
-        self.status = Status(['is_zero', 'start_detection', 'switch_detected', 't_switch'])
+        self.status = Status(['is_zero', 'switch_detected', 't_switch'])
 
     def reset_status_variables(self, controller, **kwargs):
         """
@@ -88,7 +92,7 @@ class SwitchEstimator(ConvergenceController):
 
         if CheckConvergence.check_convergence(S):
             self.status.switch_detected, m_guess, state_function = L.prob.get_switching_info(L.u, L.time)
-
+            print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], state_function)
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
                 t_interp, state_function = self.adapt_interpolation_info(
@@ -96,19 +100,20 @@ class SwitchEstimator(ConvergenceController):
                 )
 
                 # when the state function is already close to zero the event is already resolved well
-                if abs(state_function[-1]) <= self.params.tol or abs(state_function[0]) <= self.params.tol:
-                    if abs(state_function[0]) <= self.params.tol:
+                if abs(state_function[-1]) <= self.params.tol_zero or abs(state_function[0]) <= self.params.tol_zero:
+                    if abs(state_function[0]) <= self.params.tol_zero:
                         t_switch = t_interp[0]
                         boundary = 'left'
-                    elif abs(state_function[-1]) <= self.params.tol:
+                    elif abs(state_function[-1]) <= self.params.tol_zero:
                         boundary = 'right'
                         t_switch = t_interp[-1]
                     else:
                         # dangerous! in case of nonmoving state function after event, event time could be distorted! 
                         t_switch = t_interp[0]
                         boundary = 'left'
-
-                    self.log(f"Is already close enough to the {boundary} end point!", S)
+                    print(t_interp, state_function)
+                    # self.log(f"Is already close enough to the {boundary} end point!", S)
+                    print(f"Is already close enough to the {boundary} end point!")
                     self.log_event_time(
                         controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_switch
                     )
@@ -128,6 +133,7 @@ class SwitchEstimator(ConvergenceController):
                             or abs((L.time + L.dt) - self.status.t_switch) <= self.params.tol
                         ):
                             self.log(f"Switch located at time {self.status.t_switch:.15f}", S)
+                            print(f"Switch located at time {self.status.t_switch:.15f}")
                             L.prob.t_switch = self.status.t_switch
                             self.log_event_time(
                                 controller.hooks[0],
@@ -141,8 +147,8 @@ class SwitchEstimator(ConvergenceController):
                             L.prob.count_switches()
 
                         else:
-                            self.log(f"Located Switch at time {self.status.t_switch:.15f} is outside the range", S)
-
+                            # self.log(f"Located Switch at time {self.status.t_switch:.15f} is outside the range", S)
+                            print(f"Located Switch at time {self.status.t_switch:.15f} is outside the range")
                         # when an event is found, step size matching with this event should be preferred
                         dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
                         if self.status.switch_detected:
@@ -153,8 +159,8 @@ class SwitchEstimator(ConvergenceController):
                     else:
                         # event occurs on L.time or L.time + L.dt; no restart necessary
                         boundary = 'left boundary' if self.status.t_switch == L.time else 'right boundary'
-                        self.log(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}", S)
-
+                        # self.log(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}", S)
+                        print(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}")
                         self.log_event_time(
                             controller.hooks[0],
                             S.status.slot,
@@ -182,6 +188,7 @@ class SwitchEstimator(ConvergenceController):
         """
 
         if self.status.switch_detected:
+            print('Switch detected')
             S.status.restart = True
             S.status.force_done = True
 
@@ -294,8 +301,8 @@ class SwitchEstimator(ConvergenceController):
             # dt_FD = 1e-13
             # dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)  # Dc
             # dp = (p(t + dt_FD) - p(t)) / dt_FD  # Dplus
-            # dp = (p(t) - p(t - dt_FD)) / dt_FD  # Dminus
-            dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)  # D3
+            dp = (p(t) - p(t - dt_FD)) / dt_FD  # Dminus
+            # dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)  # D3
             # dp = (3 * p(t) - 4 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (2 * dt_FD)  # D2
             return dp
 

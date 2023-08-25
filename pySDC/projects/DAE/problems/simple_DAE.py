@@ -159,6 +159,7 @@ class simple_dae_1(ptype_dae):
         # Smooth index-2 DAE pg. 267 Ascher and Petzold (also the first example in KDC Minion paper)
         a = 10.0
         f = self.dtype_f(self.init)
+        print(self.init)
         f[:] = (
             -du[0] + (a - 1 / (2 - t)) * u[0] + (2 - t) * a * u[2] + np.exp(t) * (3 - t) / (2 - t),
             -du[1] + (1 - a) / (t - 2) * u[0] - u[1] + (a - 1) * u[2] + 2 * np.exp(t),
@@ -183,6 +184,101 @@ class simple_dae_1(ptype_dae):
         me = self.dtype_u(self.init)
         me[:] = (np.exp(t), np.exp(t), -np.exp(t) / (2 - t))
         return me
+    
+
+class simple_dae_1_imex(ptype_dae):
+    """
+    This class implements the simple DAE index-1 example in a semi-implicit fashion.
+    """
+
+    def __init__(self, nvars, newton_tol, diff_nvars):
+        """Initialization routine"""
+        super().__init__((nvars, None, np.dtype('float64')))
+        self._makeAttributeAndRegister('nvars', 'newton_tol', 'diff_nvars', localVars=locals(), readOnly=True)
+
+        self.init_expl = (self.nvars - self.diff_nvars, None, np.dtype('float64'))
+        self.init_impl = (self.diff_nvars, None, np.dtype('float64'))
+        self.a = 10.0
+
+    def eval_f(self, u, du, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        du : dtype_u
+            Current values of the derivative of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            Current value of the right-hand side of f (which includes three components).
+        """
+        # Smooth index-2 DAE pg. 267 Ascher and Petzold (also the first example in KDC Minion paper)
+        f = self.dtype_f(self.init)
+        fexpl = self.eval_fexpl(u[self.diff_nvars - 1:], t)
+        fimpl = self.eval_fimpl(u[:self.diff_nvars], du, t)
+        f[:] = (
+            fimpl,
+            fexpl,
+            # -du[0] + (self.a - 1 / (2 - t)) * u[0] + (2 - t) * self.a * u[2] + np.exp(t) * (3 - t) / (2 - t),
+            # -du[1] + (1 - self.a) / (t - 2) * u[0] - u[1] + (self.a - 1) * u[2] + 2 * np.exp(t),
+            # (t + 2) * u[0] + (t**2 - 4) * u[1] - (t**2 + t - 2) * np.exp(t),
+        )
+        return f
+    
+    def eval_fexpl(self, u, t):
+        """
+        Evaluates the algebraic constraints in the DAE system.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of differential variable u.
+        p : dtype_u
+            Current values of algebraic variable p.
+        t : float
+            Current time where u and p are computed at.
+
+        Returns
+        -------
+        fexpl : dtype_f
+            The algebraic constraints of the DAE system.
+        """
+        fexpl = self.dtype_f(self.init_expl)
+        fexpl[:] = (t + 2) * u[0] + (t**2 - 4) * u[1] - (t**2 + t - 2) * np.exp(t)
+        return fexpl
+
+    def eval_fimpl(self, u, p, du, t):
+        """
+        Evaluates the differential equations in the DAE system.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of differential variable u.
+        p : dtype_u
+            Current values of algebraic variable p.
+        du : dtype_u
+            Current values of derivative of u.
+        t : float
+            Current time where u and p are computed at.
+
+        Returns
+        -------
+        fexpl : dtype_f
+            The algebraic constraints of the DAE system.
+        """
+        fimpl = self.dtype_f(self.init_impl)
+        fimpl[:] = (
+            -du[0] + (self.a - 1 / (2 - t)) * u[0] + (2 - t) * self.a * p[0] + np.exp(t) * (3 - t) / (2 - t),
+            -du[1] + (1 - self.a) / (t - 2) * u[0] - u[1] + (self.a - 1) * p[0] + 2 * np.exp(t),
+        )
+        return fimpl
 
 
 class problematic_f(ptype_dae):

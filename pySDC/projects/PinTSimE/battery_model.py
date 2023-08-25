@@ -59,7 +59,6 @@ def generate_description(
     maxiter,
     max_restarts=None,
     tol_event=1e-10,
-    dt_FD=1e-9,
     alpha=1.0,
 ):
     """
@@ -124,7 +123,7 @@ def generate_description(
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 15
+    controller_params['logger_level'] = 30
     controller_params['hook_class'] = hook_class
     controller_params['mssdc_jac'] = False
 
@@ -133,7 +132,6 @@ def generate_description(
     if use_switch_estimator:
         switch_estimator_params = {}
         switch_estimator_params['tol'] = tol_event
-        switch_estimator_params['dt_FD'] = dt_FD
         switch_estimator_params['alpha'] = alpha
         convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 
@@ -145,7 +143,7 @@ def generate_description(
     if max_restarts is not None:
         convergence_controllers[BasicRestartingNonMPI] = {
             'max_restarts': max_restarts,
-            'crash_after_max_restarts': True, # False,
+            'crash_after_max_restarts': False,
         }
 
     # fill description dictionary for easy step instantiation

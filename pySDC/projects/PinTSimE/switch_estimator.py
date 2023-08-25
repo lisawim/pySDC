@@ -45,7 +45,7 @@ class SwitchEstimator(ConvergenceController):
         )
 
         defaults = {
-            'control_order': 100,
+            'control_order': 0,
             'nodes': coll.nodes,
             'count': 0,
             'tol_zero': 1e-13,
@@ -92,7 +92,7 @@ class SwitchEstimator(ConvergenceController):
 
         if CheckConvergence.check_convergence(S):
             self.status.switch_detected, m_guess, state_function = L.prob.get_switching_info(L.u, L.time)
-            print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], state_function)
+            # print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], state_function)
             if self.status.switch_detected:
                 t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
                 t_interp, state_function = self.adapt_interpolation_info(
@@ -111,9 +111,9 @@ class SwitchEstimator(ConvergenceController):
                         # dangerous! in case of nonmoving state function after event, event time could be distorted! 
                         t_switch = t_interp[0]
                         boundary = 'left'
-                    print(t_interp, state_function)
-                    # self.log(f"Is already close enough to the {boundary} end point!", S)
-                    print(f"Is already close enough to the {boundary} end point!")
+                    # print(t_interp, state_function)
+                    self.log(f"Is already close enough to the {boundary} end point!", S)
+                    # print(f"Is already close enough to the {boundary} end point!")
                     self.log_event_time(
                         controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_switch
                     )
@@ -123,7 +123,7 @@ class SwitchEstimator(ConvergenceController):
 
                 # intermediate value theorem states that a root is contained in current step
                 if state_function[0] * state_function[-1] < 0 and self.status.is_zero is None:
-                    self.status.t_switch = self.get_switch(t_interp, state_function, m_guess, self.params.count, self.params.dt_FD)
+                    self.status.t_switch = self.get_switch(t_interp, state_function, m_guess, self.params.count)
                     self.params.count += 1
                     if L.time < self.status.t_switch < L.time + L.dt:
                         dt_switch = (self.status.t_switch - L.time) * self.params.alpha
@@ -133,7 +133,7 @@ class SwitchEstimator(ConvergenceController):
                             or abs((L.time + L.dt) - self.status.t_switch) <= self.params.tol
                         ):
                             self.log(f"Switch located at time {self.status.t_switch:.15f}", S)
-                            print(f"Switch located at time {self.status.t_switch:.15f}")
+                            # print(f"Switch located at time {self.status.t_switch:.15f}")
                             L.prob.t_switch = self.status.t_switch
                             self.log_event_time(
                                 controller.hooks[0],
@@ -147,15 +147,15 @@ class SwitchEstimator(ConvergenceController):
                             L.prob.count_switches()
 
                         else:
-                            # self.log(f"Located Switch at time {self.status.t_switch:.15f} is outside the range", S)
-                            print(f"Located Switch at time {self.status.t_switch:.15f} is outside the range")
+                            self.log(f"Located Switch at time {self.status.t_switch:.15f} is outside the range", S)
+                            # print(f"Located Switch at time {self.status.t_switch:.15f} is outside the range")
                         # when an event is found, step size matching with this event should be preferred
                         dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
                         if self.status.switch_detected:
                             L.status.dt_new = dt_switch
                         else:
                             L.status.dt_new = min([dt_planned, dt_switch])
-                        print('New time step size: {}'.format(L.status.dt_new))
+                        # print('New time step size: {}'.format(L.status.dt_new))
                     else:
                         # event occurs on L.time or L.time + L.dt; no restart necessary
                         boundary = 'left boundary' if self.status.t_switch == L.time else 'right boundary'
@@ -188,7 +188,6 @@ class SwitchEstimator(ConvergenceController):
         """
 
         if self.status.switch_detected:
-            print('Switch detected')
             S.status.restart = True
             S.status.force_done = True
 
@@ -247,7 +246,7 @@ class SwitchEstimator(ConvergenceController):
         )
 
     @staticmethod
-    def get_switch(t_interp, state_function, m_guess, count, dt_FD):
+    def get_switch(t_interp, state_function, m_guess, count):
         """
         Routine to do the interpolation and root finding stuff.
 
@@ -284,7 +283,7 @@ class SwitchEstimator(ConvergenceController):
             """
             return LagrangeInterpolator.eval(t)
 
-        def fprime(t, dt_FD):
+        def fprime(t):
             """
             Computes the derivative of the scalar interpolant using finite differences.
 
@@ -298,36 +297,33 @@ class SwitchEstimator(ConvergenceController):
             dp : float
                 Derivative of interpolation p at time t.
             """
-            # dt_FD = 1e-13
-            # dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)  # Dc
-            # dp = (p(t + dt_FD) - p(t)) / dt_FD  # Dplus
-            dp = (p(t) - p(t - dt_FD)) / dt_FD  # Dminus
-            # dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)  # D3
-            # dp = (3 * p(t) - 4 * p(t - dt_FD) + p(t - 2 * dt_FD)) / (2 * dt_FD)  # D2
+            dt_FD = 1e-10
+            dp = (p(t + dt_FD) - p(t)) / dt_FD  # forward difference
             return dp
-
-        newton_tol, newton_maxiter = 1e-14, 100
-        t_switch = newton(t_interp[m_guess], p, fprime, dt_FD, newton_tol, newton_maxiter)
-
-        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
-        if t_interp[0] <= np.arccosh(50) <= t_interp[-1]:
-            ax.axvline(
-                x=np.arccosh(50),
-                linestyle='--',
-                linewidth=0.9,
-                color='k',
-                label='Exact event time',)
-        ax.axvline(
-            x=t_switch,
-            linestyle='--',
-            linewidth=0.9,
-            color='g',
-            label='Founded event time',)
-        ax.plot(t_interp, state_function, label='h')
-        ax.plot(t_interp, [p(t) for t in t_interp], label='p')
-        ax.legend(loc='upper right')
-        fig.savefig('data/interpolation/state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
-        plt_helper.plt.close(fig)
+        
+        newton_tol, newton_maxiter = 1e-15, 100
+        t_switch = newton(t_interp[m_guess], p, fprime, newton_tol, newton_maxiter)
+        
+        # fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        # if t_interp[0] <= np.arccosh(50) <= t_interp[-1]:
+        #     ax.axvline(
+        #         x=np.arccosh(50),
+        #         linestyle='--',
+        #         linewidth=0.9,
+        #         color='k',
+        #         label='Exact event time',)
+        # ax.axvline(
+        #     x=t_switch,
+        #     linestyle='--',
+        #     linewidth=0.9,
+        #     color='g',
+        #     label='Founded event time',
+        # )
+        # ax.plot(t_interp, state_function, 'o', label='h')
+        # ax.plot(t_interp, [p(t) for t in t_interp], label='p')
+        # ax.legend(loc='upper right')
+        # fig.savefig('data/interpolation/state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
+        # plt_helper.plt.close(fig)
 
         return t_switch
 
@@ -367,7 +363,7 @@ class SwitchEstimator(ConvergenceController):
         return t_interp, state_function
 
 
-def newton(x0, p, fprime, dt_FD, newton_tol, newton_maxiter):
+def newton(x0, p, fprime, newton_tol, newton_maxiter):
     """
     Newton's method fo find the root of interpolant p.
 
@@ -392,10 +388,10 @@ def newton(x0, p, fprime, dt_FD, newton_tol, newton_maxiter):
 
     n = 0
     while n < newton_maxiter:
-        if abs(p(x0)) < newton_tol or np.isnan(p(x0)) and np.isnan(fprime(x0, dt_FD)):
+        if abs(p(x0)) < newton_tol or np.isnan(p(x0)) and np.isnan(fprime(x0)):
             break
         # print(n, x0, p(x0), fprime(x0))
-        x0 -= 1.0 / fprime(x0, dt_FD) * p(x0)
+        x0 -= 1.0 / fprime(x0) * p(x0)
 
         n += 1
 

@@ -3,7 +3,6 @@ import numpy as np
 
 from pySDC.core.Errors import ParameterError
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
-from pySDC.projects.DAE.sweepers.helpers.function_helpers import FunctionHelper
 
 
 class DiscontinuousTestDAE(ptype_dae):

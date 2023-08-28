@@ -181,6 +181,9 @@ class IEEE9BusSystem(ptype_dae):
         self.YBus_bus4_LoadStep = get_YBus(temp_mpc)
 
 
+        # ---- excitation limiter vmax ----
+        self.vmax = 2.1
+
         # self.Yabs = np.array([
         #     [17.361111111111111, 0, 0, 17.361111111111111, 0, 0, 0, 0, 0],
         #     [0, 16, 0, 0, 0, 0, 16, 0, 0],
@@ -351,6 +354,9 @@ class IEEE9BusSystem(ptype_dae):
         # disturbance
         self.event_happened = False
 
+        self.t_switch = None
+        self.nswitches = 0
+
 
     def eval_f(self, u, du, t):
         dEqp, dSi1d, dEdp = du[0:self.m], du[self.m:2*self.m], du[2*self.m:3*self.m]
@@ -491,6 +497,8 @@ class IEEE9BusSystem(ptype_dae):
         #     #(7)
         #     pass
 
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
         # Equations as list
         eqs = []
         eqs.append((1.0 / self.Td0p) * (-Eqp - (self.Xd - self.Xdp) * (Id - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls) ** 2) * (Si1d + (self.Xdp - self.Xls) * Id - Eqp)) + Efd) - dEqp)  # (1)
@@ -501,20 +509,25 @@ class IEEE9BusSystem(ptype_dae):
         eqs.append((self.ws / (2.0 * self.H)) * (TM - ((self.Xdpp - self.Xls) / (self.Xdp - self.Xls)) * Eqp * Iq - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls)) * Si1d * Iq - ((self.Xqpp - self.Xls) / (self.Xqp - self.Xls)) * Edp * Id + ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls)) * Si2q * Id - (self.Xqpp - self.Xdpp) * Id * Iq - self.Dm * (w - self.ws)) - dw)  # (6)
         # eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)  # (7)
         # --- limiter event for gen1 ---
-        if(Efd[1]>= 2.0):
-            Efd[1] = 2.0
-            if(dEfd[1] > 0):
-               _temp_dEfd0 = ((1.0 / self.TE[0]) * ((-(self.KE[0] + self.Ax[0] * np.exp(self.Bx[0] * Efd[0]))) * Efd[0] + VR[0]) - dEfd[0])
-            #    _temp_dEfd1 = 0
-               dEfd[1] = 0
+        if(Efd[1]>= self.vmax or t >= t_switch):
+            Efd[1] = self.vmax
+            # if(dEfd[1] > 0 or t > t_switch):
+            _temp_dEfd0 = ((1.0 / self.TE[0]) * ((-(self.KE[0] + self.Ax[0] * np.exp(self.Bx[0] * Efd[0]))) * Efd[0] + VR[0]) - dEfd[0])
+            # #    _temp_dEfd1 = 0
+            dEfd[1] = 0
             #    _temp_dEfd1 = ((1.0 / self.TE[1]) * ((-(self.KE[1] + self.Ax[1] * np.exp(self.Bx[1] * Efd[1]))) * Efd[1] + VR[1]) - dEfd[1])
-               _temp_dEfd2 = ((1.0 / self.TE[2]) * ((-(self.KE[2] + self.Ax[2] * np.exp(self.Bx[2] * Efd[2]))) * Efd[2] + VR[2]) - dEfd[2])
-               eqs.append(np.array([_temp_dEfd0, 0, _temp_dEfd2]))
-            else:
-               eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
+            _temp_dEfd2 = ((1.0 / self.TE[2]) * ((-(self.KE[2] + self.Ax[2] * np.exp(self.Bx[2] * Efd[2]))) * Efd[2] + VR[2]) - dEfd[2])
+            eqs.append(np.array([_temp_dEfd0, 0, _temp_dEfd2]))
+            # else:
+            #    eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
         else:
            eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
         # --- limiter event for gen1 ---
+
+        # --- OXL limiter in Milano 2010 Book ---
+        # beta_p = self.Xq * self.PG
+
+
         eqs.append((1.0 / self.TF) * (-RF + (self.KF / self.TF) * Efd) - dRF)  # (8)
         eqs.append((1.0 / self.TA) * (-VR + self.KA * RF - ((self.KA * self.KF) / self.TF) * Efd + self.KA * (self.Vref - V[:self.m])) - dVR)  # (9)
         eqs.append((1.0 / self.TCH) * (-TM + PSV) - dTM)  # (10)
@@ -554,3 +567,50 @@ class IEEE9BusSystem(ptype_dae):
         me[11*self.m + 2*self.m:11*self.m + 2*self.m + self.n] = self.V0
         me[11*self.m + 2*self.m + self.n:11*self.m + 2*self.m + 2 *self.n] = self.TH0
         return me
+    
+    def get_switching_info(self, u, t, du=None):
+        switch_detected = False
+        already_detected = False
+        m_guess = -100
+
+        for m in range(1, len(u)):
+            h_prev_node = u[m - 1][6*self.m+1] - self.vmax
+            h_curr_node = u[m][6*self.m+1] - self.vmax
+            h2_prev_node = du[m - 1][6*self.m+1]
+            h2_curr_node = du[m][6*self.m+1]
+            if h_prev_node < 0 and h_curr_node >= 0 and not already_detected:
+                print('If')
+                switch_detected = True
+                m_guess = m - 1
+                state_function = [u[m][6*self.m+1] - self.vmax for m in range(len(u))]
+                already_detected = True
+                break
+            # elif h2_prev_node > 0 and h2_curr_node <= 0 and not already_detected:
+            #     print('elif')
+            #     switch_detected = True
+            #     m_guess = m - 1
+            #     state_function = [du[m][6*self.m+1] for m in range(len(du))]
+            #     already_detected = True
+            #     break
+            # elif h2_prev_node >= 0 and h2_curr_node < 0 and not already_detected:
+            #     print('elif2')
+            #     switch_detected = True
+            #     m_guess = m - 1
+            #     state_function = [du[m][6*self.m+1] for m in range(len(du))]
+            #     already_detected = True
+            #     break
+            else:
+                print('else')
+                # set first state function in the beginning, have to think about how to deal with wether it is
+                # already close to zero or not
+                state_function = [u[m][6*self.m+1] - self.vmax for m in range(len(u))]
+        print(state_function)
+        return switch_detected, m_guess, state_function
+
+            
+        
+            
+
+    
+    def count_switches(self):
+        self.nswitches +=1

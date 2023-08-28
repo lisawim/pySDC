@@ -3,6 +3,8 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
+from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
+from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 from pySDC.projects.DAE.problems.IEEE9BusSystem import IEEE9BusSystem
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.implicit_Euler_DAE import implicit_Euler_DAE
@@ -10,13 +12,14 @@ from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.helpers.stats_helper import get_sorted
 import pySDC.helpers.plot_helper as plt_helper
+from pySDC.projects.PinTSimE.battery_model import get_recomputed
 
 
 def run():
     """
     Routine to run model problem
     """
-
+    use_SE = True
     # initialize level parameters
     level_params = dict()
     level_params['restol'] = 1e-9
@@ -25,7 +28,7 @@ def run():
     # initialize sweeper parameters
     sweeper_params = dict()
     sweeper_params['quad_type'] = 'RADAU-RIGHT'
-    sweeper_params['num_nodes'] = 2
+    sweeper_params['num_nodes'] = 3
     sweeper_params['QI'] = 'LU'
 
     # initialize problem parameters
@@ -35,12 +38,27 @@ def run():
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 20
+    controller_params['logger_level'] = 15
     controller_params['hook_class'] = approx_solution_hook
 
     # initialize step parameters
     step_params = dict()
     step_params['maxiter'] = 20
+
+    # convergence controllers
+    convergence_controllers = dict()
+    if use_SE:
+        switch_estimator_params = {}
+        switch_estimator_params['tol'] = 1e-10
+        switch_estimator_params['alpha'] = 1.0
+        convergence_controllers.update({SwitchEstimator: switch_estimator_params})
+
+    max_restarts = 400
+    if max_restarts is not None:
+        convergence_controllers[BasicRestartingNonMPI] = {
+            'max_restarts': max_restarts,
+            'crash_after_max_restarts': False,
+        }
 
 
     problem = IEEE9BusSystem
@@ -52,6 +70,7 @@ def run():
     description['sweeper_params'] = sweeper_params
     description['level_params'] = level_params
     description['step_params'] = step_params
+    description['convergence_controllers'] = convergence_controllers
 
     Path("data").mkdir(parents=True, exist_ok=True)
 
@@ -93,7 +112,7 @@ def run():
     Iq = np.array([me[1][11*m + m:11*m + 2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     V = np.array([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     TH = np.array([me[1][11*m + 2*m + n:11*m + 2*m + 2 * n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
-
+    switches = get_recomputed(stats, type='switch', sortby='time')
     # print('Eqp=', Eqp - x0[0:m])
     # print('Si1d=', Si1d - x0[m:2*m])
     # print('Edp=', Edp - x0[2*m:3*m])
@@ -127,7 +146,9 @@ def run():
 
 
 
-    file_name_suffix = "line7_8_outage_with_limiter"
+    # file_name_suffix = "line7_8_outage_with_limiter"
+    file_name_suffix = "line7_8_outage_with_limiter_SE"
+
     fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
     ax3.plot(t, V[:, 0], label='V0')
     ax3.plot(t, V[:, 1], label='V1')
@@ -165,6 +186,7 @@ def run():
     ax6.legend(loc='upper right', fontsize=10)
     fig6.savefig(f'data/Efd_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
 
+    print([v[1] for v in switches])
 
 
 

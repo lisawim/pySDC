@@ -19,8 +19,8 @@ def run():
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-12
-    level_params['dt'] = 1e-3
+    level_params['restol'] = 1e-9
+    level_params['dt'] = 50e-3
 
     # initialize sweeper parameters
     sweeper_params = dict()
@@ -31,7 +31,7 @@ def run():
     # initialize problem parameters
     problem_params = dict()
     problem_params['nvars'] = 28
-    problem_params['newton_tol'] = 1e-12
+    problem_params['newton_tol'] = 1e-9
 
     # initialize controller parameters
     controller_params = dict()
@@ -60,7 +60,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 1.0  # 0.5
+    Tend = 10  # 0.5
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
@@ -75,7 +75,7 @@ def run():
              1.7917, 1.4051, 0.19528, 0.3225, 0.25292, 1.1077, 1.905, 1.4538, 0.71863, 1.6366,
              0.85245, 0.71863, 1.6366, 0.85245, 1.0591, 0.79193, 0.77098, 1.077, 0.76899, 0.71139, 0, 0.62385, 0.62505, 0.015514, -0.71253, -0.73358, 0.061423, 1.0645, 0.94343, 376.99, 376.99, 376.99, 1.0849, 1.7917, 1.4051, 0.19528, 0.3225, 0.25292, 1.1077, 1.905, 1.4538, 0.71863, 1.6366, 0.85245, 0.71863, 1.6366, 0.85245, 0.30185, 1.2884, 0.56058, 0.67159, 0.93446, 0.62021, 1.04, 1.025, 1.025, 1.0258, 0.99563, 1.0127, 1.0258, 1.0159, 1.0324, 0, 0.16197, 0.081415, -0.03869, -0.069618, -0.064357, 0.064921, 0.012698, 0.034326])
     # V = np.array([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time')])
-    V = np.array([me[1][11*m + 2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    # V = np.array([me[1][11*m + 2*m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', sortby='time')])
     # print([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time', recomputed=False)])
     Eqp = np.array([me[1][0:m] for me in get_sorted(stats, type='approx_solution', sortby='time')])
@@ -111,6 +111,23 @@ def run():
     # print('TH=', TH - x0[11*m + 2*m + n:11*m + 2*m + 2 * n])
 
 
+    # fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    # ax3.plot(t, V[:, 0], label='V0')
+    # ax3.plot(t, V[:, 1], label='V1')
+    # ax3.plot(t, V[:, 2], label='V2')
+    # ax3.plot(t, V[:, 3], label='V3')
+    # ax3.plot(t, V[:, 4], label='V4')
+    # ax3.plot(t, V[:, 5], label='V5')
+    # ax3.plot(t, V[:, 6], label='V6')
+    # ax3.plot(t, V[:, 7], label='V7')
+    # ax3.plot(t, V[:, 8], label='V8')
+    # ax3.legend(loc='upper right', fontsize=10)
+    # fig3.savefig('data/V0.png', dpi=300, bbox_inches='tight')
+    # plt_helper.plt.close(fig3)
+
+
+
+    file_name_suffix = "line7_8_outage_with_limiter"
     fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
     ax3.plot(t, V[:, 0], label='V0')
     ax3.plot(t, V[:, 1], label='V1')
@@ -122,10 +139,33 @@ def run():
     ax3.plot(t, V[:, 7], label='V7')
     ax3.plot(t, V[:, 8], label='V8')
     ax3.legend(loc='upper right', fontsize=10)
-    fig3.savefig('data/V0.png', dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig3)
+    # plt_helper.plt.show()
+    fig3.savefig(f'data/V_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
+    # plt_helper.plt.close(fig3)
+    fig4, ax4 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    ax4.plot(t, w[:, 0]/ 120 / np.pi, label='f_gen0')
+    ax4.plot(t, w[:, 1]/ 120 / np.pi, label='f_gen1')
+    ax4.plot(t, w[:, 2]/ 120 / np.pi, label='f_gen2')
+    ax4.legend(loc='upper right', fontsize=10)
+    # plt_helper.plt.show()
+    fig4.savefig(f'data/f_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
 
-    
+    fig5, ax5 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    ax5.plot(t, TM[:, 0], label='TM_gen0')
+    ax5.plot(t, TM[:, 1], label='TM_gen1')
+    ax5.plot(t, TM[:, 2], label='TM_gen2')
+    ax5.legend(loc='upper right', fontsize=10)
+    # plt_helper.plt.show()
+    fig5.savefig(f'data/Tm_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
+
+    fig6, ax6 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
+    ax6.plot(t, Efd[:, 0], label='Efd_gen0')
+    ax6.plot(t, Efd[:, 1], label='Efd_gen1')
+    ax6.plot(t, Efd[:, 2], label='Efd_gen2')
+    ax6.legend(loc='upper right', fontsize=10)
+    fig6.savefig(f'data/Efd_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
+
+
 
 
 if __name__ == "__main__":

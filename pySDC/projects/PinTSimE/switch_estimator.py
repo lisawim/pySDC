@@ -49,6 +49,8 @@ class SwitchEstimator(ConvergenceController):
             'nodes': coll.nodes,
             'count': 0,
             'tol_zero': 1e-13,
+            't_interp': [],
+            'state_function': [],
         }
         return {**defaults, **params}
 
@@ -91,27 +93,27 @@ class SwitchEstimator(ConvergenceController):
         L = S.levels[0]
 
         if CheckConvergence.check_convergence(S):
-            self.status.switch_detected, m_guess, state_function = L.prob.get_switching_info(L.u, L.time)
-            # print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], state_function)
+            self.status.switch_detected, m_guess, self.params.state_function = L.prob.get_switching_info(L.u, L.time)
+            # print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], self.params.state_function)
             if self.status.switch_detected:
-                t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
-                t_interp, state_function = self.adapt_interpolation_info(
-                    L.time, L.sweep.coll.left_is_node, t_interp, state_function
+                self.params.t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
+                self.params.t_interp, self.params.state_function = self.adapt_interpolation_info(
+                    L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function
                 )
 
                 # when the state function is already close to zero the event is already resolved well
-                if abs(state_function[-1]) <= self.params.tol_zero or abs(state_function[0]) <= self.params.tol_zero:
-                    if abs(state_function[0]) <= self.params.tol_zero:
-                        t_switch = t_interp[0]
+                if abs(self.params.state_function[-1]) <= self.params.tol_zero or abs(self.params.state_function[0]) <= self.params.tol_zero:
+                    if abs(self.params.state_function[0]) <= self.params.tol_zero:
+                        t_switch = self.params.t_interp[0]
                         boundary = 'left'
-                    elif abs(state_function[-1]) <= self.params.tol_zero:
+                    elif abs(self.params.state_function[-1]) <= self.params.tol_zero:
                         boundary = 'right'
-                        t_switch = t_interp[-1]
+                        t_switch = self.params.t_interp[-1]
                     else:
                         # dangerous! in case of nonmoving state function after event, event time could be distorted! 
-                        t_switch = t_interp[0]
+                        t_switch = self.params.t_interp[0]
                         boundary = 'left'
-                    # print(t_interp, state_function)
+                    # print(self.params.t_interp, self.params.state_function)
                     self.log(f"Is already close enough to the {boundary} end point!", S)
                     # print(f"Is already close enough to the {boundary} end point!")
                     self.log_event_time(
@@ -122,8 +124,8 @@ class SwitchEstimator(ConvergenceController):
                     self.status.is_zero = True
 
                 # intermediate value theorem states that a root is contained in current step
-                if state_function[0] * state_function[-1] < 0 and self.status.is_zero is None:
-                    self.status.t_switch = self.get_switch(t_interp, state_function, m_guess, self.params.count)
+                if self.params.state_function[0] * self.params.state_function[-1] < 0 and self.status.is_zero is None:
+                    self.status.t_switch = self.get_switch(self.params.t_interp, self.params.state_function, m_guess, self.params.count)
                     self.params.count += 1
                     if L.time < self.status.t_switch < L.time + L.dt:
                         dt_switch = (self.status.t_switch - L.time) * self.params.alpha
@@ -305,7 +307,7 @@ class SwitchEstimator(ConvergenceController):
         t_switch = newton(t_interp[m_guess], p, fprime, newton_tol, newton_maxiter)
         
         # fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
-        # if t_interp[0] <= np.arccosh(50) <= t_interp[-1]:
+        # if self.params.t_interp[0] <= np.arccosh(50) <= self.params.t_interp[-1]:
         #     ax.axvline(
         #         x=np.arccosh(50),
         #         linestyle='--',
@@ -319,10 +321,10 @@ class SwitchEstimator(ConvergenceController):
         #     color='g',
         #     label='Founded event time',
         # )
-        # ax.plot(t_interp, state_function, 'o', label='h')
-        # ax.plot(t_interp, [p(t) for t in t_interp], label='p')
+        # ax.plot(self.params.t_interp, self.params.state_function, 'o', label='h')
+        # ax.plot(self.params.t_interp, [p(t) for t in self.params.t_interp], label='p')
         # ax.legend(loc='upper right')
-        # fig.savefig('data/interpolation/state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
+        # fig.savefig('data/interpolation/self.params.state_function_interp_{}.png'.format(count), dpi=300, bbox_inches='tight')
         # plt_helper.plt.close(fig)
 
         return t_switch
@@ -333,7 +335,7 @@ class SwitchEstimator(ConvergenceController):
         Adapts the x- and y-axis for interpolation. For SDC, it is proven whether the left boundary is a
         collocation node or not. In case it is, the first entry of the state function has to be removed,
         because it would otherwise contain double values on starting time and the first node. Otherwise,
-        starting time L.time has to be added to t_interp to also take this value in the interpolation
+        starting time L.time has to be added to self.params.t_interp to also take this value in the interpolation
         into account.
 
         Parameters
@@ -359,6 +361,7 @@ class SwitchEstimator(ConvergenceController):
             t_interp.insert(0, t)
         else:
             del state_function[0]
+        print(t_interp)
 
         return t_interp, state_function
 

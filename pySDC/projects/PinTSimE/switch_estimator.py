@@ -93,7 +93,7 @@ class SwitchEstimator(ConvergenceController):
         L = S.levels[0]
 
         if CheckConvergence.check_convergence(S):
-            self.status.switch_detected, m_guess, self.params.state_function = L.prob.get_switching_info(L.u, L.time)
+            self.status.switch_detected, m_guess, self.params.state_function = L.prob.get_switching_info(u=L.u, t=L.time, du=L.f)
             # print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], self.params.state_function)
             if self.status.switch_detected:
                 self.params.t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
@@ -161,8 +161,8 @@ class SwitchEstimator(ConvergenceController):
                     else:
                         # event occurs on L.time or L.time + L.dt; no restart necessary
                         boundary = 'left boundary' if self.status.t_switch == L.time else 'right boundary'
-                        # self.log(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}", S)
-                        print(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}")
+                        self.log(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}", S)
+                        # print(f"Estimated switch {self.status.t_switch:.15f} occurs at {boundary}")
                         self.log_event_time(
                             controller.hooks[0],
                             S.status.slot,
@@ -361,7 +361,6 @@ class SwitchEstimator(ConvergenceController):
             t_interp.insert(0, t)
         else:
             del state_function[0]
-        print(t_interp)
 
         return t_interp, state_function
 

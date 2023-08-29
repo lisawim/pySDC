@@ -79,7 +79,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 10  # 0.5
+    Tend = 1  # 0.5
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
@@ -146,8 +146,12 @@ def run():
 
 
 
+    # file_name_suffix = "line7_8_outage"
+    # file_name_suffix = "line6_8_outage"
+    # file_name_suffix = "line6_8_outage_with_psvmax"
+    file_name_suffix = "line6_8_outage_with_psvmax_SE"
     # file_name_suffix = "line7_8_outage_with_limiter"
-    file_name_suffix = "line7_8_outage_with_limiter_SE"
+    # file_name_suffix = "line7_8_outage_with_limiter_SE"
 
     fig3, ax3 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
     ax3.plot(t, V[:, 0], label='V0')
@@ -180,11 +184,11 @@ def run():
     fig5.savefig(f'data/Tm_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
 
     fig6, ax6 = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax6.plot(t, Efd[:, 0], label='Efd_gen0')
-    ax6.plot(t, Efd[:, 1], label='Efd_gen1')
-    ax6.plot(t, Efd[:, 2], label='Efd_gen2')
+    ax6.plot(t, PSV[:, 0], label='PSV_gen0')
+    ax6.plot(t, PSV[:, 1], label='PSV_gen1')
+    ax6.plot(t, PSV[:, 2], label='PSV_gen2')
     ax6.legend(loc='upper right', fontsize=10)
-    fig6.savefig(f'data/Efd_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
+    fig6.savefig(f'data/PSV_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
 
     print([v[1] for v in switches])
 

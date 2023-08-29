@@ -183,6 +183,7 @@ class IEEE9BusSystem(ptype_dae):
 
         # ---- excitation limiter vmax ----
         self.vmax = 2.1
+        self.psv_max = 1.0
 
         # self.Yabs = np.array([
         #     [17.361111111111111, 0, 0, 17.361111111111111, 0, 0, 0, 0, 0],
@@ -395,8 +396,8 @@ class IEEE9BusSystem(ptype_dae):
             # temp_mpc = self.mpc
             # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
             # self.YBus=get_YBus(temp_mpc)
-            self.YBus = self.YBus_line7_8_outage
-            # self.YBus = self.YBus_line6_8_outage
+            # self.YBus = self.YBus_line7_8_outage
+            self.YBus = self.YBus_line6_8_outage
         
         # --- manual limiter event for all generators ---
         # Efd = np.array([min(x, 2.0) for x in Efd])
@@ -507,31 +508,52 @@ class IEEE9BusSystem(ptype_dae):
         eqs.append((1.0 / self.Tq0pp) * (-Si2q - Edp - (self.Xqp - self.Xls) * Iq) - dSi2q)  # (4)
         eqs.append(w - COI - dDelta)  # (5)
         eqs.append((self.ws / (2.0 * self.H)) * (TM - ((self.Xdpp - self.Xls) / (self.Xdp - self.Xls)) * Eqp * Iq - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls)) * Si1d * Iq - ((self.Xqpp - self.Xls) / (self.Xqp - self.Xls)) * Edp * Id + ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls)) * Si2q * Id - (self.Xqpp - self.Xdpp) * Id * Iq - self.Dm * (w - self.ws)) - dw)  # (6)
-        # eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)  # (7)
+        eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)  # (7)
         # --- limiter event for gen1 ---
-        if(Efd[1]>= self.vmax or t >= t_switch):
-            Efd[1] = self.vmax
-            # if(dEfd[1] > 0 or t > t_switch):
-            _temp_dEfd0 = ((1.0 / self.TE[0]) * ((-(self.KE[0] + self.Ax[0] * np.exp(self.Bx[0] * Efd[0]))) * Efd[0] + VR[0]) - dEfd[0])
-            # #    _temp_dEfd1 = 0
-            dEfd[1] = 0
-            #    _temp_dEfd1 = ((1.0 / self.TE[1]) * ((-(self.KE[1] + self.Ax[1] * np.exp(self.Bx[1] * Efd[1]))) * Efd[1] + VR[1]) - dEfd[1])
-            _temp_dEfd2 = ((1.0 / self.TE[2]) * ((-(self.KE[2] + self.Ax[2] * np.exp(self.Bx[2] * Efd[2]))) * Efd[2] + VR[2]) - dEfd[2])
-            eqs.append(np.array([_temp_dEfd0, 0, _temp_dEfd2]))
-            # else:
-            #    eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
-        else:
-           eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
+        # if(Efd[1]>= self.vmax or t >= t_switch):
+        #     Efd[1] = self.vmax
+        #     # if(dEfd[1] > 0 or t > t_switch):
+        #     _temp_dEfd0 = ((1.0 / self.TE[0]) * ((-(self.KE[0] + self.Ax[0] * np.exp(self.Bx[0] * Efd[0]))) * Efd[0] + VR[0]) - dEfd[0])
+        #     # #    _temp_dEfd1 = 0
+        #     dEfd[1] = 0
+        #     #    _temp_dEfd1 = ((1.0 / self.TE[1]) * ((-(self.KE[1] + self.Ax[1] * np.exp(self.Bx[1] * Efd[1]))) * Efd[1] + VR[1]) - dEfd[1])
+        #     _temp_dEfd2 = ((1.0 / self.TE[2]) * ((-(self.KE[2] + self.Ax[2] * np.exp(self.Bx[2] * Efd[2]))) * Efd[2] + VR[2]) - dEfd[2])
+        #     eqs.append(np.array([_temp_dEfd0, 0, _temp_dEfd2]))
+        #     # else:
+        #     #    eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
+        # else:
+        #    eqs.append((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR) - dEfd)
         # --- limiter event for gen1 ---
-
-        # --- OXL limiter in Milano 2010 Book ---
-        # beta_p = self.Xq * self.PG
-
 
         eqs.append((1.0 / self.TF) * (-RF + (self.KF / self.TF) * Efd) - dRF)  # (8)
         eqs.append((1.0 / self.TA) * (-VR + self.KA * RF - ((self.KA * self.KF) / self.TF) * Efd + self.KA * (self.Vref - V[:self.m])) - dVR)  # (9)
+        # eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)  # (11)
+        # --- Limitation of valve position Psv start---
+        # if(PSV[0] >= self.psv_max):
+        #     PSV[0] = self.psv_max            
+        #     _temp_dPSV_g0 = 0
+        #     dPSV[0] = 0
+        #     _temp_dPSV_g1 = (1.0 / self.TSV[0]) * (-PSV[0] + self.PSV0[0] - (1.0 / self.RD[0]) * (w[0] / self.ws - 1)) - dPSV[0]
+        #     _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (-PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)) - dPSV[1]
+        #     _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (-PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)) - dPSV[2]
+        #     eqs.append(np.array([0, _temp_dPSV_g1, _temp_dPSV_g2]))
+        # else:
+        #     eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
+        # --- Limitation of valve position Psv end---
+        # --- Limitation of valve position Psv with limiter start ---
+        if(PSV[0] >= self.psv_max or t >= t_switch):
+            PSV[0] = self.psv_max            
+            _temp_dPSV_g0 = 0
+            dPSV[0] = 0
+            _temp_dPSV_g1 = (1.0 / self.TSV[0]) * (-PSV[0] + self.PSV0[0] - (1.0 / self.RD[0]) * (w[0] / self.ws - 1)) - dPSV[0]
+            _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (-PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)) - dPSV[1]
+            _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (-PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)) - dPSV[2]
+            eqs.append(np.array([0, _temp_dPSV_g1, _temp_dPSV_g2]))
+        else:
+            eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
+        # --- Limitation of valve position Psv with limiter end---
+
         eqs.append((1.0 / self.TCH) * (-TM + PSV) - dTM)  # (10)
-        eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)  # (11)
         eqs.append(self.Rs * Id - self.Xqpp * Iq - ((self.Xqpp - self.Xls) / (self.Xqp - self.Xls)) * Edp + ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls)) * Si2q + VG * np.sin(Angle_diff))  # (12)
         eqs.append(self.Rs * Iq + self.Xdpp * Id - ((self.Xdpp - self.Xls) / (self.Xdp - self.Xls)) * Eqp - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls)) * Si1d + VG * np.cos(Angle_diff))  # (13)
         eqs.append((Id * VG.T * np.sin(Angle_diff) + Iq * VG.T * np.cos(Angle_diff)) - PL2[0:self.m] - sum1)  # (14)
@@ -574,36 +596,36 @@ class IEEE9BusSystem(ptype_dae):
         m_guess = -100
 
         for m in range(1, len(u)):
-            h_prev_node = u[m - 1][6*self.m+1] - self.vmax
-            h_curr_node = u[m][6*self.m+1] - self.vmax
-            h2_prev_node = du[m - 1][6*self.m+1]
-            h2_curr_node = du[m][6*self.m+1]
+            h_prev_node = u[m - 1][10*self.m + 0] - self.psv_max
+            h_curr_node = u[m][10*self.m + 0] - self.psv_max
+            # h2_prev_node = du[m - 1][10*self.m + 0]
+            # h2_curr_node = du[m][10*self.m + 0]
             if h_prev_node < 0 and h_curr_node >= 0 and not already_detected:
-                print('If')
+                # print('If')
                 switch_detected = True
                 m_guess = m - 1
-                state_function = [u[m][6*self.m+1] - self.vmax for m in range(len(u))]
+                state_function = [u[m][10*self.m + 0] - self.psv_max for m in range(len(u))]
                 already_detected = True
                 break
             # elif h2_prev_node > 0 and h2_curr_node <= 0 and not already_detected:
             #     print('elif')
             #     switch_detected = True
             #     m_guess = m - 1
-            #     state_function = [du[m][6*self.m+1] for m in range(len(du))]
+            #     state_function = [du[m][10*self.m + 0] for m in range(len(du))]
             #     already_detected = True
             #     break
             # elif h2_prev_node >= 0 and h2_curr_node < 0 and not already_detected:
             #     print('elif2')
             #     switch_detected = True
             #     m_guess = m - 1
-            #     state_function = [du[m][6*self.m+1] for m in range(len(du))]
+            #     state_function = [du[m][10*self.m + 0] for m in range(len(du))]
             #     already_detected = True
             #     break
             else:
-                print('else')
+                # print('else')
                 # set first state function in the beginning, have to think about how to deal with wether it is
                 # already close to zero or not
-                state_function = [u[m][6*self.m+1] - self.vmax for m in range(len(u))]
+                state_function = [u[m][10*self.m + 0] - self.psv_max for m in range(len(u))]
         print(state_function)
         return switch_detected, m_guess, state_function
 

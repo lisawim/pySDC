@@ -32,6 +32,9 @@ class WorkCounter(object):
         # *args and **kwargs are necessary for gmres
         self.niter += 1
 
+    def decrement(self):
+        self.niter -= 1
+
 
 class ptype(RegisterParams):
     """
@@ -110,13 +113,13 @@ class ptype(RegisterParams):
             t_init (float): the starting time
 
         Returns:
-            numpy.ndarray: exact solution
+            numpy.ndarray: Reference solution
         """
         import numpy as np
         from scipy.integrate import solve_ivp
 
         tol = 100 * np.finfo(float).eps
-        u_init = self.u_exact(t=0) if u_init is None else u_init
+        u_init = self.u_exact(t=0) if u_init is None else u_init * 1.0
         t_init = 0 if t_init is None else t_init
 
         u_shape = u_init.shape

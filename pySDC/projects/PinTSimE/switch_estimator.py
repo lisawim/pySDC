@@ -5,8 +5,6 @@ from pySDC.core.Collocation import CollBase
 from pySDC.core.ConvergenceController import ConvergenceController, Status
 from pySDC.implementations.convergence_controller_classes.check_convergence import CheckConvergence
 
-import pySDC.helpers.plot_helper as plt_helper
-
 
 class SwitchEstimator(ConvergenceController):
     """
@@ -268,7 +266,7 @@ class SwitchEstimator(ConvergenceController):
         """
 
         LagrangeInterpolator = LagrangeInterpolation(t_interp, state_function)
-     
+
         def p(t):
             """
             Simplifies the call of the interpolant.
@@ -302,10 +300,10 @@ class SwitchEstimator(ConvergenceController):
             dt_FD = 1e-10
             dp = (p(t + dt_FD) - p(t)) / dt_FD  # forward difference
             return dp
-        
+
         newton_tol, newton_maxiter = 1e-15, 100
         t_switch = newton(t_interp[m_guess], p, fprime, newton_tol, newton_maxiter)
-        
+
         # fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
         # if self.params.t_interp[0] <= np.arccosh(50) <= self.params.t_interp[-1]:
         #     ax.axvline(
@@ -335,7 +333,7 @@ class SwitchEstimator(ConvergenceController):
         Adapts the x- and y-axis for interpolation. For SDC, it is proven whether the left boundary is a
         collocation node or not. In case it is, the first entry of the state function has to be removed,
         because it would otherwise contain double values on starting time and the first node. Otherwise,
-        starting time L.time has to be added to self.params.t_interp to also take this value in the interpolation
+        starting time L.time has to be added to t_interp to also take this value in the interpolation
         into account.
 
         Parameters
@@ -410,18 +408,18 @@ class LagrangeInterpolation(object):
         self.ti = np.asarray(ti)
         self.yi = np.asarray(yi)
         self.n = len(ti)
-        
+
     def get_Lagrange_polynomial(self, t, i):
         """
         Computes the basis of the i-th Lagrange polynomial.
-        
+
         Parameters
         ----------
         t : float
             Time where the polynomial is computed at.
         i : int
             Index of the Lagrange polynomial
-            
+
         Returns
         -------
         product : float
@@ -429,16 +427,16 @@ class LagrangeInterpolation(object):
         """
         product = np.prod([(t - self.ti[k]) / (self.ti[i] - self.ti[k]) for k in range(self.n) if k != i])
         return product
-        
+
     def eval(self, t):
         """
         Evaluates the Lagrange interpolation at time t.
-        
+
         Parameters
         ----------
         t : float
             Time where interpolation is computed.
-            
+
         Returns
         -------
         p : float

@@ -8,6 +8,7 @@ from pySDC.implementations.controller_classes.controller_nonMPI import controlle
 from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
 from pySDC.implementations.convergence_controller_classes.hotrod import HotRod
 from pySDC.projects.Resilience.hook import LogData, hook_collection
+from pySDC.projects.Resilience.strategies import merge_descriptions
 
 
 def run_piline(
@@ -17,7 +18,6 @@ def run_piline(
     hook_class=LogData,
     fault_stuff=None,
     custom_controller_params=None,
-    custom_problem_params=None,
 ):
     """
     Run a Piline problem with default parameters.
@@ -29,7 +29,6 @@ def run_piline(
         hook_class (pySDC.Hook): A hook to store data
         fault_stuff (dict): A dictionary with information on how to add faults
         custom_controller_params (dict): Overwrite presets
-        custom_problem_params (dict): Overwrite presets
 
     Returns:
         dict: The stats object
@@ -58,9 +57,6 @@ def run_piline(
         'Rl': 5.0,
     }
 
-    if custom_problem_params is not None:
-        problem_params = {**problem_params, **custom_problem_params}
-
     # initialize step parameters
     step_params = dict()
     step_params['maxiter'] = 4
@@ -84,11 +80,7 @@ def run_piline(
     description['step_params'] = step_params
 
     if custom_description is not None:
-        for k in custom_description.keys():
-            if k == 'sweeper_class':
-                description[k] = custom_description[k]
-                continue
-            description[k] = {**description.get(k, {}), **custom_description.get(k, {})}
+        description = merge_descriptions(description, custom_description)
 
     # set time parameters
     t0 = 0.0
@@ -242,15 +234,15 @@ def check_solution(data, use_adaptivity, num_procs, generate_reference=False):
     elif use_adaptivity and num_procs == 4:
         error_msg = 'Error when using adaptivity in parallel:'
         expected = {
-            'v1': 83.88400082289273,
-            'v2': 80.62656229801286,
-            'p3': 16.134850400599763,
-            'e_em': 2.3681899108396465e-08,
-            'e_ex': 3.6491178375304526e-08,
-            'dt': 0.08265581329617167,
-            'restarts': 36.0,
-            'sweeps': 2528.0,
-            't': 19.999999999999996,
+            'v1': 83.88320903115796,
+            'v2': 80.6269822629629,
+            'p3': 16.136084724243805,
+            'e_em': 4.0668446388281154e-09,
+            'e_ex': 4.901094641240463e-09,
+            'dt': 0.05,
+            'restarts': 48.0,
+            'sweeps': 2592.0,
+            't': 20.041499821475185,
         }
 
     elif not use_adaptivity and num_procs == 4:
@@ -352,6 +344,7 @@ def main():
         if use_adaptivity:
             custom_description['convergence_controllers'][Adaptivity] = {
                 'e_tol': 1e-7,
+                'embedded_error_flavor': 'linearized',
             }
 
         for num_procs in [1, 4]:

@@ -98,7 +98,7 @@ class IEEE9BusSystem(ptype_dae):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, nvars, newton_tol):
+    def __init__(self, nvars=None, newton_tol=1e-10):
         """Initialization routine"""
 
         m, n = 3, 9  # m is number of machines (adjust this according to your specific case)
@@ -371,6 +371,8 @@ class IEEE9BusSystem(ptype_dae):
         VR, TM, PSV = u[8*self.m:9*self.m], u[9*self.m:10*self.m], u[10*self.m:11*self.m]
 
         Id, Iq = u[11*self.m:11*self.m + self.m], u[11*self.m + self.m:11*self.m + 2*self.m]
+        V = u[11*self.m + 2*self.m : 11*self.m + 2*self.m + self.n]
+        TH = u[11*self.m + 2*self.m + self.n:11*self.m + 2*self.m + 2 *self.n]
 
         # V = []
         # TH = []
@@ -392,7 +394,7 @@ class IEEE9BusSystem(ptype_dae):
 
 
         # line outage disturbance: 
-        if t >= 0.1:
+        if t >= 0.05:
             # temp_mpc = self.mpc
             # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
             # self.YBus=get_YBus(temp_mpc)
@@ -404,9 +406,6 @@ class IEEE9BusSystem(ptype_dae):
 
 
         # self.YBus = get_YBus(self.mpc)
-
-        V = u[11*self.m + 2*self.m : 11*self.m + 2*self.m + self.n]
-        TH = u[11*self.m + 2*self.m + self.n:11*self.m + 2*self.m + 2 *self.n]
 
         # fault disturbance ver.2, bus5: 
         # if t < 0.2 and t >= 0.1:
@@ -542,13 +541,14 @@ class IEEE9BusSystem(ptype_dae):
         # --- Limitation of valve position Psv end---
         # --- Limitation of valve position Psv with limiter start ---
         if(PSV[0] >= self.psv_max or t >= t_switch):
-            PSV[0] = self.psv_max            
+            # PSV[0] = self.psv_max            
             _temp_dPSV_g0 = 0
-            dPSV[0] = 0
-            _temp_dPSV_g1 = (1.0 / self.TSV[0]) * (-PSV[0] + self.PSV0[0] - (1.0 / self.RD[0]) * (w[0] / self.ws - 1)) - dPSV[0]
+            # dPSV[0] = 0
+            _temp_dPSV_g0 = (1.0 / self.TSV[0]) * (-PSV[0] + self.PSV0[0] - (1.0 / self.RD[0]) * (w[0] / self.ws - 1)) - dPSV[0]
             _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (-PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)) - dPSV[1]
             _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (-PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)) - dPSV[2]
-            eqs.append(np.array([0, _temp_dPSV_g1, _temp_dPSV_g2]))
+            # eqs.append(np.array([0, _temp_dPSV_g1, _temp_dPSV_g2]))
+            eqs.append(np.array([dPSV[0], _temp_dPSV_g1, _temp_dPSV_g2]))
         else:
             eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
         # --- Limitation of valve position Psv with limiter end---
@@ -568,6 +568,25 @@ class IEEE9BusSystem(ptype_dae):
         # f[6*self.m:7*self.m][indices_to_change] = dEfd[indices_to_change]
 
         return f
+    
+    # def u_set_new_init(self, t0, Eqp, Si1d, Edp, Si2q, D, ws, Efd, RF, VR, TM, PSV, Id, Iq, V, TH):
+    #     me = self.dtype_u(self.init)
+    #     me[0:self.m] = Eqp
+    #     me[self.m:2 * self.m] = Si1d
+    #     me[2 * self.m:3 * self.m] = Edp
+    #     me[3 * self.m:4 * self.m] = Si2q
+    #     me[4 * self.m:5 * self.m] = D
+    #     me[5 * self.m:6 * self.m] = ws
+    #     me[6 * self.m:7 * self.m] = Efd
+    #     me[7 * self.m:8 * self.m] = RF
+    #     me[8 * self.m:9 * self.m] = VR
+    #     me[9 * self.m:10 * self.m] = TM
+    #     me[10 * self.m:11 * self.m] = PSV
+    #     me[11*self.m:11*self.m + self.m] = Id
+    #     me[11*self.m + self.m:11*self.m + 2*self.m] = Iq
+    #     me[11*self.m + 2*self.m:11*self.m + 2*self.m + self.n] = V
+    #     me[11*self.m + 2*self.m + self.n:11*self.m + 2*self.m + 2 *self.n] = TH
+    #     return me
     
     def u_exact(self, t):
         assert t == 0, 'ERROR: u_exact only valid for t=0'
@@ -628,11 +647,6 @@ class IEEE9BusSystem(ptype_dae):
                 state_function = [u[m][10*self.m + 0] - self.psv_max for m in range(len(u))]
         print(state_function)
         return switch_detected, m_guess, state_function
-
-            
-        
-            
-
     
     def count_switches(self):
         self.nswitches +=1

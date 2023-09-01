@@ -18,7 +18,7 @@ from pySDC.implementations.hooks.log_step_size import LogStepSize
 from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedErrorEstimate
 
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
-from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
+from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity, AdaptivityRK
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
 
 
@@ -51,6 +51,8 @@ def generate_description(
     problem,
     sweeper,
     num_nodes,
+    quad_type,
+    QI,
     hook_class,
     use_adaptivity,
     use_switch_estimator,
@@ -59,6 +61,7 @@ def generate_description(
     maxiter,
     max_restarts=None,
     tol_event=1e-10,
+    alpha=1.0,
 ):
     """
     Generate a description for the battery models for a controller run.
@@ -109,9 +112,9 @@ def generate_description(
 
     # initialize sweeper parameters
     sweeper_params = dict()
-    sweeper_params['quad_type'] = 'LOBATTO'
+    sweeper_params['quad_type'] = quad_type
     sweeper_params['num_nodes'] = num_nodes
-    sweeper_params['QI'] = 'IE'
+    sweeper_params['QI'] = QI
     sweeper_params['initial_guess'] = 'spread'
 
     # initialize step parameters
@@ -120,7 +123,7 @@ def generate_description(
 
     # initialize controller parameters
     controller_params = dict()
-    controller_params['logger_level'] = 30
+    controller_params['logger_level'] = 20
     controller_params['hook_class'] = hook_class
     controller_params['mssdc_jac'] = False
 
@@ -129,6 +132,7 @@ def generate_description(
     if use_switch_estimator:
         switch_estimator_params = {}
         switch_estimator_params['tol'] = tol_event
+        switch_estimator_params['alpha'] = alpha
         convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 
     if use_adaptivity:

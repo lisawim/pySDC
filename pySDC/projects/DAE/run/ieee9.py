@@ -92,9 +92,10 @@ def main():
     alphas = [1.0]  # [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]  # [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     t0 = 0.0
-    Tend = 0.7
+    Tend = 2
 
-    dt_list = [1e-3]  # [1 / (2 ** m) for m in range(4, 11)]
+    # dt_list = [1e-3]  # [1 / (2 ** m) for m in range(4, 11)]
+    dt_list = [1e-2]  # [1 / (2 ** m) for m in range(4, 11)]
 
     res_norm_against_newton_tol = dict()
     res_norm_against_newton_tol_M = dict()

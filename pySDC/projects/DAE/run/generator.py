@@ -79,7 +79,7 @@ def run():
 
     # set time parameters
     t0 = 0.0
-    Tend = 1  # 0.5
+    Tend = 0.7  # 0.5
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
@@ -147,9 +147,9 @@ def run():
 
 
     # file_name_suffix = "line7_8_outage"
-    # file_name_suffix = "line6_8_outage"
+    file_name_suffix = "line6_8_outage"
     # file_name_suffix = "line6_8_outage_with_psvmax"
-    file_name_suffix = "line6_8_outage_with_psvmax_SE"
+    # file_name_suffix = "line6_8_outage_with_psvmax_SE"
     # file_name_suffix = "line7_8_outage_with_limiter"
     # file_name_suffix = "line7_8_outage_with_limiter_SE"
 

@@ -81,10 +81,12 @@ def main():
 
     sweeper = fully_implicit_DAE
     nnodes = [2, 3, 4, 5]
+    # nnodes = [5]
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
-    maxiter = [60]  # [1, 2, 3, 4, 5, 6, 7]
-    newton_tolerances = [1e-5]  # [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12]
+    maxiter = [50]  # [1, 2, 3, 4, 5, 6, 7]
+    # newton_tolerances = [1e-5]  # [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12]
+    newton_tolerances = [1e-10]  # [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12]
 
     use_detection = [False]  # [False]
     max_restarts = 400
@@ -92,7 +94,7 @@ def main():
     alphas = [1.0]  # [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]  # [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     t0 = 0.0
-    Tend = 2
+    Tend = 1
 
     # dt_list = [1e-3]  # [1 / (2 ** m) for m in range(4, 11)]
     dt_list = [1e-2]  # [1 / (2 ** m) for m in range(4, 11)]
@@ -114,7 +116,7 @@ def main():
                                 problem_params = dict()
                                 problem_params['newton_tol'] = newton_tol
 
-                                restol = 2e-13
+                                restol = 5e-13
                                 recomputed = False if use_SE else None
 
                                 N_dt = int((Tend - t0) / dt)  # !!!

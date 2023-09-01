@@ -429,7 +429,7 @@ class IEEE9BusSystem(ptype_dae):
 
 
         # line outage disturbance: 
-        if t >= 1:
+        if t >= 0.1:
             # temp_mpc = self.mpc
             # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
             # self.YBus=get_YBus(temp_mpc)

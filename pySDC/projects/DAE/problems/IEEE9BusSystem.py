@@ -82,6 +82,40 @@ def IEEE9Bus():
     return ppc_res
 
 
+def get_initial_Ybus():
+        ybus = np.array([
+        [0-17.36111111111111j,0+0j,0+0j,0+17.36111111111111j,0+0j,0+0j,0+0j,0+0j,0+0j],
+        [0+0j,0-16j,0+0j,0+0j,0+0j,0+0j,0+0j,0+16j,0+0j],
+        [0+0j,0+0j,0-17.06484641638225j,0+0j,0+0j,0+17.06484641638225j,0+0j,0+0j,0+0j],
+        [0+17.36111111111111j,0+0j,0+0j,3.307378962025306-39.30888872611897j,-1.942191248714727+10.51068205186793j,0+0j,0+0j,0+0j,-1.36518771331058+11.60409556313993j],
+        [0+0j,0+0j,0+0j,-1.942191248714727+10.51068205186793j,3.224200387138842-15.84092701422946j,-1.282009138424115+5.588244962361526j,0+0j,0+0j,0+0j],
+        [0+0j,0+0j,0+17.06484641638225j,0+0j,-1.282009138424115+5.588244962361526j,2.437096619314212-32.15386180510696j,-1.155087480890097+9.784270426363173j,0+0j,0+0j],
+        [0+0j,0+0j,0+0j,0+0j,0+0j,-1.155087480890097+9.784270426363173j,2.772209954136233-23.30324902327162j,-1.617122473246136+13.69797859690844j,0+0j],
+        [0+0j,0+16j,0+0j,0+0j,0+0j,0+0j,-1.617122473246136+13.69797859690844j,2.804726852537284-35.44561313021703j,-1.187604379291148+5.975134533308591j],
+        [0+0j,0+0j,0+0j,-1.36518771331058+11.60409556313993j,0+0j,0+0j,0+0j,-1.187604379291148+5.975134533308591j,2.552792092601728-17.33823009644852j],
+    ], dtype=complex)
+
+        return ybus
+
+def get_event_Ybus():
+        ybus = np.array([
+        [0-17.36111111111111j,0+0j,0+0j,0+17.36111111111111j,0+0j,0+0j,0+0j,0+0j,0+0j],
+        [0+0j,0+0j,0+0j,0+0j,0+0j,0+0j,0+0j,0+0j,0+0j],
+        [0+0j,0+0j,0-17.06484641638225j,0+0j,0+0j,0+0j,0+0j,0+0j,0+17.06484641638225j],
+        [0+17.36111111111111j,0+0j,0+0j,3.307378962025306-39.30888872611897j,-1.36518771331058+11.60409556313993j,-1.942191248714727+10.51068205186793j,0+0j,0+0j,0+0j],
+        [0+0j,0+0j,0+0j,-1.36518771331058+11.60409556313993j,2.552792092601728-17.33823009644852j,0+0j,-1.187604379291148+5.975134533308591j,0+0j,0+0j],
+        [0+0j,0+0j,0+0j,-1.942191248714727+10.51068205186793j,0+0j,3.224200387138842-15.84092701422946j,0+0j,0+0j,-1.282009138424115+5.588244962361526j],
+        [0+0j,0+0j,0+0j,0+0j,-1.187604379291148+5.975134533308591j,0+0j,2.804726852537284-19.44561313021703j,-1.617122473246136+13.69797859690844j,0+0j],
+        [0+0j,0+0j,0+0j,0+0j,0+0j,0+0j,-1.617122473246136+13.69797859690844j,2.772209954136233-23.30324902327162j,-1.155087480890097+9.784270426363173j],
+        [0+0j,0+0j,0+17.06484641638225j,0+0j,0+0j,-1.282009138424115+5.588244962361526j,0+0j,-1.155087480890097+9.784270426363173j,2.437096619314212-32.15386180510696j],
+    ], dtype=complex)
+
+        return ybus
+
+
+
+
+
 def get_YBus(ppc):
 
     ppci = ext2int(ppc)
@@ -157,8 +191,8 @@ class IEEE9BusSystem(ptype_dae):
         self.bus = self.mpc['bus']
         self.branch = self.mpc['branch']
         self.gen = self.mpc['gen']
-        self.YBus = self.mpc['Ybus']  # get_YBus(0.0)
-
+        # self.YBus = self.mpc['Ybus']  # get_YBus(0.0)
+        self.YBus = get_initial_Ybus()
         # ---- line outage disturbance ----
         # temp_mpc = self.mpc
         # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
@@ -166,7 +200,8 @@ class IEEE9BusSystem(ptype_dae):
 
         temp_mpc = self.mpc
         temp_mpc['branch'] = np.delete(temp_mpc['branch'],6,0)
-        self.YBus_line6_8_outage = get_YBus(temp_mpc)
+        # self.YBus_line6_8_outage = get_YBus(temp_mpc)
+        self.YBus_line6_8_outage = get_event_Ybus()
 
 
         # ---- bus fault disturbance ----
@@ -313,7 +348,7 @@ class IEEE9BusSystem(ptype_dae):
         self.TM0 = ((self.Xdpp - self.Xls) / (self.Xdp - self.Xls)) * self.Eqp0 * self.Iq0 + ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls)) * self.Si1d0 * self.Iq0 + \
             ((self.Xqpp - self.Xls) / (self.Xqp - self.Xls)) * self.Edp0 * self.Id0 - ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls)) * self.Si2q0 * self.Id0 + \
             (self.Xqpp - self.Xdpp) * self.Id0 * self.Iq0
-        
+
         # Calculate VR0 and RF0
         self.VR0 = (self.KE + self.Ax * np.exp(self.Bx * self.Efd0)) * self.Efd0
         self.RF0 = (self.KF / self.TF) * self.Efd0
@@ -388,19 +423,19 @@ class IEEE9BusSystem(ptype_dae):
         # #     self.YBus=get_YBus(self.mpc)
         #     self.YBus = self.mpc['Ybus']
 
-        # Load step disturbance: 
+        # Load step disturbance:
         # if  t >= 0.1:
         #     self.YBus = self.YBus_bus4_LoadStep
 
 
-        # line outage disturbance: 
-        if t >= 0.0:  # 0.05:
+        # line outage disturbance:
+        if t >= 0.1:
             # temp_mpc = self.mpc
             # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
             # self.YBus=get_YBus(temp_mpc)
             # self.YBus = self.YBus_line7_8_outage
             self.YBus = self.YBus_line6_8_outage
-        
+
         # --- manual limiter event for all generators ---
         # Efd = np.array([min(x, 2.0) for x in Efd])
 
@@ -442,14 +477,14 @@ class IEEE9BusSystem(ptype_dae):
         #     TM[0] = self.TM0[0] * 0.7
         # else:
         #     TM[0] = self.TM0[0]
-            
+
 
         # if(w==0.95):
         #     t1 = #...
         # if w <= 0.95:
         #     # do something
         # else:
-            # else    
+            # else
         # if t < 0.2 and t >= 0.1:
         #     PL2[3] = 1000.0
             # QL2[3] = 500.0
@@ -529,7 +564,7 @@ class IEEE9BusSystem(ptype_dae):
         # eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)  # (11)
         # --- Limitation of valve position Psv start---
         # if(PSV[0] >= self.psv_max):
-        #     PSV[0] = self.psv_max            
+        #     PSV[0] = self.psv_max
         #     _temp_dPSV_g0 = 0
         #     dPSV[0] = 0
         #     _temp_dPSV_g1 = (1.0 / self.TSV[0]) * (-PSV[0] + self.PSV0[0] - (1.0 / self.RD[0]) * (w[0] / self.ws - 1)) - dPSV[0]
@@ -541,7 +576,7 @@ class IEEE9BusSystem(ptype_dae):
         # --- Limitation of valve position Psv end---
         # --- Limitation of valve position Psv with limiter start ---
         if(PSV[0] >= self.psv_max or t >= t_switch):
-            # PSV[0] = self.psv_max            
+            # PSV[0] = self.psv_max
             _temp_dPSV_g0 = 0
             # dPSV[0] = 0
             _temp_dPSV_g0 = (1.0 / self.TSV[0]) * (-PSV[0] + self.PSV0[0] - (1.0 / self.RD[0]) * (w[0] / self.ws - 1)) - dPSV[0]
@@ -568,7 +603,7 @@ class IEEE9BusSystem(ptype_dae):
         # f[6*self.m:7*self.m][indices_to_change] = dEfd[indices_to_change]
 
         return f
-    
+
     # def u_set_new_init(self, t0, Eqp, Si1d, Edp, Si2q, D, ws, Efd, RF, VR, TM, PSV, Id, Iq, V, TH):
     #     me = self.dtype_u(self.init)
     #     me[0:self.m] = Eqp
@@ -587,7 +622,7 @@ class IEEE9BusSystem(ptype_dae):
     #     me[11*self.m + 2*self.m:11*self.m + 2*self.m + self.n] = V
     #     me[11*self.m + 2*self.m + self.n:11*self.m + 2*self.m + 2 *self.n] = TH
     #     return me
-    
+
     def u_exact(self, t):
         assert t == 0, 'ERROR: u_exact only valid for t=0'
 
@@ -608,7 +643,7 @@ class IEEE9BusSystem(ptype_dae):
         me[11*self.m + 2*self.m:11*self.m + 2*self.m + self.n] = self.V0
         me[11*self.m + 2*self.m + self.n:11*self.m + 2*self.m + 2 *self.n] = self.TH0
         return me
-    
+
     def get_switching_info(self, u, t, du=None):
         switch_detected = False
         already_detected = False
@@ -647,6 +682,6 @@ class IEEE9BusSystem(ptype_dae):
                 state_function = [u[m][10*self.m + 0] - self.psv_max for m in range(len(u))]
         print(state_function)
         return switch_detected, m_guess, state_function
-    
+
     def count_switches(self):
         self.nswitches +=1

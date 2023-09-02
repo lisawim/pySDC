@@ -160,9 +160,9 @@ class IEEE9BusSystem(ptype_dae):
         self.YBus = self.mpc['Ybus']  # get_YBus(0.0)
 
         # ---- line outage disturbance ----
-        temp_mpc = self.mpc
-        temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
-        self.YBus_line7_8_outage = get_YBus(temp_mpc)
+        # temp_mpc = self.mpc
+        # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
+        # self.YBus_line7_8_outage = get_YBus(temp_mpc)
 
         temp_mpc = self.mpc
         temp_mpc['branch'] = np.delete(temp_mpc['branch'],6,0)
@@ -170,15 +170,15 @@ class IEEE9BusSystem(ptype_dae):
 
 
         # ---- bus fault disturbance ----
-        temp_mpc = self.mpc
-        temp_mpc['bus'][4][5]=-150
-        self.YBus_bus5_Xfault = get_YBus(temp_mpc)
+        # temp_mpc = self.mpc
+        # temp_mpc['bus'][4][5]=-150
+        # self.YBus_bus5_Xfault = get_YBus(temp_mpc)
 
 
         # ---- load step disturbance ----
-        temp_mpc = self.mpc
-        temp_mpc['bus'][3][4]= 30
-        self.YBus_bus4_LoadStep = get_YBus(temp_mpc)
+        # temp_mpc = self.mpc
+        # temp_mpc['bus'][3][4]= 30
+        # self.YBus_bus4_LoadStep = get_YBus(temp_mpc)
 
 
         # ---- excitation limiter vmax ----
@@ -394,7 +394,7 @@ class IEEE9BusSystem(ptype_dae):
 
 
         # line outage disturbance: 
-        if t >= 0.05:
+        if t >= 0.0:  # 0.05:
             # temp_mpc = self.mpc
             # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
             # self.YBus=get_YBus(temp_mpc)

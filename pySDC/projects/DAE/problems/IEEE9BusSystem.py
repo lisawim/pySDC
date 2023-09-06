@@ -429,7 +429,7 @@ class IEEE9BusSystem(ptype_dae):
 
 
         # line outage disturbance:
-        if t >= 0.1:
+        if t >= 0.05: # 0.1:
             # temp_mpc = self.mpc
             # temp_mpc['branch'] = np.delete(temp_mpc['branch'],5,0)
             # self.YBus=get_YBus(temp_mpc)
@@ -588,6 +588,9 @@ class IEEE9BusSystem(ptype_dae):
             eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
         # --- Limitation of valve position Psv with limiter end---
 
+        # if t >= 0.58:
+            # print(t, PSV[0] - self.psv_max)
+
         eqs.append((1.0 / self.TCH) * (-TM + PSV) - dTM)  # (10)
         eqs.append(self.Rs * Id - self.Xqpp * Iq - ((self.Xqpp - self.Xls) / (self.Xqp - self.Xls)) * Edp + ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls)) * Si2q + VG * np.sin(Angle_diff))  # (12)
         eqs.append(self.Rs * Iq + self.Xdpp * Id - ((self.Xdpp - self.Xls) / (self.Xdp - self.Xls)) * Eqp - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls)) * Si1d + VG * np.cos(Angle_diff))  # (13)
@@ -680,7 +683,7 @@ class IEEE9BusSystem(ptype_dae):
                 # set first state function in the beginning, have to think about how to deal with wether it is
                 # already close to zero or not
                 state_function = [u[m][10*self.m + 0] - self.psv_max for m in range(len(u))]
-        print(state_function)
+        # print(state_function)
         return switch_detected, m_guess, state_function
 
     def count_switches(self):

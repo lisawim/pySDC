@@ -39,7 +39,7 @@ class LogEvent(hooks):
             iter=0,
             sweep=L.status.sweep,
             type='state_function',
-            value=L.uend[P.m] - P.psv_max,
+            value=L.uend[10 * P.m] - P.psv_max,
         )
 
 class LogWork(hooks):
@@ -80,27 +80,30 @@ def main():
     problem_class = IEEE9BusSystem
 
     sweeper = fully_implicit_DAE
-    nnodes = [2] # [2, 3, 4, 5]
+    nnodes = [2]  # [2, 3, 4, 5]
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
     maxiter = [50]  # [1, 2, 3, 4, 5, 6, 7]
-    # newton_tolerances = [1e-5]  # [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12]
     newton_tolerances = [1e-10]  # [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12]
 
-    use_detection = [False]  # [False]
+    use_detection = [True]  # [False]
     max_restarts = 400
     tolerances_event = [1e-10]  # [1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-13]
-    alphas = [1.0]  # [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]  # [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    alphas = [0.95]  # [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]  # [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     t0 = 0.0
-    Tend = 1.4  # 0.7
+    Tend = 0.7
 
-    dt_list = [1e-2]  # [1 / (2 ** m) for m in range(4, 11)]
+    dt_list = [1e-3]  # [1 / (2 ** m) for m in range(4, 11)]
 
     res_norm_against_newton_tol = dict()
     res_norm_against_newton_tol_M = dict()
 
     res_time = dict()
+    h_time = dict()
+
+    tol_SE_against_residual = dict()
+    tol_SE_against_residual_M = dict()
 
     for iter in maxiter:
         for num_nodes in nnodes:
@@ -115,7 +118,7 @@ def main():
                                 problem_params['newton_tol'] = newton_tol
 
                                 restol = 5e-13
-                                recomputed = False if use_SE else None
+                                recomputed = False # if use_SE else None
 
                                 N_dt = int((Tend - t0) / dt)  # !!!
 
@@ -150,6 +153,7 @@ def main():
                                     if nfev[m] != 0:
                                         N_dt += 1
                                 nfev_mean = round(sum(nfev) / N_dt)
+                                print('Mean number of function evals in hybr: %4.0f' % nfev_mean)
 
                                 # ---- residual after time step ----
                                 residual_post_step = get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed)
@@ -158,24 +162,63 @@ def main():
 
                                 res_time[num_nodes] = residual_post_step
 
-                                # ---- number of iterations ----
+                                # ---- mean number of iterations ----
                                 iter_counts = get_sorted(stats, type='niter', sortby='time')
                                 for item in iter_counts:
                                     out = 'Number of iterations at time %4.2f: %2i' % item
-                                    print(out)
+                                    # print(out)
+                                mean_niters = np.mean([item[1] for item in iter_counts])
+                                print('Mean number of iterations: %4.0f' % mean_niters)
+                                print('No recomputation:')
+                                for item in get_sorted(stats, type='state_function', sortby='time'):
+                                    print('Time %4.4f: %4.20f' % item)
+                                # ---- state function ----
+                                h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
+                                # for item in h_val: 
+                                    # print('State function at time %4.4f is %4.12f'  % (item[0], item[1]))
+                                print('Recomputation:')
+                                for item in h_val:
+                                    print('Time %4.4f: %4.20f' % item)
+                                h_time[num_nodes] = h_val
+                                # ---- restarts ----
+                                restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
+                                restarts_sum = sum([v[1] for v in restarts])
+                                tol_SE_against_residual[tol_event] = [res_norm, restarts_sum]     
 
             res_norm_against_newton_tol_M[num_nodes] = res_norm_against_newton_tol
             res_norm_against_newton_tol = dict()
+
+            tol_SE_against_residual_M[num_nodes] = tol_SE_against_residual
+            tol_SE_against_residual = dict()
 
     plot_tolerances_against_errors_or_residuals(
         dt_list[0],
         'data/ieee9/ieee9_residual_against_tolerances_dt{}.png'.format(dt_list[0]),
         res_norm_against_newton_tol_M,
         r'$||r_\mathrm{DAE}||_\infty$',
-        [1e-15, 1e-10],
+        [1e-13, 1e-3],
     )
 
-    plot_residuals_over_time(res_time, 'data/ieee9/ieee9_residuals_over_time_dt{}.png'.format(dt_list[0]))
+    plot_functions_over_time(
+        res_time,
+        'data/ieee9/ieee9_residuals_over_time_dt{}.png'.format(dt_list[0]),
+        r'$r_\mathrm{DAE}$',
+    )
+
+    plot_SE_params_against_residual(
+        tol_SE_against_residual_M,
+        'data/ieee9_tol_SE_against_residual_dt{}.png'.format(dt_list[0]),
+        r'$tol_{SE}$',
+        r'$||r_\mathrm{DAE}||_\infty$',
+        'log',
+        [1e-15, 1e+1],
+    )
+
+    plot_functions_over_time(
+        h_time,
+        'data/ieee9/ieee9_state_function_over_time_dt{}.png'.format(dt_list[0]),
+        r'$h(P_{SV,0}(t))$',
+    )
 
 
 def plot_solution(stats, recomputed, use_detection, cwd='./'):
@@ -198,7 +241,7 @@ def plot_solution(stats, recomputed, use_detection, cwd='./'):
 
     m = 3
     n = 9
-    PSV = np.array([me[1][10*m:11*m] for me in get_sorted(stats, type='u', sortby='time')])
+    PSV = np.array([me[1][10*m:11*m] for me in get_sorted(stats, type='u', sortby='time', recomputed=recomputed)])
     t = np.array([me[0] for me in get_sorted(stats, type='u', recomputed=recomputed)])
 
     if use_detection:
@@ -277,8 +320,8 @@ def plot_tolerances_against_errors_or_residuals(dt, file_name, results_dict, lab
     xytext = {
         2: (-13.0, -7),
         3: (-13.0, 8),
-        4: (-13.0, -17),
-        5: (-13.0, 10),
+        4: (-13.0, -27),
+        5: (-13.0, 20),
     }
     count = 0
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
@@ -317,13 +360,13 @@ def plot_tolerances_against_errors_or_residuals(dt, file_name, results_dict, lab
     ax.set_xlabel(r'$tol_{hybr}$', fontsize=21)
     ax.set_ylabel(label_y_axis, fontsize=21)
     ax.grid(visible=True)
-    ax.legend(frameon=False, fontsize=16, loc='lower right')
+    ax.legend(frameon=False, fontsize=16, loc='upper left')
     ax.minorticks_off()
     fig.savefig(file_name, dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 
-def plot_residuals_over_time(res_time, file_name):
+def plot_functions_over_time(res_time, file_name, y_label):
     """
     Plots the error and residual over time for different number of collocation nodes.
 
@@ -364,9 +407,9 @@ def plot_residuals_over_time(res_time, file_name):
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
     for num_nodes in res_time.keys():
         res_vals = res_time[num_nodes]
-        t, res = [me[0] for me in res_vals], [me[1] for me in res_vals]
+        t, res = [me[0] for me in res_vals], [abs(me[1]) for me in res_vals]
 
-        res_label = r'Residual M={}'.format(num_nodes)
+        res_label = r'M={}'.format(num_nodes)
 
         ax.plot(t, res, color=colors_res[num_nodes], linestyle=linestyles[num_nodes], linewidth=1.1, label=res_label)
 
@@ -376,13 +419,92 @@ def plot_residuals_over_time(res_time, file_name):
     ax.set_ylim(1e-15, 1e+1)
     ax.set_yscale('log', base=10)
     ax.set_xlabel('t', fontsize=21)
-    ax.set_ylabel(r'$r_\mathrm{DAE}$', fontsize=21)
+    ax.set_ylabel(y_label, fontsize=21)
     ax.minorticks_off()
     ax.grid(visible=True)
     labels = [l for l in lines]
     ax.legend(lines, frameon=True, fontsize=16, loc='upper left')
     ax.minorticks_off()
 
+    fig.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt_helper.plt.close(fig)
+
+def plot_SE_params_against_residual(dt_deriv_against_event_error, file_name, x_label, y_label, set_xscale, ylim):
+    """
+    Plots the event error against different step sizes used for approximate the derivative using finite differences.
+
+    Parameters
+    ----------
+    dt : float
+        Step size used for computation
+    dt_deriv_against_event_error : dict
+        Contains the event error for different dt_FD for all considered number of collocation nodes.
+    """
+
+    colors = {
+        2: 'limegreen',
+        3: 'firebrick',
+        4: 'deepskyblue',
+        5: 'purple',
+    }
+    linestyles = {
+        2: 'solid',
+        3: 'dashed',
+        4: 'dashdot',
+        5: 'dotted',
+    }
+    markers = {
+        2: 's',
+        3: 'o',
+        4: '*',
+        5: 'd',
+    }
+    xytext = {
+        2: (-1.0, 17),
+        3: (-1.0, 13),
+        4: (-1.0, 17),
+        5: (-1.0, 10),
+    }
+
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    for num_nodes in dt_deriv_against_event_error.keys():
+        lists = sorted(dt_deriv_against_event_error[num_nodes].items())
+        dt_FD, list = zip(*lists)
+        event_error, sum_restarts = [me[0] for me in list], [me[1] for me in list]
+
+        ax.loglog(
+            dt_FD,
+            event_error,
+            color=colors[num_nodes],
+            linestyle=linestyles[num_nodes],
+            marker=markers[num_nodes],
+            linewidth=1.1,
+            label=r'$M={}$'.format(num_nodes),
+        )
+        
+        for m in range(len(dt_FD)):
+            ax.annotate(
+                sum_restarts[m],
+                (dt_FD[m], event_error[m]),
+                xytext=xytext[num_nodes],
+                textcoords="offset points",
+                color=colors[num_nodes],
+                fontsize=12,
+            )
+
+    ax.tick_params(axis='both', which='major', labelsize=21)
+    ax.set_ylim(1e-16, 1e+1)
+    if set_xscale == 'log':
+        ax.set_xscale('log', base=10)
+    else:
+        ax.set_xscale('linear')
+    ax.set_yscale('log', base=10)
+    ax.set_ylim(ylim[0], ylim[-1])
+    ax.set_xlabel(x_label, fontsize=21)
+    ax.set_ylabel(y_label, fontsize=21)
+    ax.grid(visible=True)
+    ax.legend(frameon=False, fontsize=16, loc='lower right')
+    ax.minorticks_off()
     fig.savefig(file_name, dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 

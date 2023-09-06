@@ -208,7 +208,7 @@ class fully_implicit_DAE(sweeper):
         for m in range(self.coll.num_nodes):
             # use abs function from data type here
             res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m + 1], L.time + L.dt * self.coll.nodes[m])))
-
+        # print(L.time + L.dt * self.coll.nodes, [L.u[l][10 * P.m] - P.psv_max for l in range(self.coll.num_nodes + 1)], res_norm)
         # find maximal residual over the nodes
         if L.params.residual_type == 'full_abs':
             L.status.residual = max(res_norm)

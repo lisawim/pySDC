@@ -107,17 +107,17 @@ def make_plots_for_test_DAE():
 
                 h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
                 h_abs = abs([item[1] for item in h_val][-1])
-                results_state_function[M][dt][use_SE] = h_abs
+                results_state_function[M][dt][use_SE]['h_abs'] = h_abs
 
                 if use_SE:
                     switches = get_recomputed(stats, type='switch', sortby='time')
 
                     t_switch = [item[1] for item in switches][-1]
-                    results_event_error[M][dt][use_SE]['err'] = abs(t_switch_exact - t_switch)
+                    results_event_error[M][dt][use_SE] = abs(t_switch_exact - t_switch)
 
                     restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
                     sum_restarts = sum([item[1] for item in restarts])
-                    results_event_error[M][dt][use_SE]['restarts'] = sum_restarts
+                    results_state_function[M][dt][use_SE]['restarts'] = sum_restarts
 
     plot_errors_over_time(results_error_over_time, dt_fix)
     plot_error_norm(results_error_norm)
@@ -145,10 +145,10 @@ def plot_styling_stuff():
     }
 
     xytext = {
-        2: (-13.0, 16),
-        3: (-13.0, 10),  
-        4: (-13.0, -15),
-        5: (-1.0, -34),
+        2: (-15.0, 16.5),
+        3: (-2.0, 55),  
+        4: (-13.0, -27),
+        5: (-1.0, -40),
     }
 
     return colors, markers, xytext
@@ -231,7 +231,7 @@ def plot_error_norm(results_error_norm):
             if not use_SE:
                 line.set_label(r'$M={}$'.format(M))
 
-            if M == 4:  # dummy plot for more pretty legend
+            if M == 5:  # dummy plot for more pretty legend
                 ax.plot(0, 0, color='black', linestyle=linestyle_detection, label='Detection: {}'.format(use_SE))
 
     ax.tick_params(axis='both', which='major', labelsize=16)
@@ -259,13 +259,13 @@ def plot_state_function_detection(results_state_function):
         detection and not.
     """
 
-    colors, markers, _ = plot_styling_stuff()
+    colors, markers, xytext = plot_styling_stuff()
 
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
     for M in results_state_function.keys():
         dt = list(results_state_function[M].keys())
         for use_SE in results_state_function[M][dt[0]].keys():
-            h_abs = [results_state_function[M][k][use_SE] for k in dt]
+            h_abs = [results_state_function[M][k][use_SE]['h_abs'] for k in dt]
 
             linestyle_detection = 'solid' if not use_SE else 'dashdot'
             line,  = ax.loglog(
@@ -279,6 +279,18 @@ def plot_state_function_detection(results_state_function):
             if not use_SE:
                 line.set_label(r'$M={}$'.format(M))
 
+            if use_SE:
+                sum_restarts = [results_state_function[M][k][use_SE]['restarts'] for k in dt]
+                for m in range(len(dt)):
+                    ax.annotate(
+                        sum_restarts[m],
+                        (dt[m], h_abs[m]),
+                        xytext=xytext[M],
+                        textcoords="offset points",
+                        color=colors[M],
+                        fontsize=16,
+                    )
+
             if M == 5:  # dummy plot for more pretty legend
                 ax.plot(0, 0, color='black', linestyle=linestyle_detection, label='Detection: {}'.format(use_SE))
 
@@ -290,7 +302,7 @@ def plot_state_function_detection(results_state_function):
     ax.set_ylabel(r'$|h(y(T))|$', fontsize=16)
     ax.grid(visible=True)
     ax.minorticks_off()
-    ax.legend(frameon=True, fontsize=12, loc='lower right')
+    ax.legend(frameon=True, fontsize=12, loc='upper left')
 
     fig.savefig('data/test_DAE_state_function.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
@@ -307,13 +319,13 @@ def plot_event_time_error(results_event_error):
         event detection and not.
     """
 
-    colors, markers, xytext = plot_styling_stuff()
+    colors, markers, _ = plot_styling_stuff()
 
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
     for M in results_event_error.keys():
         dt = list(results_event_error[M].keys())
         for use_SE in [True]:
-            event_error = [results_event_error[M][k][use_SE]['err'] for k in dt]
+            event_error = [results_event_error[M][k][use_SE] for k in dt]
 
             linestyle_detection = 'solid' if not use_SE else 'dashdot'
             ax.loglog(
@@ -324,18 +336,6 @@ def plot_event_time_error(results_event_error):
                 marker=markers[M],
                 label=r'$M={}$'.format(M),
             )
-
-            if use_SE:
-                sum_restarts = [results_event_error[M][k][use_SE]['restarts'] for k in dt]
-                for m in range(len(dt)):
-                    ax.annotate(
-                        sum_restarts[m],
-                        (dt[m], event_error[m]),
-                        xytext=xytext[M],
-                        textcoords="offset points",
-                        color=colors[M],
-                        fontsize=16,
-                    )
 
     ax.tick_params(axis='both', which='major', labelsize=16)
     ax.set_ylim(1e-15, 1e+1)

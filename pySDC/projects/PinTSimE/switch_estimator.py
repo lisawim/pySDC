@@ -114,7 +114,7 @@ class SwitchEstimator(ConvergenceController):
                         t_switch = self.params.t_interp[0]
                         boundary = 'left'
                     # print(self.params.t_interp, self.params.state_function)
-                    self.log(f"Is already close enough to the {boundary} end point!", S)
+                    # self.log(f"Is already close enough to the {boundary} end point!", S)
                     # print(f"Is already close enough to the {boundary} end point!")
                     self.log_event_time(
                         controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_switch
@@ -127,6 +127,24 @@ class SwitchEstimator(ConvergenceController):
                 if self.params.state_function[0] * self.params.state_function[-1] < 0 and self.status.is_zero is None:
                     self.status.t_switch = self.get_switch(self.params.t_interp, self.params.state_function, m_guess, self.params.count)
                     self.params.count += 1
+                    controller.hooks[0].add_to_stats(
+                        process=S.status.slot,
+                        time=L.time,
+                        level=L.level_index,
+                        iter=0,
+                        sweep=L.status.sweep,
+                        type='switch_all',
+                        value=self.status.t_switch,
+                    )
+                    controller.hooks[0].add_to_stats(
+                        process=S.status.slot,
+                        time=L.time,
+                        level=L.level_index,
+                        iter=0,
+                        sweep=L.status.sweep,
+                        type='h_all',
+                        value=max([abs(item) for item in self.params.state_function]),
+                    )
                     if L.time < self.status.t_switch < L.time + L.dt:
                         dt_switch = (self.status.t_switch - L.time) * self.params.alpha
 
@@ -361,7 +379,6 @@ class SwitchEstimator(ConvergenceController):
             t_interp.insert(0, t)
         else:
             del state_function[0]
-        print(t_interp)
 
         return t_interp, state_function
 

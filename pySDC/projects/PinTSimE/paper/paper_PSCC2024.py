@@ -53,13 +53,15 @@ def make_plots_for_test_DAE():
     use_detection = [False, True]
     max_restarts = 200
     epsilon_SE = 1e-10
-    alpha = 0.95
+    alpha = 0.99  # 0.95
 
     t0 = 3.0
     Tend = 5.4
 
     dt_list = [1 / (2 ** m) for m in range(2, 9)]
     dt_fix = 1 / (2 ** 7)
+    # ---- dt for plot not contained in the paper ----
+    dt_observe = 1 / (2 ** 5)
 
     recomputed = False
 
@@ -67,18 +69,22 @@ def make_plots_for_test_DAE():
     results_error_norm = {}
     results_state_function = {}
     results_event_error = {}
+    results_event_error_restarts = {}
 
     for M in nnodes:
         results_error_over_time[M], results_error_norm[M] = {}, {}
         results_state_function[M], results_event_error[M] = {}, {}
+        results_event_error_restarts[M] = {}
 
         for dt in dt_list:
             results_error_over_time[M][dt], results_error_norm[M][dt] = {}, {}
             results_state_function[M][dt], results_event_error[M][dt] = {}, {}
+            results_event_error_restarts[M][dt] = {}
 
             for use_SE in use_detection:
                 results_error_over_time[M][dt][use_SE], results_error_norm[M][dt][use_SE] = {}, {}
                 results_state_function[M][dt][use_SE], results_event_error[M][dt][use_SE] = {}, {}
+                results_event_error_restarts[M][dt][use_SE] = {}
 
                 description, controller_params = generate_description(
                     dt,
@@ -119,10 +125,29 @@ def make_plots_for_test_DAE():
                     sum_restarts = sum([item[1] for item in restarts])
                     results_state_function[M][dt][use_SE]['restarts'] = sum_restarts
 
+                    switches_all = get_sorted(stats, type='switch_all', sortby='time', recomputed=None)
+                    t_switches_all = [item[1] for item in switches_all]
+                    event_error_all = [abs(t_switch_exact - t_switch) for t_switch in t_switches_all]
+                    results_event_error_restarts[M][dt][use_SE]['event_error_all'] = event_error_all
+                    h_val_all = get_sorted(stats, type='h_all', sortby='time', recomputed=None)
+                    h_max_event = []
+                    print('h_all', len([item[0] for item in h_val_all]))
+                    print()
+                    print('switches_all', len([item[0] for item in switches_all]))
+                    # for item in h_val_all:
+                        # for item2 in switches_all:
+                            # if abs(item[0] - item2[0]) <= 1e-14:
+                                # print(item[0], t_switch)
+                                # h_max_event.append(item[1])
+                    results_event_error_restarts[M][dt][use_SE]['h_max_event'] = [item[1] for item in h_val_all]  # h_max_event
+
+                    print(dt, M)
+
     plot_errors_over_time(results_error_over_time, dt_fix)
     plot_error_norm(results_error_norm)
     plot_state_function_detection(results_state_function)
     plot_event_time_error(results_event_error)
+    plot_event_time_error_before_restarts(results_event_error_restarts)
 
 
 def plot_styling_stuff():
@@ -161,7 +186,7 @@ def plot_errors_over_time(results_error_over_time, dt_fix=None):
 
     Parameters
     ----------
-    results_error_over_time : dict
+    results_event_error_restarts : dict
         Results of the error for different number of coll.nodes.
     dt_fix : bool, optional
         If it is set to a considered step size, only one plot will generated.
@@ -349,6 +374,87 @@ def plot_event_time_error(results_event_error):
 
     fig.savefig('data/test_DAE_event_time_error.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
+
+
+def plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix=None):
+    """
+    Plots all events founded by switch estimation, not necessarily satisfying the conditions.
+
+    Parameters
+    ----------
+    results_event_error_restarts : dict
+        Contains all events for each considered number of coll. nodes, step size and
+        event detection and not.
+    dt_fix : float, optional
+        Step size considered.
+    """
+
+    colors, markers, _ = plot_styling_stuff()
+
+    dt_list = [dt_fix] if dt_fix is not None else results_event_error_restarts[2].keys()
+    for dt in dt_list:
+        lines, labels = [], []
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        h_ax = ax.twinx()
+        for M in results_event_error_restarts.keys():
+            for use_SE in results_event_error_restarts[M][dt].keys():
+                if use_SE:
+                    event_error_all = results_event_error_restarts[M][dt][use_SE]['event_error_all']
+
+                    event_error_label = r'$M={}$'.format(M)
+                    h_val_event_label = r'State function $M={}$'.format(M)
+
+                    line, = ax.semilogy(
+                        event_error_all,
+                        color=colors[M],
+                        linestyle='solid',
+                        # marker=markers[M],
+                    )
+
+                    line.set_label(r'$M={}$'.format(M))
+
+                    h_max_event = results_event_error_restarts[M][dt][use_SE]['h_max_event']
+                    h_ax.semilogy(
+                        h_max_event,
+                        color=colors[M],
+                        linestyle='dashdot',
+                        marker=markers[M],
+                        markersize=5,
+                        alpha=0.4,
+                    )
+
+                    if M == 5:  # dummy plot for more pretty legend
+                        ax.plot(0, 1e-3, color='black', linestyle='solid', label=r'$|t^*_{ex} - t^*_{SE}|$')
+                        ax.plot(
+                            0,
+                            1e-3,
+                            color='black',
+                            linestyle='dashdot',
+                            marker=markers[M],
+                            markersize=5,
+                            alpha=0.4,
+                            label=r'$||h(t)||_\infty$',
+                        )
+
+        h_ax.tick_params(labelsize=16)
+        h_ax.set_ylim(1e-13, 1e+2)
+        h_ax.set_yscale('log', base=10)
+        h_ax.set_ylabel(r'$||h(t)||_\infty$', fontsize=21)
+        h_ax.minorticks_off()
+
+        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.set_ylim(1e-13, 1e+1)
+        ax.set_yscale('log', base=10)
+        ax.set_xlabel('Founded events', fontsize=16)
+        ax.set_ylabel(r'$|t^*_{ex} - t^*_{SE}|$', fontsize=16)
+        ax.grid(visible=True)
+        ax.minorticks_off()
+        #labels = [l.get_label() for l in lines]
+        #labels = [l for l in lines]
+        ax.legend(frameon=True, fontsize=12, loc='lower left')
+
+        fig.savefig('data/test_DAE_event_time_error_restarts_dt{}.png'.format(dt), dpi=300, bbox_inches='tight')
+        plt_helper.plt.close(fig)
 
 
 if __name__ == "__main__":

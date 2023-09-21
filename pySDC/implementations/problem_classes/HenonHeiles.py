@@ -19,6 +19,7 @@ class henon_heiles(ptype):
 
     .. math::
         H = 0.5 \left[\left(\frac{d x}{d t}\right)^2 + \left(\frac{d y}{d t}\right)^2\right] + 0.5 \left(x^2 + y^2\right)
+
             + x^2 y - \frac{y^3}{3}.
     """
 

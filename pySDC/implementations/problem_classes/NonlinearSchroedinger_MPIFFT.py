@@ -17,6 +17,7 @@ class nonlinearschroedinger_imex(ptype):
     Example implementing the N-dimensional nonlinear Schrödinger equation with periodic boundary conditions
 
     .. math::
+
         \frac{\partial u}{\partial t} = -i \Delta u + 2 c i |u|^2 u
 
     for fixed parameter :math:`c` and :math:`N=2, 3`. The linear parts of the problem will be solved using

@@ -25,7 +25,7 @@ class heatNd_unforced(GenericNDimFinDiff):
     ----------
     nvars : int, optional
         Spatial resolution (same in all dimensions). Using a tuple allows to
-        consider several dimensions, e.g nvars=(16,16) for a 2D problem.
+        consider several dimensions, e.g ``nvars=(16,16)`` for a 2D problem.
     nu : float, optional
         Diffusion coefficient :math:`\nu`.
     freq : int, optional
@@ -41,9 +41,9 @@ class heatNd_unforced(GenericNDimFinDiff):
     solver_type : str, optional
         Solve the linear system directly or using CG.
     bc : str, optional
-        Boundary conditions, either "periodic" or "dirichlet".
+        Boundary conditions, either ``'periodic'`` or ``'dirichlet'``.
     sigma : float, optional
-        If freq=-1 and ndim=1, uses a Gaussian initial solution of the form
+        If ``freq=-1`` and ``ndim=1``, uses a Gaussian initial solution of the form
 
         .. math::
             u(x,0) = e^{

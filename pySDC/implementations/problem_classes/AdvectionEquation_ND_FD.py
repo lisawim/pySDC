@@ -24,7 +24,7 @@ class advectionNd(GenericNDimFinDiff):
     ----------
     nvars : int of tuple, optional
         Spatial resolution (same in all dimensions). Using a tuple allows to
-        consider several dimensions, e.g nvars=(16,16) for a 2D problem.
+        consider several dimensions, e.g ``nvars=(16,16)`` for a 2D problem.
     c : float, optional
         Advection speed (same in all dimensions).
     freq : int of tuple, optional

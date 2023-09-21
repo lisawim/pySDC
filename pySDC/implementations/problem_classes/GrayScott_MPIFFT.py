@@ -23,8 +23,8 @@ class grayscott_imex_diffusion(ptype):
     .. math::
         \frac{\partial v}{\partial t} = D_v \Delta v + u v^2 - B u
 
-    in :math:`x \in \Omega:=[-L/2, L/2]^N` with :math:`2 \leq N \leq 3`. Spatial discretization is done by using
-    Fast Fourier transformation for solving the linear parts provided by mpi4py-fft [2]_, see also
+    in :math:`x \in \Omega:=[-\frac{L}{2}, \frac{L}{2}]^N` with :math:`N=2,3`. Spatial discretization is done by using
+    Fast Fourier transformation for solving the linear parts provided by ``mpi4py-fft`` [2]_, see also
     https://mpi4py-fft.readthedocs.io/en/latest/.
 
     This class implements the problem for *semi-explicit* time-stepping (diffusion is treated implicitly, and reaction
@@ -33,7 +33,7 @@ class grayscott_imex_diffusion(ptype):
     Parameters
     ----------
     nvars : tuple of int, optional
-        Spatial resolution, i.e., number of degrees of freedom in space. Should be a tuple, e.g. (127, 127).
+        Spatial resolution, i.e., number of degrees of freedom in space. Should be a tuple, e.g. ``nvars=(127, 127)``.
     Du : float, optional
         Diffusion rate for :math:`u`.
     Dv: float, optional
@@ -44,10 +44,10 @@ class grayscott_imex_diffusion(ptype):
         Overall decay rate for :math:`u`.
     spectral : bool, optional
         If True, the solution is computed in spectral space.
-    L : int, optional
+    L : float, optional
         Denotes the period of the function to be approximated for the Fourier transform.
     comm : COMM_WORLD, optional
-        Communicator for mpi4py-fft.
+        Communicator for ``mpi4py-fft``.
 
     Attributes
     ----------
@@ -265,7 +265,7 @@ class grayscott_imex_linear(grayscott_imex_diffusion):
         \frac{d v}{d t} = D_v \Delta v + u v^2
 
     in :math:`x \in \Omega:=[-L/2, L/2]^N` with :math:`2 \leq N \leq 3`. Spatial discretization is done by using
-    Fast Fourier transformation for solving the linear parts provided by mpi4py-fft [2]_, see also
+    Fast Fourier transformation for solving the linear parts provided by ``mpi4py-fft`` [2]_, see also
     https://mpi4py-fft.readthedocs.io/en/latest/.
 
     This class implements the problem for *semi-explicit* time-stepping (diffusion is treated implicitly, and linear
@@ -336,8 +336,8 @@ class grayscott_mi_diffusion(grayscott_imex_diffusion):
     .. math::
         \frac{\partial v}{\partial t} = D_v \Delta v + u v^2 - B u
 
-    in :math:`x \in \Omega:=[-L/2, L/2]^N` with :math:`2 \leq N \leq 3`. Spatial discretization is done by using
-    Fast Fourier transformation for solving the linear parts provided by mpi4py-fft [2]_, see also
+    in :math:`x \in \Omega:=[-\frac{L}{2}, \frac{L}{2}]^N` with :math:`N=2,3`. Spatial discretization is done by using
+    Fast Fourier transformation for solving the linear parts provided by ``mpi4py-fft`` [2]_, see also
     https://mpi4py-fft.readthedocs.io/en/latest/.
 
     This class implements the problem for *multi-implicit* time-stepping, i.e., both diffusion and reaction part will be treated
@@ -346,7 +346,7 @@ class grayscott_mi_diffusion(grayscott_imex_diffusion):
     Parameters
     ----------
     nvars : tuple of int, optional
-        Spatial resolution, i.e., number of degrees of freedom in space. Should be a tuple, e.g. (127, 127).
+        Spatial resolution, i.e., number of degrees of freedom in space. Should be a tuple, e.g. ``nvars=(127, 127)``.
     Du : float, optional
         Diffusion rate for :math:`u`.
     Dv: float, optional
@@ -360,7 +360,7 @@ class grayscott_mi_diffusion(grayscott_imex_diffusion):
     L : int, optional
         Denotes the period of the function to be approximated for the Fourier transform.
     comm : COMM_WORLD, optional
-        Communicator for mpi4py-fft.
+        Communicator for ``mpi4py-fft``.
 
     Attributes
     ----------
@@ -583,8 +583,8 @@ class grayscott_mi_linear(grayscott_imex_linear):
     .. math::
         \frac{\partial v}{\partial t} = D_v \Delta v + u v^2
 
-    in :math:`x \in \Omega:=[-L/2, L/2]^N` with :math:`2 \leq N \leq 3`. Spatial discretization is done by using
-    Fast Fourier transformation for solving the linear parts provided by mpi4py-fft [2]_, see also
+    in :math:`x \in \Omega:=[-\frac{L}{2}, \frac{L}{2}]^N` with :math:`N=2,3`. Spatial discretization is done by using
+    Fast Fourier transformation for solving the linear parts provided by ``mpi4py-fft`` [2]_, see also
     https://mpi4py-fft.readthedocs.io/en/latest/.
 
     The problem in this class will be treated in a *multi-implicit* way for time-stepping, i.e., for the system containing

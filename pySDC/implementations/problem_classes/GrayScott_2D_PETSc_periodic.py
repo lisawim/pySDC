@@ -6,7 +6,7 @@ from pySDC.implementations.datatype_classes.petsc_vec import petsc_vec, petsc_ve
 
 
 class GS_full(object):
-    """
+    r"""
     Helper class to generate residual and Jacobian matrix for PETSc's nonlinear solver SNES.
 
     Parameters
@@ -16,7 +16,7 @@ class GS_full(object):
     prob : problem instance
         Contains problem information for PETSc.
     factor : float
-        Temporal factor (dt*Qd).
+        Temporal factor :math:`\Delta t Q_d`.
     dx : float
         Grid spacing in x direction.
     dy : float
@@ -179,7 +179,7 @@ class GS_full(object):
 
 
 class GS_reaction(object):
-    """
+    r"""
     Helper class to generate residual and Jacobian matrix for PETSc's nonlinear solver SNES.
 
     Parameters
@@ -189,7 +189,7 @@ class GS_reaction(object):
     prob : problem instance
         Contains problem information for PETSc.
     factor : float
-        Temporal factor (dt*Qd).
+        Temporal factor :math:`\Delta t Q_d`.
 
     Attributes
     ----------
@@ -297,14 +297,14 @@ class petsc_grayscott_multiimplicit(ptype):
     .. math::
         \frac{\partial v}{\partial t} = D_v \Delta v + u v^2 - B u
 
-    for :math:`x \in \Omega:=[0, 100]`. The spatial solve of the problem is realized by PETSc [2]_, [3]_. For time-stepping,
+    for :math:`x \in \Omega:=[0, 100]`. The spatial solve of the problem is realized by ``PETSc`` [2]_, [3]_. For time-stepping,
     the diffusion part is solved by one of PETSc's linear solver, whereas the reaction part will be solved by a nonlinear
     solver.
 
     Parameters
     ----------
     nvars : tuple of int, optional
-        Spatial resolution, i.e., number of degrees of freedom in space, e.g. (256, 256).
+        Spatial resolution, i.e., number of degrees of freedom in space, e.g. ``nvars=(256, 256)``.
     Du : float, optional
         Diffusion rate for :math:`u`.
     Dv: float, optional
@@ -559,7 +559,7 @@ class petsc_grayscott_multiimplicit(ptype):
 
     def solve_system_1(self, rhs, factor, u0, t):
         r"""
-        Linear solver for (I - factor A)\vec{u} = \vec{rhs}.
+        Linear solver for :math:`(I - factor A)\vec{u} = \vec{rhs}`.
 
         Parameters
         ----------
@@ -589,7 +589,7 @@ class petsc_grayscott_multiimplicit(ptype):
 
     def solve_system_2(self, rhs, factor, u0, t):
         r"""
-        Nonlinear solver for (I - factor F)(\vec{u}) = \{rhs}.
+        Nonlinear solver for :math:`(I - factor F)(\vec{u}) = \vec{rhs}`.
 
         Parameters
         ----------
@@ -667,7 +667,7 @@ class petsc_grayscott_fullyimplicit(petsc_grayscott_multiimplicit):
     .. math::
         \frac{\partial v}{\partial t} = D_v \Delta v + u v^2 - B u
 
-    for :math:`x \in \Omega:=[0, 100]`. The spatial solve of the problem is realized by PETSc [2]_, [3]_. For time-stepping, the
+    for :math:`x \in \Omega:=[0, 100]`. The spatial solve of the problem is realized by ``PETSc`` [2]_, [3]_. For time-stepping, the
     problem is handled in a *fully-implicit* way, i.e., the nonlinear system containing the full right-hand side will be
     solved by PETSc's nonlinear solver.
     """
@@ -705,7 +705,7 @@ class petsc_grayscott_fullyimplicit(petsc_grayscott_multiimplicit):
 
     def solve_system(self, rhs, factor, u0, t):
         r"""
-        Nonlinear solver for (I - factor F)(\vec{u}) = \{rhs}.
+        Nonlinear solver for :math:`(I - factor F)(\vec{u}) = \vec{rhs}`.
 
         Parameters
         ----------
@@ -754,7 +754,7 @@ class petsc_grayscott_semiimplicit(petsc_grayscott_multiimplicit):
     .. math::
         \frac{\partial v}{\partial t} = D_v \Delta v + u v^2 - B u
 
-    for :math:`x \in \Omega:=[0, 100]`. The spatial solve of the problem is realized by PETSc [2]_, [3]_. For time-stepping, the
+    for :math:`x \in \Omega:=[0, 100]`. The spatial solve of the problem is realized by ``PETSc`` [2]_, [3]_. For time-stepping, the
     problem is treated *semi-implicitly*, i.e., the system with diffusion part is solved by PETSc's linear solver.
     """
 
@@ -790,8 +790,8 @@ class petsc_grayscott_semiimplicit(petsc_grayscott_multiimplicit):
         return f
 
     def solve_system(self, rhs, factor, u0, t):
-        """
-        Linear solver for (I-factor*A)u = rhs
+        r"""
+        Linear solver for :math:`(I - factor A)\vec{u} = \vec{rhs}`.
 
         Args:
             rhs (dtype_f): right-hand side for the linear system

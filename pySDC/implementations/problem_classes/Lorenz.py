@@ -31,7 +31,7 @@ class LorenzAttractor(ptype):
     .. math::
         \frac{d y_3(t)}{dt} = y_1 (t) y_2 (t) - \beta y_3 (t)
 
-    with initial condition :math:`y(0) = (1, 1, 1)^{T}` for :math:`t \in [0, 1]`. The problem parameters for this problem
+    with initial condition :math:`\vec{y}(0) = (1, 1, 1)^{T}` for :math:`t \in [0, 1]`. The problem parameters for this problem
     are :math:`\sigma = 10`, :math:`\rho = 28` and :math:`\beta = 8/3`.
     Lorenz chose these parameters such that the Reynolds number :math:`\rho` is slightly supercritical as to provoke
     instability of steady convection.

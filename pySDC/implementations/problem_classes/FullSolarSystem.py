@@ -19,7 +19,7 @@ class full_solar_system(outer_solar_system):
     .. math::
         m_i \frac{d^2 {\bf r}_i}{d t^2} = G \frac{m_1}{|{\bf r}_i - {\bf r}_1|^3}({\bf r}_i - {\bf r}_1).
 
-    This class implements the full solar system containing all planets including earth's moon, i.e., :math:`N=10`. Initial conditions
+    This class implements the full solar system containing all planets including Earth's moon, i.e., :math:`N=10`. Initial conditions
     are taken from [1]_, and masses relative to the sun taken from [2]_.
 
     Parameters

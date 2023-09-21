@@ -23,18 +23,18 @@ class heat2d_petsc_forced(ptype):
     .. math::
         u(x, y, t) = \sin(2 \pi x) \sin(2 \pi y) \cos(t).
 
-    The spatial discretization uses central finite differences and is realized with PETSc [1]_, [2]_.
+    The spatial discretization uses central finite differences and is realized with ``PETSc`` [1]_, [2]_.
 
     Parameters
     ----------
     cnvars : tuple, optional
-        Spatial resolution for the 2D problem, e.g. (16, 16).
+        Spatial resolution for the 2D problem, e.g. ``cnvars=(16, 16)``.
     nu : float, optional
         Diffusion coefficient :math:`\nu`.
     freq : int, optional
         Spatial frequency of the initial conditions (equal for both dimensions).
     refine : int, optional
-        Defines the refinement of the mesh, e.g. refine=2 means the mesh is refined with factor 2.
+        Defines the refinement of the mesh, e.g. ``refine=2`` means the mesh is refined with factor 2.
     comm : COMM_WORLD
         Communicator for PETSc.
     sol_tol : float, optional

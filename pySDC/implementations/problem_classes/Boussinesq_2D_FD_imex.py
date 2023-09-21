@@ -33,7 +33,7 @@ class boussinesq_2d_imex(ptype):
     Parameters
     ----------
     nvars : list of tuple, optional
-        List of number of unknowns nvars, e.g. [(4, 300, 3)].
+        List of number of unknowns nvars, e.g. ``nvars=[(4, 300, 3)]``.
     c_s : float, optional
         Acoustic velocity :math:`c_s`.
     u_adv : float, optional
@@ -62,7 +62,7 @@ class boussinesq_2d_imex(ptype):
     bc_hor : list
         Contains type of boundary conditions for both boundaries for both dimensions.
     bc_ver :
-        Contains type of boundary conditions for both boundaries for both dimemsions, e.g. 'neumann' or 'dirichlet'.
+        Contains type of boundary conditions for both boundaries for both dimemsions, e.g. ``'neumann'`` or ``'dirichlet'``.
     xx : np.ndarray
         List of np.ndarrays for mesh in x-direction.
     zz : np.ndarray

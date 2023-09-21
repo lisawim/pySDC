@@ -276,7 +276,7 @@ class battery_n_capacitors(ptype):
 
 class battery(battery_n_capacitors):
     r"""
-    Example implementing the battery drain model with :math:`N=1` capacitor, inherits from battery_n_capacitors. This model is an example
+    Example implementing the battery drain model with :math:`N=1` capacitor, inherits from ``battery_n_capacitors``. This model is an example
     of a discontinuous problem. The state function :math:`decides` which differential equation is solved. When the state function has
     a sign change the dynamics of the solution changes by changing the differential equation. The ODE system of this model is given by
     the following equations:

@@ -46,7 +46,7 @@ class GenericNDimFinDiff(ptype):
     liniter : int, optional
         Maximum number of iterations for linear solver.
     solver_type : str, optional
-        Type of solver. Can be 'direct', 'GMRES' or 'CG'.
+        Type of solver. Can be ``'direct'``, ``'GMRES'`` or ``'CG'``.
     bc : str, optional
         Type of boundary conditions. Default is 'periodic'.
 

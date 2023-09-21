@@ -38,15 +38,15 @@ class Quench(ptype):
     leak_range : tuple of float
         Range of the leak.
     leak_type : str, optional
-        Type of leak, choose between 'linear' or 'exponential'.
+        Type of leak, choose between ``'linear'`` or ``'exponential'``.
     leak_transition : str, optional
-        Indicates how the heat in the leak propagates (?), choose between 'step' and 'Gaussian'.
+        Indicates how the heat in the leak propagates (?), choose between ``'step'`` and ``'Gaussian'``.
     order : int, optional
         Order of the finite difference discretization.
     stencil_type : str, optional
         Type of stencil for finite differences.
     bc : str, optional
-        Type of boundary conditions. Default is 'neumann-zero'.
+        Type of boundary conditions. Default is ``'neumann-zero'``.
     nvars : int, optional
         Spatial resolution.
     newton_tol : float, optional

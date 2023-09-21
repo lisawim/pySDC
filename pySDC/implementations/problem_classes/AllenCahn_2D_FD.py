@@ -24,13 +24,13 @@ class allencahn_fullyimplicit(ptype):
     .. math::
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{x_i^2 + y_j^2}}{\sqrt{2}\varepsilon}\right)
 
-    for :math::`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is
+    for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is
     treated *fully-implicitly*, i.e., the nonlinear system is solved by Newton.
 
     Parameters
     ----------
     nvars : tuple of int, optional
-        Number of unknowns in the problem, e.g. (128, 128).
+        Number of unknowns in the problem, e.g. ``nvars=(128, 128)``.
     nu : float, optional
         Problem parameter :math:`\nu`.
     eps : float, optional
@@ -282,7 +282,7 @@ class allencahn_semiimplicit(allencahn_fullyimplicit):
     .. math::
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{x_i^2 + y_j^2}}{\sqrt{2}\varepsilon}\right)
 
-    for :math::`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is
+    for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is
     treated in a *semi-implicit* way, i.e., the linear system containing the Laplacian is solved by the conjugate gradients
     method, and the system containing the rest of the right-hand side is only evaluated at each time.
     """
@@ -373,7 +373,7 @@ class allencahn_semiimplicit_v2(allencahn_fullyimplicit):
     .. math::
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{x_i^2 + y_j^2}}{\sqrt{2}\varepsilon}\right)
 
-    for :math::`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, a special AC-splitting
+    for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, a special AC-splitting
     is used to get a *semi-implicit* treatment of the problem: The term :math:`\Delta u - \frac{1}{\varepsilon^2} u^{\nu + 1}`
     is handled implicitly and the nonlinear system including this part will be solved by Newton. :math:`\frac{1}{\varepsilon^2} u`
     is only evaluated at each time.
@@ -481,7 +481,7 @@ class allencahn_multiimplicit(allencahn_fullyimplicit):
     .. math::
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{x_i^2 + y_j^2}}{\sqrt{2}\varepsilon}\right)
 
-    for :math::`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is
+    for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is
     treated in *multi-implicit* fashion, i.e., the linear system containing the Laplacian is solved by the conjugate gradients
     method, and the system containing the rest of the right-hand side will be solved by Newton's method.
     """
@@ -634,7 +634,7 @@ class allencahn_multiimplicit_v2(allencahn_fullyimplicit):
     .. math::
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{x_i^2 + y_j^2}}{\sqrt{2}\varepsilon}\right)
 
-    for :math::`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, a special AC-splitting
+    for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, a special AC-splitting
     is used here to get another kind of *semi-implicit* treatment of the problem: The term :math:`\Delta u - \frac{1}{\varepsilon^2} u^{\nu + 1}`
     is handled implicitly and the nonlinear system including this part will be solved by Newton. :math:`\frac{1}{\varepsilon^2} u`
     is solved by a linear solver provided by a scipy routine.

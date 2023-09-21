@@ -348,7 +348,7 @@ class allencahn_front_finel(allencahn_front_fullyimplicit):
     with :math:`v = 3 \sqrt{2} \varepsilon d_w`.
 
     Let :math:`A` denote the finite difference matrix to discretize :math:`\frac{\partial^2 u}{\partial x^2}`. Here,
-    _Finel's trick_ is used. Let
+    *Finel's trick* is used. Let
 
     .. math::
         a = \tanh\left(\frac{\Delta x}{\sqrt{2}\varepsilon}\right)^2,

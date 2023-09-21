@@ -17,10 +17,10 @@ class nonlinearschroedinger_imex(ptype):
     Example implementing the N-dimensional nonlinear Schrödinger equation with periodic boundary conditions
 
     .. math::
-        \frac{\partial u}{\partial t} = -i \Delta u + 2 c i abs(u)^2 u
+        \frac{\partial u}{\partial t} = -i \Delta u + 2 c i |u|^2 u
 
     for fixed parameter :math:`c` and :math:`N=2, 3`. The linear parts of the problem will be solved using
-    mpi4py-fft [1]_. *Semi-explicit* time-stepping is used here to solve the problem in the temporal dimension, i.e., the
+    ``mpi4py-fft`` [1]_. *Semi-explicit* time-stepping is used here to solve the problem in the temporal dimension, i.e., the
     Laplacian will be handled implicitly.
 
     Parameters
@@ -220,10 +220,10 @@ class nonlinearschroedinger_fully_implicit(nonlinearschroedinger_imex):
     Example implementing the N-dimensional nonlinear Schrödinger equation with periodic boundary conditions
 
     .. math::
-        \frac{\partial u}{\partial t} = -i \Delta u + 2 c i abs(u)^2 u
+        \frac{\partial u}{\partial t} = -i \Delta u + 2 c i |u|^2 u
 
     for fixed parameter :math:`c` and :math:`N=2, 3`. The linear parts of the problem will be discretized using
-    mpi4py-fft [1]_. For time-stepping, the problem will be solved *fully-implicitly*, i.e., the nonlinear system containing
+    ``mpi4py-fft`` [1]_. For time-stepping, the problem will be solved *fully-implicitly*, i.e., the nonlinear system containing
     the full right-hand side is solved by GMRES method.
     """
     dtype_u = mesh
@@ -268,8 +268,8 @@ class nonlinearschroedinger_fully_implicit(nonlinearschroedinger_imex):
         return f
 
     def solve_system(self, rhs, factor, u0, t):
-        """
-        Solve the nonlinear system `(1 - factor * f)(u) = rhs` using a scipy Newton-Krylov solver.
+        r"""
+        Solve the nonlinear system `(1 - factor  f)(\vec{u}) = \vec{rhs}` using a scipy Newton-Krylov solver.
         See this page for details on the solver: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.newton_krylov.html
 
         Parameters

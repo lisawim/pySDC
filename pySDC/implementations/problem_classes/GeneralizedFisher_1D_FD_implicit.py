@@ -59,7 +59,7 @@ class generalized_fisher(ptype):
     interval : tuple, optional
         Defines the spatial domain.
     stop_at_nan : bool, optional
-        Indicates if the nonlinear solver should stop if nan values arise.
+        Indicates if the nonlinear solver should stop if ``nan`` values arise.
 
     Attributes
     ----------

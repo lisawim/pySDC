@@ -94,7 +94,7 @@ class SwitchEstimator(ConvergenceController):
 
         if CheckConvergence.check_convergence(S):
             self.status.switch_detected, m_guess, self.params.state_function = L.prob.get_switching_info(L.u, L.time)
-            # print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], self.params.state_function)
+            print(L.time, [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))], self.params.state_function)
             if self.status.switch_detected:
                 self.params.t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
                 self.params.t_interp, self.params.state_function = self.adapt_interpolation_info(
@@ -115,7 +115,7 @@ class SwitchEstimator(ConvergenceController):
                         boundary = 'left'
                     # print(self.params.t_interp, self.params.state_function)
                     # self.log(f"Is already close enough to the {boundary} end point!", S)
-                    # print(f"Is already close enough to the {boundary} end point!")
+                    print(f"Is already close enough to the {boundary} end point!")
                     self.log_event_time(
                         controller.hooks[0], S.status.slot, L.time, L.level_index, L.status.sweep, t_switch
                     )
@@ -127,6 +127,7 @@ class SwitchEstimator(ConvergenceController):
                 if self.params.state_function[0] * self.params.state_function[-1] < 0 and self.status.is_zero is None:
                     self.status.t_switch = self.get_switch(self.params.t_interp, self.params.state_function, m_guess, self.params.count)
                     self.params.count += 1
+                    print(self.status.t_switch)
                     controller.hooks[0].add_to_stats(
                         process=S.status.slot,
                         time=L.time,
@@ -153,7 +154,7 @@ class SwitchEstimator(ConvergenceController):
                             or abs((L.time + L.dt) - self.status.t_switch) <= self.params.tol
                         ):
                             self.log(f"Switch located at time {self.status.t_switch:.15f}", S)
-                            # print(f"Switch located at time {self.status.t_switch:.15f}")
+                            print(f"Switch located at time {self.status.t_switch:.15f}")
                             L.prob.t_switch = self.status.t_switch
                             self.log_event_time(
                                 controller.hooks[0],
@@ -168,7 +169,7 @@ class SwitchEstimator(ConvergenceController):
 
                         else:
                             self.log(f"Located Switch at time {self.status.t_switch:.15f} is outside the range", S)
-                            # print(f"Located Switch at time {self.status.t_switch:.15f} is outside the range")
+                            print(f"Located Switch at time {self.status.t_switch:.15f} is outside the range")
                         # when an event is found, step size matching with this event should be preferred
                         dt_planned = L.status.dt_new if L.status.dt_new is not None else L.params.dt
                         if self.status.switch_detected:

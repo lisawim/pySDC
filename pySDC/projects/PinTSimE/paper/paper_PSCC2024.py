@@ -53,15 +53,13 @@ def make_plots_for_test_DAE():
     use_detection = [False, True]
     max_restarts = 200
     epsilon_SE = 1e-10
-    alpha = 0.99  # 0.95
+    alpha = 0.95
 
     t0 = 3.0
     Tend = 5.4
 
     dt_list = [1 / (2 ** m) for m in range(2, 9)]
     dt_fix = 1 / (2 ** 7)
-    # ---- dt for plot not contained in the paper ----
-    dt_observe = 1 / (2 ** 5)
 
     recomputed = False
 
@@ -147,7 +145,7 @@ def make_plots_for_test_DAE():
     plot_error_norm(results_error_norm)
     plot_state_function_detection(results_state_function)
     plot_event_time_error(results_event_error)
-    plot_event_time_error_before_restarts(results_event_error_restarts)
+    plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix)
 
 
 def plot_styling_stuff():
@@ -194,7 +192,8 @@ def plot_errors_over_time(results_error_over_time, dt_fix=None):
 
     colors, _, _ = plot_styling_stuff()
 
-    dt_list = [dt_fix] if dt_fix is not None else results_error_over_time[2].keys()
+    M_key = list(results_error_over_time.keys())[0]
+    dt_list = [dt_fix] if dt_fix is not None else results_error_over_time[M_key].keys()
     for dt in dt_list:
         fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
         for M in results_error_over_time.keys():
@@ -391,7 +390,8 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix=N
 
     colors, markers, _ = plot_styling_stuff()
 
-    dt_list = [dt_fix] if dt_fix is not None else results_event_error_restarts[2].keys()
+    M_key = list(results_event_error_restarts.keys())[0]
+    dt_list = [dt_fix] if dt_fix is not None else results_event_error_restarts[M_key].keys()
     for dt in dt_list:
         lines, labels = [], []
         fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
@@ -405,6 +405,7 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix=N
                     h_val_event_label = r'State function $M={}$'.format(M)
 
                     line, = ax.semilogy(
+                        np.arange(1, len(event_error_all) + 1),
                         event_error_all,
                         color=colors[M],
                         linestyle='solid',
@@ -415,6 +416,7 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix=N
 
                     h_max_event = results_event_error_restarts[M][dt][use_SE]['h_max_event']
                     h_ax.semilogy(
+                        np.arange(1, len(h_max_event) + 1),
                         h_max_event,
                         color=colors[M],
                         linestyle='dashdot',
@@ -424,10 +426,10 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix=N
                     )
 
                     if M == 5:  # dummy plot for more pretty legend
-                        ax.plot(0, 1e-3, color='black', linestyle='solid', label=r'$|t^*_{ex} - t^*_{SE}|$')
+                        ax.plot(1, event_error_all[0], color='black', linestyle='solid', label=r'$|t^*_{ex} - t^*_{SE}|$')
                         ax.plot(
-                            0,
-                            1e-3,
+                            1,
+                            1e+2,
                             color='black',
                             linestyle='dashdot',
                             marker=markers[M],
@@ -437,21 +439,19 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, dt_fix=N
                         )
 
         h_ax.tick_params(labelsize=16)
-        h_ax.set_ylim(1e-13, 1e+2)
+        h_ax.set_ylim(1e-11, 1e+0)
         h_ax.set_yscale('log', base=10)
         h_ax.set_ylabel(r'$||h(t)||_\infty$', fontsize=21)
         h_ax.minorticks_off()
 
         ax.tick_params(axis='both', which='major', labelsize=16)
-        ax.set_ylim(1e-13, 1e+1)
+        ax.set_ylim(1e-11, 1e-1)
         ax.set_yscale('log', base=10)
         ax.set_xlabel('Founded events', fontsize=16)
         ax.set_ylabel(r'$|t^*_{ex} - t^*_{SE}|$', fontsize=16)
         ax.grid(visible=True)
         ax.minorticks_off()
-        #labels = [l.get_label() for l in lines]
-        #labels = [l for l in lines]
-        ax.legend(frameon=True, fontsize=12, loc='lower left')
+        ax.legend(frameon=True, fontsize=12, loc='upper right')
 
         fig.savefig('data/test_DAE_event_time_error_restarts_dt{}.png'.format(dt), dpi=300, bbox_inches='tight')
         plt_helper.plt.close(fig)

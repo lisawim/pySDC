@@ -30,12 +30,18 @@ class SweeperMPI(sweeper):
             self.logger.debug('Using MPI.COMM_WORLD for the communicator because none was supplied in the params.')
         super().__init__(params)
 
-        self.rank = self.params.comm.Get_rank()
-
         if self.params.comm.size != self.coll.num_nodes:
             raise NotImplementedError(
-                f'The communicator in the {type(self).__name__} sweeper needs to have one rank for each node as of now! That means we need {self.coll.num_nodes} nodes, but got {self.params.comm.size} nodes.'
+                f'The communicator in the {type(self).__name__} sweeper needs to have one rank for each node as of now! That means we need {self.coll.num_nodes} nodes, but got {self.params.comm.size} processes.'
             )
+
+    @property
+    def comm(self):
+        return self.params.comm
+
+    @property
+    def rank(self):
+        return self.comm.rank
 
     def compute_end_point(self):
         """
@@ -47,7 +53,6 @@ class SweeperMPI(sweeper):
             None
         """
 
-        # get current level and problem description
         L = self.level
         P = L.prob
         L.uend = P.dtype_u(P.init, val=0.0)
@@ -69,7 +74,6 @@ class SweeperMPI(sweeper):
             stage (str): The current stage of the step the level belongs to
         """
 
-        # get current level and problem description
         L = self.level
 
         # Check if we want to skip the residual computation to gain performance
@@ -108,7 +112,6 @@ class SweeperMPI(sweeper):
         and evaluates the RHS of the ODE there
         """
 
-        # get current level and problem description
         L = self.level
         P = L.prob
 
@@ -144,7 +147,6 @@ class generic_implicit_MPI(SweeperMPI, generic_implicit):
             list of dtype_u: containing the integral as values
         """
 
-        # get current level and problem description
         L = self.level
         P = L.prob
 
@@ -165,7 +167,6 @@ class generic_implicit_MPI(SweeperMPI, generic_implicit):
             None
         """
 
-        # get current level and problem description
         L = self.level
         P = L.prob
 
@@ -203,4 +204,31 @@ class generic_implicit_MPI(SweeperMPI, generic_implicit):
         # indicate presence of new values at this level
         L.status.updated = True
 
+        return None
+
+    def compute_end_point(self):
+        """
+        Compute u at the right point of the interval
+
+        The value uend computed here is a full evaluation of the Picard formulation unless do_full_update==False
+
+        Returns:
+            None
+        """
+
+        L = self.level
+        P = L.prob
+        L.uend = P.dtype_u(P.init, val=0.0)
+
+        # check if Mth node is equal to right point and do_coll_update is false, perform a simple copy
+        if self.coll.right_is_node and not self.params.do_coll_update:
+            super().compute_end_point()
+        else:
+            L.uend = P.dtype_u(L.u[0])
+            self.params.comm.Allreduce(L.dt * self.coll.weights[self.rank] * L.f[self.rank + 1], L.uend, op=MPI.SUM)
+            L.uend += L.u[0]
+
+            # add up tau correction of the full interval (last entry)
+            if L.tau[-1] is not None:
+                L.uend += L.tau[-1]
         return None

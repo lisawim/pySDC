@@ -230,13 +230,6 @@ class SemiExplicitDAE(sweeper):
 
             U0_diff, p0_alg = np.array(L.f[m][: P.diff_nvars]), np.array(L.u[m][P.diff_nvars :]) 
             u0 = np.concatenate((U0_diff, p0_alg))
-            # solve = optimize.root(
-            #     implSystem,
-            #     u0,
-            #     method='hybr',
-            #     tol=P.newton_tol,
-            # )
-            # self.work_counters['newton'].niter += solve.maxfev
             u_new = P.solve_system(implSystem, u0, L.time + L.dt * self.coll.nodes[m - 1])
 
             # ---- update U' and z ----

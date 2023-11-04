@@ -392,7 +392,7 @@ def runSimulation(problem, sweeper, all_params, use_adaptivity, use_detection, h
 
                     plotSolution(u_num[dt][M][use_SE][use_A], prob_cls_name, use_A, use_SE)
 
-                    testSolution(u_num[dt][M_fix][use_SE][use_A], prob_cls_name, dt, use_A, use_SE)
+                    # testSolution(u_num[dt][M_fix][use_SE][use_A], prob_cls_name, dt, use_A, use_SE)
 
     return u_num
 
@@ -421,6 +421,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': ['u'],
         'piline': ['vC1', 'vC2', 'iLp'],
         'buck_converter': ['vC1', 'vC2', 'iLp'],
+        'simple_dae_1': ['u1', 'u2', 'z'],
     }
 
     unknowns_labels = {
@@ -430,6 +431,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': [r'$u$'],
         'piline': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
+        'simple_dae_1': [r'$u_1$', r'$u_2$', r'$z$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -559,8 +561,12 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
     res['unknowns'] = unknowns
     res['unknowns_labels'] = unknowns_labels
 
+    # residual
+    res['residual'] = np.array(get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed))
+
     # global error
     res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+    res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
 
     # event time(s) found by event detection
     if use_detection:
@@ -592,7 +598,13 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
         res['sum_restarts'] = np.sum(np.array(get_sorted(stats, type='restart', recomputed=None, sortby='time'))[:, 1])
 
     # sum over all iterations
-    res['sum_niters'] = np.sum(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
+    niters = np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1]
+    res['sum_niters'] = np.sum(niters)
+    res['mean_niters'] = np.mean(niters)
+
+    # newton and rhs work
+    res['newton'] = np.array(get_sorted(stats, type='work_newton', sortby='time', recomputed=recomputed))
+    res['rhs'] = np.array(get_sorted(stats, type='work_rhs', sortby='time', recomputed=recomputed))
     return res
 
 

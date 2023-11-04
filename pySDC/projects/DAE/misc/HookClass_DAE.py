@@ -82,3 +82,36 @@ class error_hook(hooks):
             type='error_post_step',
             value=err,
         )
+
+
+class LogGlobalErrorPostStepAlgebraicVariable(hooks):
+    """
+    Logs the global error in the algebraic variable which is the second component
+    in the solution of this specific example.
+
+    Parameters
+    ----------
+    hooks : _type_
+        _description_
+    """
+    def post_step(self, step, level_number):
+        super().post_step(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        # assume last equation is algebraic, hence last variable is algebraic variable
+        upde = P.u_exact(step.time + step.dt)
+        e_global_algebraic = abs(upde[-1] - L.uend[-1])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='e_global_algebraic_post_step',
+            value=e_global_algebraic,
+        )

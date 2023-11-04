@@ -1,47 +1,67 @@
 import numpy as np
+from scipy.optimize import root
 
-from pySDC.core.Problem import ptype
+from pySDC.core.Problem import ptype, WorkCounter
 from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 class ptype_dae(ptype):
-    """
-    Interface class for DAE problems. Ensures that all parameters are passed that are needed by DAE sweepers.
+    r"""
+    This class implements a generic DAE class and illustrates the interface class for DAE problems.
+    It ensures that all parameters are passed that are needed by DAE sweepers.
 
     Parameters
     ----------
     nvars : int
-        Number of unknowns.
+        Number of unknowns of the problem class.
     newton_tol : float
-        Inner tolerance for DAE sweepers to solve the nonlinear system.
-    diff_nvars : int, optional
-        Number of differential variables in the system (needed for semi-explicit treatment).
+        Tolerance for the nonlinear solver.
+
+    Attributes
+    ----------
+    work_counters : WorkCounter
+        Counts the work, here the number of function calls during the nonlinear solve is logged and stored
+        in work_counters['newton']. The number of each function class of the right-hand side is then stored
+        in work_counters['rhs']
     """
 
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, nvars, newton_tol, diff_nvars=None):
+    def __init__(self, nvars, newton_tol):
         """Initialization routine"""
         super().__init__((nvars, None, np.dtype('float64')))
-        self._makeAttributeAndRegister('nvars', 'newton_tol', 'diff_nvars', localVars=locals(), readOnly=True)
+        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
 
-    def eval_f(self, u, t, du=None):
-        """
-        Abstract interface to RHS computation of the ODE or DAE.
+        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['rhs'] = WorkCounter()
+
+    def solve_system(self, impl_sys, u0, t):
+        r"""
+        Solver for nonlinear implicit system (defined in sweeper).
 
         Parameters
         ----------
-        u : dtype_u
-            Current values of solution u.
+        impl_sys : callable
+            Implicit system to be solved.
+        u0 : dtype_u
+            Initial guess for solver.
         t : float
-            Current time.
-        du : bool, optional
-            Current values of derivative of differential variable u (in case of a DAE).
+            Current time :math:`t`.
 
         Returns
         -------
-        f : dtype_f
-            The RHS values.
+        me : dtype_u
+            Numerical solution.
         """
-        raise NotImplementedError('ERROR: problem has to implement eval_f(self, u, t, p=None, du=None)')
+
+        me = self.dtype_u(self.init)
+        opt = root(
+            impl_sys,
+            u0,
+            method='hybr',
+            tol=self.newton_tol,
+        )
+        me[:] = opt.x
+        self.work_counters['newton'].niter += opt.nfev
+        return me

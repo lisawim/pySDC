@@ -2,10 +2,10 @@ import numpy as np
 from scipy import optimize
 
 from pySDC.core.Errors import ParameterError
-from pySDC.core.Sweeper import sweeper
+from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 
 
-class fully_implicit_DAE(sweeper):
+class fully_implicit_DAE(generic_implicit):
     r"""
     Custom sweeper class to implement the fully-implicit SDC for solving DAEs. It solves fully-implicit DAE problems
     of the form
@@ -60,36 +60,6 @@ class fully_implicit_DAE(sweeper):
 
         self.QI = self.get_Qdelta_implicit(coll=self.coll, qd_type=self.params.QI)
 
-    # TODO: hijacking this function to return solution from its gradient i.e. fundamental theorem of calculus.
-    # This works well since (ab)using level.f to store the gradient. Might need to change this for release?
-    def integrate(self):
-        r"""
-        Returns the solution by integrating its gradient (fundamental theorem of calculus) at each collocation node.
-        Note that ``level.f`` stores the gradient values in the fully implicit case, rather than the evaluation of
-        the right-hand side as in the ODE case.
-
-        Returns
-        -------
-        me : list of lists
-            Integral of the gradient at each collocation node.
-        """
-
-        # get current level and problem description
-        L = self.level
-        P = L.prob
-        M = self.coll.num_nodes
-
-        me = []
-
-        # integrate gradient over all collocation nodes
-        for m in range(1, M + 1):
-            # new instance of dtype_u, initialize values with 0
-            me.append(P.dtype_u(P.init, val=0.0))
-            for j in range(1, M + 1):
-                me[-1] += L.dt * self.coll.Qmat[m, j] * L.f[j]
-
-        return me
-
     def update_nodes(self):
         r"""
         Updates values of ``u`` and ``f`` at collocation nodes. This correspond to a single iteration of the
@@ -128,16 +98,33 @@ class fully_implicit_DAE(sweeper):
                 u_approx += L.dt * self.QI[m, j] * L.f[j]
 
             # params contains U = u'
-            def impl_fn(params):
-                # make params into a mesh object
+            def implSystem(params):
+                """
+                Build implicit system to solve in order to find the unknowns.
+
+                Parameters
+                ----------
+                params : dtype_u
+                    Unknowns of the system.
+
+                Returns
+                -------
+                sys :
+                    System to be solved as implicit function.
+                """
+
                 params_mesh = P.dtype_f(P.init)
                 params_mesh[:] = params
+
                 # build parameters to pass to implicit function
                 local_u_approx = u_approx
+
                 # note that derivatives of algebraic variables are taken into account here too
                 # these do not directly affect the output of eval_f but rather indirectly via QI
                 local_u_approx += L.dt * self.QI[m, m] * params_mesh
-                return P.eval_f(local_u_approx, params_mesh, L.time + L.dt * self.coll.nodes[m - 1])
+
+                sys = P.eval_f(local_u_approx, params_mesh, L.time + L.dt * self.coll.nodes[m - 1])
+                return sys
 
             # get U_k+1
             # note: not using solve_system here because this solve step is the same for any problem
@@ -145,15 +132,11 @@ class fully_implicit_DAE(sweeper):
             # https://github.com/scipy/scipy/blob/8a6f1a0621542f059a532953661cd43b8167fce0/scipy/optimize/_root.py#L220
             # options['xtol'] = P.params.newton_tol
             # options['eps'] = 1e-16
-            opt = optimize.root(
-                impl_fn,
-                L.f[m],
-                method='hybr',
-                tol=P.newton_tol
-                # callback= lambda x, f: print("solution:", x, " residual: ", f)
-            )
+
+            u_new = P.solve_system(implSystem, L.f[m], L.time + L.dt * self.coll.nodes[m - 1])
+
             # update gradient (recall L.f is being used to store the gradient)
-            L.f[m][:] = opt.x
+            L.f[m][:] = u_new
 
         # Update solution approximation
         integral = self.integrate()
@@ -166,7 +149,7 @@ class fully_implicit_DAE(sweeper):
 
     def predict(self):
         r"""
-        Predictor to fill values at nodes before first sweep. It can decides whether the
+        Predictor to fill values at nodes before first sweep. It can decide whether the
 
             - initial condition is spread to each node ('initial_guess' = 'spread'),
             - zero values are spread to each node ('initial_guess' = 'zero'),
@@ -186,7 +169,6 @@ class fully_implicit_DAE(sweeper):
             if self.params.initial_guess == 'spread':
                 L.u[m] = P.dtype_u(L.u[0])
                 L.f[m] = P.dtype_f(init=P.init, val=0.0)
-            # start with zero everywhere
             elif self.params.initial_guess == 'zero':
                 L.u[m] = P.dtype_u(init=P.init, val=0.0)
                 L.f[m] = P.dtype_f(init=P.init, val=0.0)
@@ -253,29 +235,5 @@ class fully_implicit_DAE(sweeper):
 
         # indicate that the residual has seen the new values
         L.status.updated = False
-
-        return None
-
-    def compute_end_point(self):
-        r"""
-        Computes the solution ``u`` at the right-hand point. For ``quad_type='RADAU-LEFT'`` a collocation update
-        has to be done, which is the full evaluation of the Picard formulation. In cases of
-        ``quad_type='RADAU-RIGHT'`` or ``quad_type='LOBATTO'`` the value at last collocation node is the new value
-        for the next step.
-        """
-
-        # get current level and problem description
-        L = self.level
-        P = L.prob
-
-        # check if Mth node is equal to right point and do_coll_update is false, perform a simple copy
-        if self.coll.right_is_node and not self.params.do_coll_update:
-            # a copy is sufficient
-            L.uend = P.dtype_u(L.u[-1])
-        else:
-            # start with u0 and add integral over the full interval (using coll.weights)
-            L.uend = P.dtype_u(L.u[0])
-            for m in range(self.coll.num_nodes):
-                L.uend += L.dt * self.coll.weights[m] * L.f[m + 1]
 
         return None

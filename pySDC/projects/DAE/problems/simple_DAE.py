@@ -186,6 +186,20 @@ class simple_dae_1(ptype_dae):
         me[:] = (np.exp(t), np.exp(t), -np.exp(t) / (2 - t))
         return me
 
+    def du_exact(self, t):
+        r"""
+        Routine for the derivative of the exact solution. Needed to compute initial conditions
+        for :math:`u'(t_0)`.
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        me = self.dtype_u(self.init)
+        me[:] = (np.exp(t), np.exp(t), (np.exp(t) * (t - 3)) / (2 - t) ** 2)
+        return me
+
 
 class problematic_f(ptype_dae):
     r"""

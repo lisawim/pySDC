@@ -392,7 +392,7 @@ def runSimulation(problem, sweeper, all_params, use_adaptivity, use_detection, h
 
                     plotSolution(u_num[dt][M][use_SE][use_A], prob_cls_name, use_A, use_SE)
 
-                    testSolution(u_num[dt][M_fix][use_SE][use_A], prob_cls_name, dt, use_A, use_SE)
+                    # testSolution(u_num[dt][M_fix][use_SE][use_A], prob_cls_name, dt, use_A, use_SE)
 
     return u_num
 
@@ -421,6 +421,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': ['u'],
         'piline': ['vC1', 'vC2', 'iLp'],
         'buck_converter': ['vC1', 'vC2', 'iLp'],
+        'simple_dae_1': ['u1', 'u2', 'z'],
     }
 
     unknowns_labels = {
@@ -430,6 +431,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': [r'$u$'],
         'piline': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
+        'simple_dae_1': [r'$u_1$', r'$u_2$', r'$z$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]

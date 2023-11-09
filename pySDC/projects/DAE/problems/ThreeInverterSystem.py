@@ -119,21 +119,7 @@ class ThreeInverterSystem(ptype_dae):
         f : dtype_f
             The right-hand side of f (contains two components).
         """
-
-        # dEqp, dSi1d, dEdp = du[0 : self.m], du[self.m : 2 * self.m], du[2 * self.m : 3 * self.m]
-        # dSi2q, dDelta = du[3 * self.m : 4 * self.m], du[4 * self.m : 5 * self.m]
-        # dw, dEfd, dRF = du[5 * self.m : 6 * self.m], du[6 * self.m : 7 * self.m], du[7 * self.m : 8 * self.m]
-        # dVR, dTM, dPSV = du[8 * self.m : 9 * self.m], du[9 * self.m : 10 * self.m], du[10 * self.m : 11 * self.m]
-
-        # Eqp, Si1d, Edp = u[0 : self.m], u[self.m : 2 * self.m], u[2 * self.m : 3 * self.m]
-        # Si2q, Delta = u[3 * self.m : 4 * self.m], u[4 * self.m : 5 * self.m]
-        # w, Efd, RF = u[5 * self.m : 6 * self.m], u[6 * self.m : 7 * self.m], u[7 * self.m : 8 * self.m]
-        # VR, TM, PSV = u[8 * self.m : 9 * self.m], u[9 * self.m : 10 * self.m], u[10 * self.m : 11 * self.m]
-
-        # Id, Iq = u[11 * self.m : 11 * self.m + self.m], u[11 * self.m + self.m : 11 * self.m + 2 * self.m]
-        # V = u[11 * self.m + 2 * self.m : 11 * self.m + 2 * self.m + self.n]
-        # TH = u[11 * self.m + 2 * self.m + self.n : 11 * self.m + 2 * self.m + 2 * self.n]
-
+        
         di_c1, dv_dc1, dphi_dc1, ddelta1, dphi_q1, dv_cc1 = du[0:2], du[2], du[3], du[4], du[5], du[6:8]
         di_c2, dv_dc2, dphi_dc2, ddelta2, dphi_q2, dv_cc2 = du[8:10] , du[10], du[11], du[12], du[13], du[14:16]     
         di_c3, dv_dc3, dphi_dc3, ddelta3, dphi_q3, dv_cc3 = du[16:18], du[18], du[19], du[20], du[21], du[22:24]
@@ -174,7 +160,7 @@ class ThreeInverterSystem(ptype_dae):
         
         # disturbance
         # at t=1 the disturbance occurs
-        if(t > 0.2): 
+        if(t > 1.0): 
             self.e = self.v_after; # voltage sag
         #       Power3 = 1e6;
 

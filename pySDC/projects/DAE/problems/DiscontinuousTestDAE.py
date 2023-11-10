@@ -1,5 +1,6 @@
 import numpy as np
 
+from pySDC.core.Problem import WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
 
 
@@ -55,7 +56,7 @@ class DiscontinuousTestDAE(ptype_dae):
         Appl. Numer. Math. 178, 98-122 (2022).
     """
 
-    def __init__(self, newton_tol=1e-12):
+    def __init__(self, nvars=2, newton_tol=1e-12):
         """Initialization routine"""
         nvars = 2
         super().__init__(nvars, newton_tol)
@@ -65,6 +66,7 @@ class DiscontinuousTestDAE(ptype_dae):
         self.t_switch_exact = np.arccosh(50)
         self.t_switch = None
         self.nswitches = 0
+        self.work_counters['rhs'] = WorkCounter()
 
     def eval_f(self, u, du, t):
         r"""
@@ -103,6 +105,7 @@ class DiscontinuousTestDAE(ptype_dae):
                 dy - z,
                 y**2 - z**2 - 1,
             )
+        self.work_counters['rhs']()
         return f
 
     def u_exact(self, t, **kwargs):
@@ -177,3 +180,48 @@ class DiscontinuousTestDAE(ptype_dae):
         Setter to update the number of switches if one is found.
         """
         self.nswitches += 1
+
+
+class DiscontinuousTestDAEWithAlgebraicStateFunction(DiscontinuousTestDAE):
+    r"""
+    This class implements the scalar test discontinuous DAE as in ``DiscontinuousTestDAE``. The difference to
+    the parent class is the different state function :math:`h(y):= 2yz - 100`, which uses the algebraic variable
+    :math:`z` here. Hence, also the exact event time ``t_switch_exact`` changes.
+
+    Note
+    ----
+    For this class, the dynamics are the same as for the parent class. The exact event time ``t_switch_exact`` is
+    different, which means that the root of the state function. i.e., the discrete event occurs earlier.
+
+    All attributes will be inherited here except for ``t_switch_exact`` which is overwritten.
+
+    Moreover, this class is interesting to observe in combination with the SDC sweeper ``SemiExplicitDAE`` since the
+    parent class implements a semi-explicit DAE.
+    """
+
+    def __init__(self, nvars=2, newton_tol=1e-12):
+        """Initialization routine"""
+        nvars = 2
+        super().__init__(nvars, newton_tol)
+
+        self.t_switch_exact = 0.5 * np.arcsinh(100)
+        self.diff_nvars = 1
+
+    def eval_state_function(self, u, t):
+        r"""
+        Evaluates the state function :math:`h(y(t), z(t)) = 2 y(t) z(t) - 100`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current numerical solution.
+        t : float
+            Current time :math:`t`.
+
+        Returns
+        -------
+        state_function : float
+            Value of state function at time :math:`t`.
+        """
+        state_function = 2 * u[0] * u[1] - 100
+        return state_function

@@ -34,7 +34,7 @@ def main():
     # initialize problem parameters
     problem_params = dict()
     problem_params['newton_tol'] = 1e-3  # tollerance for implicit solver
-    problem_params['nvars'] = 30
+    problem_params['nvars'] = 36
 
     # initialize step parameters
     step_params = dict()

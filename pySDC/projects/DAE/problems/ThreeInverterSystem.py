@@ -16,7 +16,7 @@ class ThreeInverterSystem(ptype_dae):
     def __init__(self, nvars=None, newton_tol=1e-10):
         """Initialization routine"""
 
-        nvars = 30
+        nvars = 36
         # invoke super init, passing number of dofs
         super().__init__(nvars, newton_tol)
         self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
@@ -154,6 +154,11 @@ class ThreeInverterSystem(ptype_dae):
         il_12DQ  = u[26:28]
         il_23DQ  = u[28:30]
 
+        ## Algebraic variables
+        v_g1DQ = u[30:32] 
+        v_g2DQ = u[32:34]
+        v_g3DQ = u[34:36]
+
         # line outage disturbance:
         # if t >= 0.05:
         #     self.YBus = self.YBus_line6_8_outage
@@ -205,7 +210,8 @@ class ThreeInverterSystem(ptype_dae):
         eqs.append(np.dot(np.array([0, 1]), v_g1) - dphi_q1)
         eqs.append(-self.Ki * np.dot(Tdelta1, i_g1DQ) + self.Ki * i_c1 - dv_cc1)
 
-        v_g1DQ = np.dot(Tdelta1.T, v_g1)
+        # v_g1DQ = np.dot(Tdelta1.T, v_g1)
+        eqs.append(np.dot(Tdelta1.T, v_g1) - v_g1DQ)
 
         ## Equations Converter 2
         iq_ref2 = 0
@@ -227,7 +233,8 @@ class ThreeInverterSystem(ptype_dae):
         eqs.append(np.dot(np.array([0, 1]), v_g2) - dphi_q2)
         eqs.append(-self.Ki * np.dot(Tdelta2, i_g2DQ) + self.Ki*i_c2 - dv_cc2)
         
-        v_g2DQ = np.dot(Tdelta2.T, v_g2)
+        # v_g2DQ = np.dot(Tdelta2.T, v_g2)
+        eqs.append(np.dot(Tdelta2.T, v_g2) - v_g2DQ)
 
         ## Equations Converter 3
         iq_ref3 = -500
@@ -249,7 +256,9 @@ class ThreeInverterSystem(ptype_dae):
         eqs.append(np.dot(np.array([0, 1]), v_g3) - dphi_q3)
         eqs.append(-self.Ki * np.dot(Tdelta3, i_g3DQ) + self.Ki*i_c3 - dv_cc3)
 
-        v_g3DQ = np.dot(Tdelta3.T, v_g3)
+        # v_g3DQ = np.dot(Tdelta3.T, v_g3)
+        eqs.append(np.dot(Tdelta3.T, v_g3) - v_g3DQ)
+
         ## Power network and grid equations, according to the Kirkhoff laws
 
         eqs.append(-(self.R_g)/(self.L_g)*i_pccDQ     - np.dot(self.jw, i_pccDQ) + 1/(self.L_g)   * (v_g1DQ - self.e.T) - di_pccDQ)          # Grid 

@@ -55,11 +55,12 @@ class DiscontinuousTestDAE(ptype_dae):
         Appl. Numer. Math. 178, 98-122 (2022).
     """
 
-    def __init__(self, newton_tol=1e-12):
+    def __init__(self, nvars=2, newton_tol=1e-12):
         """Initialization routine"""
         nvars = 2
+        diff_nvars = 1
         super().__init__(nvars, newton_tol)
-        self._makeAttributeAndRegister('nvars', localVars=locals(), readOnly=True)
+        self._makeAttributeAndRegister('nvars', 'diff_nvars', localVars=locals(), readOnly=True)
         self._makeAttributeAndRegister('newton_tol', localVars=locals())
 
         self.t_switch_exact = np.arccosh(50)
@@ -128,6 +129,31 @@ class DiscontinuousTestDAE(ptype_dae):
             me[:] = (np.cosh(t), np.sinh(t))
         else:
             me[:] = (np.cosh(self.t_switch_exact), np.sinh(self.t_switch_exact))
+        return me
+
+    def du_exact(self, t, **kwargs):
+        r"""
+        Routine for the exact solution at time :math:`t \leq 1`. For this problem, the exact
+        solution is piecewise.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
+
+        Returns
+        -------
+        me : dtype_u
+            Exact solution.
+        """
+
+        assert t >= 1, 'ERROR: u_exact only available for t>=1'
+
+        me = self.dtype_u(self.init)
+        if t <= self.t_switch_exact:
+            me[:] = (np.sinh(t), np.cosh(t))
+        else:
+            me[:] = (np.sinh(self.t_switch_exact), np.cosh(self.t_switch_exact))
         return me
 
     def get_switching_info(self, u, t):

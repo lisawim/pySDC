@@ -133,11 +133,26 @@ class simple_dae_1(ptype_dae):
     newton_tol : float
         Tolerance for Newton solver.
 
+    Note
+    ----
+    This DAE is of pure index-2 *Hessenberg form*, i.e.,
+
+    .. math::
+        u' = f(u, z, t),
+
+    .. math::
+        0 = g(u, t).
+
+    The use of half-explicit methods leads to order reduction [1]_.
+
     References
     ----------
-    .. [1] U. Ascher, L. R. Petzold. Computer method for ordinary differential equations and differential-algebraic
+    .. [1] U. Ascher, L. R. Petzold. Computer methods for ordinary differential equations and differential-algebraic
         equations. Society for Industrial and Applied Mathematics (1998).
     """
+    def __init__(self, nvars=3, newton_tol=1e-3):
+        super().__init__(nvars, newton_tol)
+        self._makeAttributeAndRegister('nvars', localVars=locals(), readOnly=True)
 
     def eval_f(self, u, du, t):
         r"""
@@ -161,7 +176,7 @@ class simple_dae_1(ptype_dae):
         a = 10.0
         f = self.dtype_f(self.init)
         f[:] = (
-            -du[0] + (a - 1 / (2 - t)) * u[0] + (2 - t) * a * u[2] + np.exp(t) * (3 - t) / (2 - t),
+            -du[0] + (a - 1 / (2 - t)) * u[0] + (2 - t) * a * u[2] + ((3 - t) / (2 - t))  * np.exp(t),
             -du[1] + (1 - a) / (t - 2) * u[0] - u[1] + (a - 1) * u[2] + 2 * np.exp(t),
             (t + 2) * u[0] + (t**2 - 4) * u[1] - (t**2 + t - 2) * np.exp(t),
         )
@@ -197,7 +212,7 @@ class simple_dae_1(ptype_dae):
             _description_
         """
         me = self.dtype_u(self.init)
-        me[:] = (np.exp(t), np.exp(t), (np.exp(t) * (t - 3)) / (2 - t) ** 2)
+        me[:] = (np.exp(t), np.exp(t), (np.exp(t) * (t - 3)) / ((2 - t) ** 2))
         return me
 
 
@@ -279,4 +294,22 @@ class problematic_f(ptype_dae):
         """
         me = self.dtype_u(self.init)
         me[:] = (np.sin(t), 0)
+        return me
+
+    def du_exact(self, t):
+        r"""
+        Routine for the derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            Time of the derivative.
+
+        Returns
+        -------
+        me : dtype_u
+            Derivative of exact solution at time :math:`t`.
+        """
+        me = self.dtype_u(self.init)
+        me[:] = (np.cos(t), 0)
         return me

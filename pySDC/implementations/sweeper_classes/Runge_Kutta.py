@@ -43,7 +43,7 @@ class ButcherTableau(object):
         self.tleft = 0.0
         self.tright = 1.0
 
-        self.nodes = np.append(np.append([0], nodes), [1])
+        self.nodes = np.append(nodes, [1])
         self.weights = weights
         self.Qmat = np.zeros([self.num_nodes + 1, self.num_nodes + 1])
         self.Qmat[1:-1, 1:-1] = matrix
@@ -54,10 +54,9 @@ class ButcherTableau(object):
 
         # compute distances between the nodes
         if self.num_nodes > 1:
-            self.delta_m = self.nodes[1:] - self.nodes[:-1]
+            self.delta_m = np.append(self.nodes[0] - self.tleft, self.nodes[1:] - self.nodes[:-1])
         else:
-            self.delta_m = np.zeros(1)
-        self.delta_m[0] = self.nodes[0] - self.tleft
+            self.delta_m = np.array([self.nodes[0] - self.tleft])
 
         # check if the RK scheme is implicit
         self.implicit = any(matrix[i, i] != 0 for i in range(self.num_nodes - self.num_solution_stages))
@@ -101,7 +100,7 @@ class ButcherTableauEmbedded(object):
         self.tleft = 0.0
         self.tright = 1.0
 
-        self.nodes = np.append(np.append([0], nodes), [1, 1])
+        self.nodes = np.append(nodes, [1, 1])
         self.weights = weights
         self.Qmat = np.zeros([self.num_nodes + 1, self.num_nodes + 1])
         self.Qmat[1:-2, 1:-2] = matrix
@@ -113,10 +112,9 @@ class ButcherTableauEmbedded(object):
 
         # compute distances between the nodes
         if self.num_nodes > 1:
-            self.delta_m = self.nodes[1:] - self.nodes[:-1]
+            self.delta_m = np.append(self.nodes[0] - self.tleft, self.nodes[1:] - self.nodes[:-1])
         else:
-            self.delta_m = np.zeros(1)
-        self.delta_m[0] = self.nodes[0] - self.tleft
+            self.delta_m = np.array([self.nodes[0] - self.tleft])
 
         # check if the RK scheme is implicit
         self.implicit = any(matrix[i, i] != 0 for i in range(self.num_nodes - self.num_solution_stages))
@@ -471,7 +469,7 @@ class BackwardEuler(RungeKutta):
     A-stable first order method.
     """
 
-    nodes = np.array([0.0])
+    nodes = np.array([1.0])
     weights = np.array([1.0])
     matrix = np.array(
         [

@@ -42,10 +42,6 @@ class RungeKuttaDAE(RungeKutta):
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True
-        print(L.time, 'Predict:', 'u:', L.u)
-        print(L.time, 'Predict:', 'f:', L.f)
-        print('u0 in predict:', L.u[0])
-        print()
 
     def integrate(self):
         """
@@ -86,14 +82,11 @@ class RungeKuttaDAE(RungeKutta):
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
         u0 = L.u[0]
-        print('M:', M)
-        print('all nodes in a step:', [L.time + L.dt * self.coll.nodes[m] for m in range(M)])
         for m in range(0, M):
             u_approx = P.dtype_u(u0)
             for j in range(1, m + 1):
-                # print('m:', m, 'j:', j)
                 u_approx += L.dt * self.QI[m + 1, j] * L.f[j]
-            print('m:', m, [self.QI[m + 1, j] for j in range(1, m + 1)])
+
             def implSystem(unknowns):
                 """
                 Build implicit system to solve in order to find the unknowns for the derivative
@@ -116,9 +109,7 @@ class RungeKuttaDAE(RungeKutta):
 
                 # defines the "implicit" factor, note that for explicit RK the diagonal element is zero
                 local_u_approx += L.dt * self.QI[m + 1, m + 1] * unknowns_mesh
-                print('diagonal element m:', m, self.QI[m + 1, m + 1], local_u_approx)
                 sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[m])
-                print('sys:', sys)
                 return sys
 
             # implicit solve with prefactor stemming from the diagonal of Qd, use previous stage as initial guess
@@ -132,9 +123,6 @@ class RungeKuttaDAE(RungeKutta):
             L.u[k + 1] = u0 + integral[k]
 
         self.f_init = L.f[-1]
-        print('After update:', 'u:', L.u)
-        print('After update:', 'f:', L.f)
-        print()
 
         # indicate presence of new values at this level
         L.status.updated = True
@@ -195,8 +183,6 @@ class RungeKuttaIMEXDAE(RungeKuttaDAE):
             for j in range(1, m + 1):
                 u_approx += L.dt * self.QI[m + 1, j] * L.f[j]
             u_approx[P.diff_nvars :] = L.u[m + 1][P.diff_nvars :]
-            print('u0 before implSystem:', L.u[0])
-            print('m:', m, [self.QI[m + 1, j] for j in range(1, m + 1)])
             def implSystem(unknowns):
                 """
                 Build implicit system to solve in order to find the unknowns for the derivative
@@ -220,9 +206,7 @@ class RungeKuttaIMEXDAE(RungeKuttaDAE):
                 # defines the "implicit" factor, note that for explicit RK the diagonal element is zero
                 local_u_approx += L.dt * self.QI[m + 1, m + 1] * unknowns_mesh
                 local_u_approx[P.diff_nvars :] = unknowns_mesh[P.diff_nvars :]
-                print('diagonal element m:', m, self.QI[m + 1, m + 1], local_u_approx)
                 sys = P.eval_f(local_u_approx, unknowns_mesh[: P.diff_nvars], L.time + L.dt * self.coll.nodes[m])
-                print('sys:', sys)
                 return sys
 
             # implicit solve with prefactor stemming from the diagonal of Qd, use previous stage as initial guess
@@ -240,8 +224,6 @@ class RungeKuttaIMEXDAE(RungeKuttaDAE):
 
         # store value at last node as initial condition for next step
         self.f_init = L.f[-1]
-        print('After update:', 'u:', L.u)
-        print('After update:', 'f:', L.f)
 
         # indicate presence of new values at this level
         L.status.updated = True

@@ -10,7 +10,7 @@ from pySDC.projects.DAE.problems.ThreeInverterSystem import ThreeInverterSystem
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 # from pySDC.projects.DAE.misc.HookClass_DAE import approx_solution_hook
 # from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.implementations.hooks.log_solution import LogSolution
 
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.helpers.stats_helper import filter_stats
@@ -34,7 +34,7 @@ def main():
     # initialize problem parameters
     problem_params = dict()
     problem_params['newton_tol'] = 1e-3  # tollerance for implicit solver
-    problem_params['nvars'] = 14
+    problem_params['nvars'] = 36
 
     # initialize step parameters
     step_params = dict()
@@ -43,7 +43,7 @@ def main():
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 30
-    controller_params['hook_class'] = [LogGlobalErrorPostStep]
+    controller_params['hook_class'] = [LogSolution]
 
     # Fill description dictionary for easy hierarchy creation
     description = dict()
@@ -61,7 +61,7 @@ def main():
 
     # set time parameters
     t0 = 0.0
-    Tend = 0.5
+    Tend = 2
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
@@ -70,29 +70,6 @@ def main():
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    # check error (only available if reference solution was provided)
-    # err = get_sorted(stats, type='error_post_step', sortby='time')
-    # err = np.linalg.norm([err[i][1] for i in range(len(err))], np.inf)
-    # print(f"Error is {err}")
-
-    # uend_ref = [
-    #     8.30823565e-01,
-    #     -4.02584174e-01,
-    #     1.16966755e00,
-    #     9.47592808e-01,
-    #     -3.68076863e-01,
-    #     -3.87492326e-01,
-    #     -7.77837831e-01,
-    #     -1.67347611e-01,
-    #     1.34810867e00,
-    #     5.46223705e-04,
-    #     1.29690691e-02,
-    #     -8.00823474e-02,
-    #     3.10281509e-01,
-    #     9.94039645e-01,
-    # ]
-    # err = np.linalg.norm(uend - uend_ref, np.inf)
-    # assert np.isclose(err, 0, atol=1e-4), "Error too large."
 
     # store results
     sol = get_sorted(stats, type='approx_solution', sortby='time')
@@ -101,22 +78,75 @@ def main():
     niter = filter_stats(stats, type='niter')
     niter = np.fromiter(niter.values(), int)
 
-    t = np.array([me[0] for me in get_sorted(stats, type='approx_solution', sortby='time')])
+    t = np.array([me[0] for me in get_sorted(stats, type='u', sortby='time')])
     # print([me[1][11*m + 2*m:11*m + 2*m + n] for me in get_sorted(stats, type='approx_solution', sortby='time', recomputed=False)])
-    i_c1 = np.array([me[0:2] for me in get_sorted(stats, type='approx_solution', sortby='time')])
-    v_cc1 = np.array([me[6:8] for me in get_sorted(stats, type='approx_solution', sortby='time')])
-    # data = dict()
-    # data['dt'] = sol_dt
-    # data['solution'] = sol_data
-    # data['niter'] = round(statistics.mean(niter))
-    # pickle.dump(data, open("data/dae_conv_data.p", 'wb'))
+    i_c1 = np.array([ me[1][0:2] for me in get_sorted(stats, type='u', sortby='time')])
+    i_c2 = np.array([ me[1][8:10] for me in get_sorted(stats, type='u', sortby='time')])
+    i_c3 = np.array([ me[1][16:18] for me in get_sorted(stats, type='u', sortby='time')])
+
+    v_cc1 = np.array([ me[1][6:8] for me in get_sorted(stats, type='u', sortby='time')])
+    v_cc2 = np.array([ me[1][14:16] for me in get_sorted(stats, type='u', sortby='time')])
+    v_cc3 = np.array([ me[1][22:24] for me in get_sorted(stats, type='u', sortby='time')])
+
+    delta1 = np.array([ me[1][5] for me in get_sorted(stats, type='u', sortby='time')])
+    delta2 = np.array([ me[1][13] for me in get_sorted(stats, type='u', sortby='time')])
+    delta3 = np.array([ me[1][21] for me in get_sorted(stats, type='u', sortby='time')])
+
+    i_pccDQ = np.array([ me[1][24:26] for me in get_sorted(stats, type='u', sortby='time')])
+    il_12DQ = np.array([ me[1][26:28] for me in get_sorted(stats, type='u', sortby='time')])
+    il_23DQ = np.array([ me[1][28:30] for me in get_sorted(stats, type='u', sortby='time')])
+
+    i_g1DQ = i_pccDQ - il_12DQ
+    i_g2DQ = il_12DQ - il_23DQ
+    i_g3DQ = il_23DQ
+
+    i_g1=np.zeros_like(i_g1DQ)
+    i_g2=np.zeros_like(i_g2DQ)
+    i_g3=np.zeros_like(i_g3DQ)
+
+    for k in range(len(delta1)):
+        rotation_matrix1 = np.array([[np.cos(delta1[k]), np.sin(delta1[k])], [-np.sin(delta1[k]), np.cos(delta1[k])]])
+        i_g1[k, :] = np.dot(rotation_matrix1, i_g1DQ[k, :])
+
+        rotation_matrix2 = np.array([[np.cos(delta2[k]), np.sin(delta2[k])], [-np.sin(delta2[k]), np.cos(delta2[k])]])
+        i_g2[k, :] = np.dot(rotation_matrix2, i_g2DQ[k, :])
+
+        rotation_matrix3 = np.array([[np.cos(delta3[k]), np.sin(delta3[k])], [-np.sin(delta3[k]), np.cos(delta3[k])]])
+        i_g3[k, :] = np.dot(rotation_matrix3, i_g3DQ[k, :])
+
+    fs = 2000
+    Ts = 1/fs
+    Lf = 0.1e-3;    # L Filter
+    Kp  = Lf*1.8/(3*Ts)
+
+
+    v_g1 = Kp*(i_c1-i_g1) + v_cc1
+    v_g2 = Kp*(i_c2-i_g2) + v_cc2 
+    v_g3 = Kp*(i_c3-i_g3) + v_cc3 
+
+    # Initialize i_pcc as a zeros matrix with the same shape as i_pccDQ
+    i_pcc = np.zeros_like(i_pccDQ)
+
+    # Perform the matrix operations
+    for k in range(len(delta1)):
+        rotation_matrix = np.array([[np.cos(delta1[k]), np.sin(delta1[k])],
+                                    [-np.sin(delta1[k]), np.cos(delta1[k])]])
+        i_pcc[k, :] = np.dot(rotation_matrix, i_pccDQ[k, :])
+
+    # Set v_pcc to v_g1
+    v_pcc = v_g1
+
+    # Transpose i_pcc
+    i_pcc = i_pcc.T
+
     file_name_suffix = "invSys"
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(4.5, 3))
-    ax.plot(t, i_c1[:, 0], label='ic1_0')
-    ax.plot(t, i_c1[:, 1], label='ic1_1')
+    ax.plot(t, v_pcc[:, 0], label='v_pcc_d')
+    ax.plot(t, v_pcc[:, 1], label='v_pcc_q')
     ax.legend(loc='upper right', fontsize=10)
+    ax.set_xlim(0.9,1.7)
     # plt_helper.plt.show()
-    fig.savefig(f'data/i_c1_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
+    fig.savefig(f'data/v_pcc_{file_name_suffix}.png', dpi=300, bbox_inches='tight')
 
 
     print("Done")

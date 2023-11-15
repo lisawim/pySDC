@@ -16,7 +16,7 @@ class ThreeInverterSystem(ptype_dae):
     def __init__(self, nvars=None, newton_tol=1e-10):
         """Initialization routine"""
 
-        nvars = 30
+        nvars = 36
         # invoke super init, passing number of dofs
         super().__init__(nvars, newton_tol)
         self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
@@ -119,21 +119,7 @@ class ThreeInverterSystem(ptype_dae):
         f : dtype_f
             The right-hand side of f (contains two components).
         """
-
-        # dEqp, dSi1d, dEdp = du[0 : self.m], du[self.m : 2 * self.m], du[2 * self.m : 3 * self.m]
-        # dSi2q, dDelta = du[3 * self.m : 4 * self.m], du[4 * self.m : 5 * self.m]
-        # dw, dEfd, dRF = du[5 * self.m : 6 * self.m], du[6 * self.m : 7 * self.m], du[7 * self.m : 8 * self.m]
-        # dVR, dTM, dPSV = du[8 * self.m : 9 * self.m], du[9 * self.m : 10 * self.m], du[10 * self.m : 11 * self.m]
-
-        # Eqp, Si1d, Edp = u[0 : self.m], u[self.m : 2 * self.m], u[2 * self.m : 3 * self.m]
-        # Si2q, Delta = u[3 * self.m : 4 * self.m], u[4 * self.m : 5 * self.m]
-        # w, Efd, RF = u[5 * self.m : 6 * self.m], u[6 * self.m : 7 * self.m], u[7 * self.m : 8 * self.m]
-        # VR, TM, PSV = u[8 * self.m : 9 * self.m], u[9 * self.m : 10 * self.m], u[10 * self.m : 11 * self.m]
-
-        # Id, Iq = u[11 * self.m : 11 * self.m + self.m], u[11 * self.m + self.m : 11 * self.m + 2 * self.m]
-        # V = u[11 * self.m + 2 * self.m : 11 * self.m + 2 * self.m + self.n]
-        # TH = u[11 * self.m + 2 * self.m + self.n : 11 * self.m + 2 * self.m + 2 * self.n]
-
+        
         di_c1, dv_dc1, dphi_dc1, ddelta1, dphi_q1, dv_cc1 = du[0:2], du[2], du[3], du[4], du[5], du[6:8]
         di_c2, dv_dc2, dphi_dc2, ddelta2, dphi_q2, dv_cc2 = du[8:10] , du[10], du[11], du[12], du[13], du[14:16]     
         di_c3, dv_dc3, dphi_dc3, ddelta3, dphi_q3, dv_cc3 = du[16:18], du[18], du[19], du[20], du[21], du[22:24]
@@ -168,13 +154,18 @@ class ThreeInverterSystem(ptype_dae):
         il_12DQ  = u[26:28]
         il_23DQ  = u[28:30]
 
+        ## Algebraic variables
+        v_g1DQ = u[30:32] 
+        v_g2DQ = u[32:34]
+        v_g3DQ = u[34:36]
+
         # line outage disturbance:
         # if t >= 0.05:
         #     self.YBus = self.YBus_line6_8_outage
         
         # disturbance
         # at t=1 the disturbance occurs
-        if(t > 0.2): 
+        if(t > 1.0): 
             self.e = self.v_after; # voltage sag
         #       Power3 = 1e6;
 
@@ -219,7 +210,8 @@ class ThreeInverterSystem(ptype_dae):
         eqs.append(np.dot(np.array([0, 1]), v_g1) - dphi_q1)
         eqs.append(-self.Ki * np.dot(Tdelta1, i_g1DQ) + self.Ki * i_c1 - dv_cc1)
 
-        v_g1DQ = np.dot(Tdelta1.T, v_g1)
+        # v_g1DQ = np.dot(Tdelta1.T, v_g1)
+        eqs.append(np.dot(Tdelta1.T, v_g1) - v_g1DQ)
 
         ## Equations Converter 2
         iq_ref2 = 0
@@ -241,7 +233,8 @@ class ThreeInverterSystem(ptype_dae):
         eqs.append(np.dot(np.array([0, 1]), v_g2) - dphi_q2)
         eqs.append(-self.Ki * np.dot(Tdelta2, i_g2DQ) + self.Ki*i_c2 - dv_cc2)
         
-        v_g2DQ = np.dot(Tdelta2.T, v_g2)
+        # v_g2DQ = np.dot(Tdelta2.T, v_g2)
+        eqs.append(np.dot(Tdelta2.T, v_g2) - v_g2DQ)
 
         ## Equations Converter 3
         iq_ref3 = -500
@@ -263,7 +256,9 @@ class ThreeInverterSystem(ptype_dae):
         eqs.append(np.dot(np.array([0, 1]), v_g3) - dphi_q3)
         eqs.append(-self.Ki * np.dot(Tdelta3, i_g3DQ) + self.Ki*i_c3 - dv_cc3)
 
-        v_g3DQ = np.dot(Tdelta3.T, v_g3)
+        # v_g3DQ = np.dot(Tdelta3.T, v_g3)
+        eqs.append(np.dot(Tdelta3.T, v_g3) - v_g3DQ)
+
         ## Power network and grid equations, according to the Kirkhoff laws
 
         eqs.append(-(self.R_g)/(self.L_g)*i_pccDQ     - np.dot(self.jw, i_pccDQ) + 1/(self.L_g)   * (v_g1DQ - self.e.T) - di_pccDQ)          # Grid 

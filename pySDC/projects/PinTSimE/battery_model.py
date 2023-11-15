@@ -392,7 +392,7 @@ def runSimulation(problem, sweeper, all_params, use_adaptivity, use_detection, h
 
                     plotSolution(u_num[dt][M][use_SE][use_A], prob_cls_name, use_A, use_SE)
 
-                    testSolution(u_num[dt][M_fix][use_SE][use_A], prob_cls_name, dt, use_A, use_SE)
+                    # testSolution(u_num[dt][M_fix][use_SE][use_A], prob_cls_name, dt, use_A, use_SE)
 
     return u_num
 
@@ -421,6 +421,9 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': ['u'],
         'piline': ['vC1', 'vC2', 'iLp'],
         'buck_converter': ['vC1', 'vC2', 'iLp'],
+        'simple_dae_1': ['u1', 'u2', 'z'],
+        'DiscontinuousTestDAE': ['y', 'z'],
+        'problematic_f': ['y1', 'y2'],
     }
 
     unknowns_labels = {
@@ -430,6 +433,9 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': [r'$u$'],
         'piline': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
+        'simple_dae_1': [r'$u_1$', r'$u_2$', r'$z$'],
+        'DiscontinuousTestDAE': [r'$y$', r'$z$'],
+        'problematic_f': [r'$y_1$', r'$y_2$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -561,6 +567,7 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
 
     # global error
     res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+    res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
 
     # event time(s) found by event detection
     if use_detection:

@@ -249,6 +249,20 @@ class RungeKuttaIMEXDAE(RungeKuttaDAE):
         return None
 
 
+class TrapezoidalRule(RungeKutta):
+    """
+    Famous trapezoidal rule of second order. Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), third one in eq. (213).
+    """
+
+    nodes = np.array([0.0, 1.0])
+    weights = np.array([1.0 / 2.0, 1.0 / 2.0])
+    matrix = np.zeros((2, 2))
+    matrix[0, 0] = 0.0
+    matrix[1, :] = [1.0 / 2.0, 1.0 / 2.0]
+    ButcherTableauClass = ButcherTableau
+
+
 class DIRK43_2(RungeKutta):
     """
     L-stable Diagonally Implicit RK method with four stages of order 3.
@@ -265,7 +279,78 @@ class DIRK43_2(RungeKutta):
     ButcherTableauClass = ButcherTableau
 
 
+class MillerDIRK(RungeKutta):
+    """
+    Miller's DIRK method with three stages. Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (217).
+    """
+
+    nodes = np.array([1.0, 1.0 / 3.0, 1.0])
+    weights = np.array([0.0, 3.0, 1.0]) / 4.0
+    matrix = np.zeros((3, 3))
+    matrix[0, 0] = 1.0
+    matrix[1, :2] = [-1.0 / 12.0, 5.0 / 12.0]
+    matrix[2, :3] = [0.0, 3.0 / 4.0, 1.0 / 4.0]
+    ButcherTableauClass = ButcherTableau
+
+
+class EDIRK4(RungeKutta):
+    """
+    Stiffly accurate, fourth-order EDIRK with four stages. Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (216).
+    """
+
+    nodes = np.array([0.0, 3.0 / 2.0, 7.0 / 5.0, 1.0])
+    weights = np.array([13.0, 84.0, -125.0, 70.0]) / 42.0
+    matrix = np.zeros((4, 4))
+    matrix[0, 0] = 0
+    matrix[1, :2] = [3.0 / 4.0, 3.0 / 4.0]
+    matrix[2, :3] = [447.0 / 675.0, -357.0 / 675.0, 855.0 / 675.0]
+    matrix[3, :] = [13.0 / 42.0, 84.0 / 42.0, -125.0 / 42.0, 70.0 / 42.0]
+    ButcherTableauClass = ButcherTableau
+
+
+class KurdiEDIRK45(RungeKutta):
+    """
+    Stiffly-accurate fourth-order EDIRK with five stages.
+    Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), first one in eq. (218).
+    """
+
+    nodes = np.array([0.0, 2.0, 1.0, 1.0 / 2.0, 1.0])
+    weights = np.array([1.0 / 6.0, 0.0, -5.0 / 12.0, 2.0 / 3.0, 7.0 / 12.0])
+    matrix = np.zeros((5, 5))
+    matrix[0, 0] = 0.0
+    matrix[1, :2] = [1.0, 1.0]
+    matrix[2, :3] = [5.0 / 12.0, -1.0 / 12.0, 2.0 / 3.0]
+    matrix[3, :4] = [5.0 / 24.0, 0.0, -1.0 / 24.0, 1.0 / 3.0]
+    matrix[4, :] = [1.0 / 6.0, 0.0, -5.0 / 12.0, 2.0 / 3.0, 7.0 / 12.0]
+    ButcherTableauClass = ButcherTableau
+
+
+
+class KurdiEDIRK45_2(RungeKutta):
+    """
+    Stiffly-accurate fourth-order EDIRK with five stages.
+    Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (218).
+    """
+
+    nodes = np.array([0.0, 4.0 / 3.0, 1.0, 1.0 / 2.0, 1.0])
+    weights = np.array([1.0 / 6.0, 0.0, -26.0 / 54.0, 2.0 / 3.0, 35.0 / 54.0])
+    matrix = np.zeros((5, 5))
+    matrix[0, 0] = 0.0
+    matrix[1, :2] = [2.0 / 3.0, 2.0 / 3.0]
+    matrix[2, :3] = [3.0 / 8.0, -3.0 / 8.0, 1.0]
+    matrix[3, :4] = [35.0 / 160.0, -3.0 / 160.0, 0.0, 48.0 / 160.0]
+    matrix[4, :] = [1.0 / 6.0, 0.0, -26.0 / 54.0, 2.0 / 3.0, 35.0 / 54.0]
+    ButcherTableauClass = ButcherTableau
+
+
 class BackwardEulerDAE(RungeKuttaDAE, BackwardEuler):
+    pass
+
+class TrapezoidalRuleDAE(RungeKuttaDAE, TrapezoidalRule):
     pass
 
 class ImplicitMidpointMethodDAE(RungeKuttaDAE, ImplicitMidpointMethod):
@@ -278,4 +363,16 @@ class DIRK43_2DAE(RungeKuttaDAE, DIRK43_2):
     pass
 
 class DIRK43_2IMEXDAE(RungeKuttaIMEXDAE, DIRK43_2):
+    pass
+
+class EDIRK4_DAE(RungeKuttaDAE, EDIRK4):
+    pass
+
+class MillerDIRK_DAE(RungeKuttaDAE, MillerDIRK):
+    pass
+
+class KurdiEDIRK45DAE(RungeKuttaDAE, KurdiEDIRK45):
+    pass
+
+class KurdiEDIRK45_2DAE(RungeKuttaDAE, KurdiEDIRK45_2):
     pass

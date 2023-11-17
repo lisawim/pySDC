@@ -59,8 +59,9 @@ class DiscontinuousTestDAE(ptype_dae):
     def __init__(self, nvars=2, newton_tol=1e-12):
         """Initialization routine"""
         nvars = 2
+        diff_nvars = 1
         super().__init__(nvars, newton_tol)
-        self._makeAttributeAndRegister('nvars', localVars=locals(), readOnly=True)
+        self._makeAttributeAndRegister('nvars', 'diff_nvars', localVars=locals(), readOnly=True)
         self._makeAttributeAndRegister('newton_tol', localVars=locals())
 
         self.t_switch_exact = np.arccosh(50)

@@ -164,7 +164,7 @@ class SemiExplicitDAE(sweeper):
             # new instance of dtype_u, initialize values with 0
             me.append(P.dtype_u(P.init, val=0.0))
             for j in range(1, M + 1):
-                me[-1] += L.dt * self.coll.Qmat[m, j] * L.f[j]
+                me[-1][: P.diff_nvars] += L.dt * self.coll.Qmat[m, j] * L.f[j][: P.diff_nvars]
                 me[-1][P.diff_nvars :] += L.u[j][P.diff_nvars :]
 
         return me
@@ -183,8 +183,9 @@ class SemiExplicitDAE(sweeper):
         assert L.status.unlocked
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
+        # print('IC before setting:', L.u[0])
         u_0 = L.u[0]
-
+        # print('IC after setting:', L.u[0])
         integral = self.integrate()
         # build the rest of the known solution u_0 + del_t(Q - Q_del)U_k
         for m in range(1, M + 1):

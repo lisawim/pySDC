@@ -55,7 +55,7 @@ class DiscontinuousTestDAE(ptype_dae):
         Appl. Numer. Math. 178, 98-122 (2022).
     """
 
-    def __init__(self, newton_tol=1e-12):
+    def __init__(self, nvars=2, newton_tol=1e-12):
         """Initialization routine"""
         nvars = 2
         super().__init__(nvars, newton_tol)
@@ -90,20 +90,79 @@ class DiscontinuousTestDAE(ptype_dae):
 
         t_switch = np.inf if self.t_switch is None else self.t_switch
 
-        h = 2 * y - 100
+        h = 2.0 * y - 100.0
         f = self.dtype_f(self.init)
 
-        if h >= 0 or t >= t_switch:
+        if h >= 0.0 or t >= t_switch:
             f[:] = (
-                dy,
-                y**2 - z**2 - 1,
+                dy - 0.0,
+                y**2 - z**2 - 1.0,
             )
         else:
             f[:] = (
                 dy - z,
-                y**2 - z**2 - 1,
+                y**2 - z**2 - 1.0,
             )
         return f
+
+    def solve_system(self, impl_sys, u0, t):
+        r"""
+        Solver for nonlinear implicit system (defined in sweeper).
+
+        Parameters
+        ----------
+        impl_sys : callable
+            Implicit system to be solved.
+        u0 : dtype_u
+            Initial guess for solver.
+        t : float
+            Current time :math:`t`.
+
+        Returns
+        -------
+        me : dtype_u
+            Numerical solution.
+        """
+        def J(U, dt_jac=1e-12):
+            """
+            Computes the Jacobian for a multivariate function.
+            Taken from
+            https://scicomp.stackexchange.com/questions/19652/can-an-approximated-jacobian-with-finite-differences-cause-instability-in-the-ne
+
+            Parameters
+            ----------
+            U : dtype_f
+                Vector for which the Jacobian is computed.
+            """
+            N, M = len(U), len(impl_sys(U))
+            jac = np.zeros((N, M))
+            e = np.zeros(N)
+            e[0] = 1
+            for k in range(N):
+                # jac[:, k] = (1 / (dt_jac)) * (impl_sys(U) - impl_sys(U - dt_jac * e))
+                # jac[:, k] = (1 / (dt_jac)) * (impl_sys(U + dt_jac * e) - impl_sys(U))
+                jac[:, k] = (1 / (dt_jac * 2)) * (impl_sys(U + dt_jac * e) - impl_sys(U - dt_jac * e))
+                e = np.roll(e, 1)
+            return jac
+
+        n = 0
+        newton_maxiter = 100
+        while n < newton_maxiter:
+            g = impl_sys(u0)
+            res = np.linalg.norm(g, np.inf)
+
+            if res < self.newton_tol:
+                break
+            print(J(u0))
+            J_inv = np.linalg.inv(J(u0))
+
+            u0 -= J_inv.dot(g)
+
+            n += 1
+        # print('Newton took {} iterations with error {}'.format(n, res))
+        # print()
+        root = u0
+        return root
 
     def u_exact(self, t, **kwargs):
         r"""
@@ -128,6 +187,29 @@ class DiscontinuousTestDAE(ptype_dae):
             me[:] = (np.cosh(t), np.sinh(t))
         else:
             me[:] = (np.cosh(self.t_switch_exact), np.sinh(self.t_switch_exact))
+        return me
+
+    def du_exact(self, t):
+        r"""
+        Routine to compute the (exact) derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            Time of the derivative.
+
+        Returns
+        -------
+        me : dtype_f
+            Derivative at time :math:`t`.
+        """
+        assert t >= 1, 'ERROR: du_exact only available for t>=1'
+
+        me = self.dtype_u(self.init)
+        if t <= self.t_switch_exact:
+            me[:] = (np.sinh(t), np.cosh(t))
+        else:
+            me[:] = (np.sinh(self.t_switch_exact), np.cosh(self.t_switch_exact))
         return me
 
     def get_switching_info(self, u, t):

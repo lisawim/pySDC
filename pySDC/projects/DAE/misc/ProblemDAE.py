@@ -54,7 +54,6 @@ class ptype_dae(ptype):
         me : dtype_u
             Numerical solution.
         """
-
         me = self.dtype_u(self.init)
         opt = root(
             impl_sys,
@@ -63,5 +62,22 @@ class ptype_dae(ptype):
             tol=self.newton_tol,
         )
         me[:] = opt.x
+        # print(f"System has solution {opt.x}")
         self.work_counters['newton'].niter += opt.nfev
         return me
+
+    def du_exact(self, t):
+        r"""
+        Routine to compute the (exact) derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            Time of the derivative.
+
+        Returns
+        -------
+        me : dtype_f
+            Derivative at time :math:`t`.
+        """
+        raise NotImplementedError("du_exact(self, t) is not implemented for {cls} problem!")

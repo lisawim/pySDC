@@ -168,6 +168,65 @@ class simple_dae_1(ptype_dae):
         self.work_counters['rhs']()
         return f
 
+    # def solve_system(self, impl_sys, u0, t):
+        # r"""
+        # Solver for nonlinear implicit system (defined in sweeper).
+# 
+        # Parameters
+        # ----------
+        # impl_sys : callable
+            # Implicit system to be solved.
+        # u0 : dtype_u
+            # Initial guess for solver.
+        # t : float
+            # Current time :math:`t`.
+# 
+        # Returns
+        # -------
+        # me : dtype_u
+            # Numerical solution.
+        # """
+        # def J(U, dt_jac=1e-6):
+            # """
+            # Computes the Jacobian for a multivariate function.
+            # Taken from
+            # https://scicomp.stackexchange.com/questions/19652/can-an-approximated-jacobian-with-finite-differences-cause-instability-in-the-ne
+# 
+            # Parameters
+            # ----------
+            # U : dtype_f
+                # Vector for which the Jacobian is computed.
+            # """
+            # N, M = len(U), len(impl_sys(U))
+            # jac = np.zeros((N, M))
+            # e = np.zeros(N)
+            # e[0] = 1
+            # for k in range(N):
+                # jac[:, k] = (1 / (2 * dt_jac)) * (impl_sys(U + dt_jac * e) - impl_sys(U - dt_jac * e))
+                # jac[:, k] = (1 / (dt_jac)) * (impl_sys(U) - impl_sys(U - dt_jac * e))
+                # jac[:, k] = (1 / (dt_jac)) * (impl_sys(U + dt_jac * e) - impl_sys(U))
+                # e = np.roll(e, 1)
+            # return jac
+# 
+        # n = 0
+        # newton_maxiter = 100
+        # while n < newton_maxiter:
+            # g = impl_sys(u0)
+            # res = np.linalg.norm(g, np.inf)
+# 
+            # if res < self.newton_tol:
+                # break
+# 
+            # J_inv = np.linalg.inv(J(u0))
+# 
+            # u0 -= J_inv.dot(g)
+# 
+            # n += 1
+        print('Newton took {} iterations with error {}'.format(n, res))
+        print()
+        # root = u0
+        # return root
+
     def u_exact(self, t):
         """
         Routine for the exact solution.
@@ -184,6 +243,24 @@ class simple_dae_1(ptype_dae):
         """
         me = self.dtype_u(self.init)
         me[:] = (np.exp(t), np.exp(t), -np.exp(t) / (2 - t))
+        return me
+
+    def du_exact(self, t):
+        r"""
+        Routine to compute the (exact) derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            Time of the derivative.
+
+        Returns
+        -------
+        me : dtype_f
+            Derivative at time :math:`t`.
+        """
+        me = self.dtype_f(self.init)
+        me[:] = (np.exp(t), np.exp(t), (np.exp(t) * (t - 3)) / ((2 - t) ** 2))
         return me
 
 
@@ -266,3 +343,21 @@ class problematic_f(ptype_dae):
         me = self.dtype_u(self.init)
         me[:] = (np.sin(t), 0)
         return me
+
+    def du_exact(self, t):
+        r"""
+        Routine to compute the (exact) derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            Time of the derivative.
+
+        Returns
+        -------
+        me : dtype_f
+            Derivative at time :math:`t`.
+        """
+        me = self.dtype_f(self.init)
+        me[:] = (np.cos(t), 0)
+        return me    

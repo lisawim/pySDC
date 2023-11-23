@@ -568,8 +568,8 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
     # residual
     res['residual'] = np.array(get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed))
 
-    # global error
-    res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+    # global error - note that the error hook from the DAE project is used!
+    res['e_global'] = np.array(get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed))
     res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
 
     # event time(s) found by event detection

@@ -139,11 +139,9 @@ class simple_dae_1(ptype_dae):
         equations. Society for Industrial and Applied Mathematics (1998).
     """
 
-    def __init__(self, newton_tol=1e-10, nvars=3):
+    def __init__(self, newton_tol=1e-10):
         """Initialization routine"""
-        diff_nvars = 2
-        super().__init__(nvars, newton_tol)
-        self._makeAttributeAndRegister('nvars', 'diff_nvars', localVars=locals(), readOnly=True)
+        super().__init__(nvars=(2, 1), newton_tol=newton_tol)
         self._makeAttributeAndRegister('newton_tol', localVars=locals())
 
     def eval_f(self, u, du, t):
@@ -168,11 +166,16 @@ class simple_dae_1(ptype_dae):
         a = 10.0
         f = self.dtype_f(self.init)
 
-        f[:] = (
-            -du[0] + (a - 1 / (2 - t)) * u[0] + (2 - t) * a * u[2] + (3 - t) / (2 - t) * np.exp(t),
-            -du[1] + (1 - a) / (t - 2) * u[0] - u[1] + (a - 1) * u[2] + 2 * np.exp(t),
-            (t + 2) * u[0] + (t**2 - 4) * u[1] - (t**2 + t - 2) * np.exp(t),
+        # f[:] = (
+        #     -du[0] + (a - 1 / (2 - t)) * u[0] + (2 - t) * a * u[2] + (3 - t) / (2 - t) * np.exp(t),
+        #     -du[1] + (1 - a) / (t - 2) * u[0] - u[1] + (a - 1) * u[2] + 2 * np.exp(t),
+        #     (t + 2) * u[0] + (t**2 - 4) * u[1] - (t**2 + t - 2) * np.exp(t),
+        # )
+        f.diff[:] = (
+            -du.diff[0] + (a - 1 / (2 - t)) * u.diff[0] + (2 - t) * a * u.alg[0] + (3 - t) / (2 - t) * np.exp(t),
+            -du.diff[1] + (1 - a) / (t - 2) * u.diff[0] - u.diff[1] + (a - 1) * u.alg[0] + 2 * np.exp(t),
         )
+        f.alg[:] = (t + 2) * u.diff[0] + (t**2 - 4) * u.diff[1] - (t**2 + t - 2) * np.exp(t)
         self.work_counters['rhs']()
         return f
 
@@ -191,7 +194,8 @@ class simple_dae_1(ptype_dae):
             The reference solution as mesh object containing three components.
         """
         me = self.dtype_u(self.init)
-        me[:] = (np.exp(t), np.exp(t), -np.exp(t) / (2 - t))
+        me.diff[:] = (np.exp(t), np.exp(t))
+        me.alg[:] = (-np.exp(t) / (2 - t))
         return me
 
 
@@ -201,10 +205,10 @@ class problematic_f(ptype_dae):
     numerically solvable for certain choices of the parameter :math:`\eta`. The DAE system is given by
 
     .. math::
-        y (t) + \eta t z (t) = f(t),
+        \frac{d y(t)}{dt} + \eta t \frac{d z(t)}{dt} + (1 + \eta) z (t) = g (t).
 
     .. math::
-        \frac{d y(t)}{dt} + \eta t \frac{d z(t)}{dt} + (1 + \eta) z (t) = g (t).
+        y (t) + \eta t z (t) = f(t),
 
     See, for example, page 264 of [1]_.
 
@@ -226,9 +230,9 @@ class problematic_f(ptype_dae):
         equations. Society for Industrial and Applied Mathematics (1998).
     """
 
-    def __init__(self, nvars, newton_tol, eta=1):
+    def __init__(self, newton_tol, eta=1):
         """Initialization routine"""
-        super().__init__(nvars, newton_tol)
+        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
         self._makeAttributeAndRegister('eta', localVars=locals())
 
     def eval_f(self, u, du, t):
@@ -250,10 +254,8 @@ class problematic_f(ptype_dae):
             Current value of the right-hand side of f (which includes two components).
         """
         f = self.dtype_f(self.init)
-        f[:] = (
-            u[0] + self.eta * t * u[1] - np.sin(t),
-            du[0] + self.eta * t * du[1] + (1 + self.eta) * u[1] - np.cos(t),
-        )
+        f.diff[:] = u.diff + self.eta * t * u.alg - np.sin(t)
+        f.alg[:] = du.diff + self.eta * t * du.alg + (1 + self.eta) * u.alg - np.cos(t)
         self.work_counters['rhs']()
         return f
 
@@ -272,5 +274,6 @@ class problematic_f(ptype_dae):
             The reference solution as mesh object containing two components.
         """
         me = self.dtype_u(self.init)
-        me[:] = (np.sin(t), 0)
+        me.diff[:] = np.sin(t)
+        me.alg[:] = 0
         return me

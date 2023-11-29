@@ -342,31 +342,36 @@ def test_DiscontinuousTestDAE_singularity():
     eps = 1e-3
     t_before_event = t_event - eps
     u_before_event = disc_test_DAE.u_exact(t_before_event)
-    du_before_event = (np.sinh(t_before_event), np.cosh(t_before_event))
+    du_before_event = disc_test_DAE.dtype_f(disc_test_DAE.init)
+    du_before_event.diff[:] = np.sinh(t_before_event)
+    du_before_event.alg[:] = np.cosh(t_before_event)
     f_before_event = disc_test_DAE.eval_f(u_before_event, du_before_event, t_before_event)
 
-    assert np.isclose(f_before_event[0], 0.0) and np.isclose(
-        f_before_event[1], 0.0
-    ), f"ERROR: Right-hand side after event does not match! Expected {(0.0, 0.0)}, got {f_before_event}"
+    assert np.isclose(abs(f_before_event), 0.0), f"ERROR: Right-hand side after event does not match! Expected {(0.0, 0.0)}, got {f_before_event}"
 
     # test for t <= t^*
     u_event = disc_test_DAE.u_exact(t_event)
-    du_event = (np.sinh(t_event), np.cosh(t_event))
+    du_event = disc_test_DAE.dtype_f(disc_test_DAE.init)
+    du_event.diff[:] = np.sinh(t_event)
+    du_event.alg[:] = np.cosh(t_event)
     f_event = disc_test_DAE.eval_f(u_event, du_event, t_event)
 
-    assert np.isclose(f_event[0], 7 * np.sqrt(51.0)) and np.isclose(
-        f_event[1], 0.0
+    assert np.isclose(f_event.diff, 7 * np.sqrt(51.0)) and np.isclose(
+        f_event.alg, 0.0
     ), f"ERROR: Right-hand side at event does not match! Expected {(7 * np.sqrt(51), 0.0)}, got {f_event}"
 
     # test for t > t^* by setting t^* = t^* + eps
     t_after_event = t_event + eps
     u_after_event = disc_test_DAE.u_exact(t_after_event)
-    du_after_event = (np.sinh(t_event), np.cosh(t_event))
+    # du_after_event = (np.sinh(t_event), np.cosh(t_event))
+    du_after_event = disc_test_DAE.dtype_f(disc_test_DAE.init)
+    du_after_event.diff[:] = np.sinh(t_event)# np.sinh(t_after_event)
+    du_after_event.alg[:] = np.cosh(t_event)  # np.cosh(t_after_event)
     f_after_event = disc_test_DAE.eval_f(u_after_event, du_after_event, t_after_event)
 
-    assert np.isclose(f_after_event[0], 7 * np.sqrt(51.0)) and np.isclose(
-        f_after_event[1], 0.0
-    ), f"ERROR: Right-hand side after event does not match! Expected {(7 * np.sqrt(51), 0.0)}, got {f_after_event}"
+    assert np.isclose(f_after_event.diff, 7 * np.sqrt(51.0)) and np.isclose(
+        f_after_event.alg, 0.0
+    ), f"ERROR: Right-hand side after event does not match! Expected {(7 * np.sqrt(51), 0.0)}, got {(f_after_event.diff, f_after_event.alg)}"
 
 
 @pytest.mark.base
@@ -431,7 +436,7 @@ def test_DiscontinuousTestDAE_SDC(M):
 
     uend, _ = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    err = abs(uex[0] - uend[0])
+    err = abs(uex.diff - uend.diff)
     assert err < err_tol[M], f"ERROR: Error is too large! Expected {err_tol[M]}, got {err}"
 
 
@@ -523,7 +528,7 @@ def test_DiscontinuousTestDAE_SDC_detection(M):
 
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    err = abs(uex[0] - uend[0])
+    err = abs(uex.diff - uend.diff)
     assert err < err_tol[M], f"ERROR for M={M}: Error is too large! Expected {err_tol[M]}, got {err}"
 
     switches = get_sorted(stats, type='switch', sortby='time', recomputed=False)
@@ -715,6 +720,8 @@ def test_WSCC9_SDC_detection():
     assert len(switches) >= 1, 'ERROR: No events found!'
     t_switch = [me[1] for me in switches][0]
     assert np.isclose(t_switch, 0.6103290792685618, atol=1e-3), 'Found event does not match a threshold!'
+
+# test_DiscontinuousTestDAE_SDC(2)
 
 
 # @pytest.mark.base

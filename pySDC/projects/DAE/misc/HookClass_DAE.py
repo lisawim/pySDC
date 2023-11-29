@@ -70,7 +70,7 @@ class error_hook(hooks):
         # compute and save errors
         # Note that the component from which the error is measured is specified here
         upde = P.u_exact(step.time + step.dt)
-        err = abs(upde[0] - L.uend[0])
+        err = abs(upde.diff - L.uend.diff)
         # err = abs(upde[4] - L.uend[4])
 
         self.add_to_stats(
@@ -104,7 +104,7 @@ class LogGlobalErrorPostStepAlgebraicVariable(hooks):
 
         # assume last equation is algebraic, hence last variable is algebraic variable
         upde = P.u_exact(step.time + step.dt)
-        e_global_algebraic = abs(upde[-1] - L.uend[-1])
+        e_global_algebraic = abs(upde.alg - L.uend.alg)
 
         self.add_to_stats(
             process=step.status.slot,

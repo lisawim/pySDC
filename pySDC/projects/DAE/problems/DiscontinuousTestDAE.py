@@ -2,6 +2,7 @@ import numpy as np
 
 from pySDC.core.Problem import WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE.misc.dae_mesh import DAEMesh
 
 
 class DiscontinuousTestDAE(ptype_dae):
@@ -56,12 +57,12 @@ class DiscontinuousTestDAE(ptype_dae):
         Appl. Numer. Math. 178, 98-122 (2022).
     """
 
-    def __init__(self, nvars=2, newton_tol=1e-12):
+    dtype_u = DAEMesh
+    dtype_f = DAEMesh
+
+    def __init__(self, newton_tol=1e-12):
         """Initialization routine"""
-        nvars = 2
-        diff_nvars = 1
-        super().__init__(nvars, newton_tol)
-        self._makeAttributeAndRegister('nvars', 'diff_nvars', localVars=locals(), readOnly=True)
+        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
         self._makeAttributeAndRegister('newton_tol', localVars=locals())
 
         self.t_switch_exact = np.arccosh(50)
@@ -88,8 +89,8 @@ class DiscontinuousTestDAE(ptype_dae):
             The right-hand side of f (contains two components).
         """
 
-        y, z = u[0], u[1]
-        dy = du[0]
+        y, z = u.diff, u.alg
+        dy = du.diff
 
         t_switch = np.inf if self.t_switch is None else self.t_switch
 
@@ -97,15 +98,11 @@ class DiscontinuousTestDAE(ptype_dae):
         f = self.dtype_f(self.init)
 
         if h >= 0 or t >= t_switch:
-            f[:] = (
-                dy,
-                y**2 - z**2 - 1,
-            )
+            f.diff[:] = dy
+            f.alg[:] = y**2 - z**2 - 1
         else:
-            f[:] = (
-                dy - z,
-                y**2 - z**2 - 1,
-            )
+            f.diff[:] = dy - z
+            f.alg[:] = y**2 - z**2 - 1
         self.work_counters['rhs']()
         return f
 
@@ -129,9 +126,11 @@ class DiscontinuousTestDAE(ptype_dae):
 
         me = self.dtype_u(self.init)
         if t <= self.t_switch_exact:
-            me[:] = (np.cosh(t), np.sinh(t))
+            me.diff[:] = np.cosh(t)
+            me.alg[:] = np.sinh(t)
         else:
-            me[:] = (np.cosh(self.t_switch_exact), np.sinh(self.t_switch_exact))
+            me.diff[:] = np.cosh(self.t_switch_exact)
+            me.alg[:] = np.sinh(self.t_switch_exact)
         return me
 
     def get_switching_info(self, u, t):
@@ -166,14 +165,14 @@ class DiscontinuousTestDAE(ptype_dae):
         m_guess = -100
 
         for m in range(1, len(u)):
-            h_prev_node = 2 * u[m - 1][0] - 100
-            h_curr_node = 2 * u[m][0] - 100
+            h_prev_node = 2 * u[m - 1].diff - 100
+            h_curr_node = 2 * u[m].diff - 100
             if h_prev_node < 0 and h_curr_node >= 0:
                 switch_detected = True
                 m_guess = m - 1
                 break
 
-        state_function = [2 * u[m][0] - 100 for m in range(len(u))]
+        state_function = [2 * u[m].diff - 100 for m in range(len(u))]
         return switch_detected, m_guess, state_function
 
     def count_switches(self):

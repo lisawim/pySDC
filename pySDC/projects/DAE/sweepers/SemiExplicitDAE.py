@@ -118,8 +118,6 @@ class SemiExplicitDAE(sweeper):
         L = self.level
         P = L.prob
 
-        assert P.diff_nvars is not None, 'This sweeper can only be used for DAE problems of semi-explicit form!'
-
         # set initial guess for gradient to zero
         L.f[0] = P.dtype_f(init=P.init, val=0.0)
 
@@ -164,8 +162,7 @@ class SemiExplicitDAE(sweeper):
             # new instance of dtype_u, initialize values with 0
             me.append(P.dtype_u(P.init, val=0.0))
             for j in range(1, M + 1):
-                me[-1][: P.diff_nvars] += L.dt * self.coll.Qmat[m, j] * L.f[j][: P.diff_nvars]
-                me[-1][P.diff_nvars :] += L.u[j][P.diff_nvars :]
+                me[-1].diff += L.dt * self.coll.Qmat[m, j] * L.f[j].diff
 
         return me
     
@@ -174,34 +171,30 @@ class SemiExplicitDAE(sweeper):
         Updates the values of solution ``u`` and their gradient stored in ``f``.
         """
 
-        # get current level and problem description
         L = self.level
-        # in the fully implicit case L.prob.eval_f() evaluates the right-hand side of the differential equations
         P = L.prob
 
         # only if the level has been touched before
         assert L.status.unlocked
-        # get number of collocation nodes for easier access
         M = self.coll.num_nodes
-        # print('IC before setting:', L.u[0])
+
         u_0 = L.u[0]
-        # print('IC after setting:', L.u[0])
         integral = self.integrate()
         # build the rest of the known solution u_0 + del_t(Q - Q_del)U_k
         for m in range(1, M + 1):
             for j in range(1, M + 1):
-                integral[m - 1] -= L.dt * self.QI[m, j] * L.f[j]
+                integral[m - 1].diff -= L.dt * self.QI[m, j] * L.f[j].diff
             # add initial value
-            integral[m - 1] += u_0
-            integral[m - 1][P.diff_nvars :] = L.u[m][P.diff_nvars :]
-
+            integral[m - 1].diff += u_0.diff
+            print(f'diff. Integral m={m}', integral[m-1].diff)
+            print(f'alg. Integral m={m}', integral[m-1].alg)
         # do the sweep
         for m in range(1, M + 1):
             u_approx = P.dtype_u(integral[m - 1])
             for j in range(1, m):
-                u_approx += L.dt * self.QI[m, j] * L.f[j]
-            u_approx[P.diff_nvars :] = L.u[m][P.diff_nvars :]
-
+                u_approx.diff += L.dt * self.QI[m, j] * L.f[j].diff
+            print(f"m={m}, diff u_approx={u_approx.diff}")
+            print(f"m={m}, alg u_approx={u_approx.alg}")
             def implSystem(unknowns):
                 """
                 Build implicit system to solve in order to find the unknowns.
@@ -217,30 +210,28 @@ class SemiExplicitDAE(sweeper):
                     System to be solved as implicit function.
                 """
 
-                unknowns_mesh = P.dtype_f(P.init)
-                unknowns_mesh[:] = unknowns
-                local_u_approx = u_approx
+                local_u_approx = P.dtype_u(u_approx)
 
-                # for j in range(P.diff_nvars):
-                #     local_u_approx[j] += L.dt * self.QI[m, m] * unknowns_mesh[j]
-                local_u_approx += L.dt * self.QI[m, m] * unknowns_mesh
-                local_u_approx[P.diff_nvars :] = unknowns_mesh[P.diff_nvars :]
-                sys = P.eval_f(local_u_approx, unknowns_mesh[: P.diff_nvars], L.time + L.dt * self.coll.nodes[m - 1])
+                local_u_approx.diff += L.dt * self.QI[m, m] * unknowns.diff
+                local_u_approx.alg = unknowns.alg
+                sys = P.eval_f(local_u_approx, unknowns, L.time + L.dt * self.coll.nodes[m - 1])
 
                 return sys
 
-            U0_diff, p0_alg = np.array(L.f[m][: P.diff_nvars]), np.array(L.u[m][P.diff_nvars :]) 
-            u0 = np.concatenate((U0_diff, p0_alg))
+            u0 = P.dtype_u(P.init)
+            u0.diff[:] = L.f[m].diff
+            u0.alg[:] = L.u[m].alg
             u_new = P.solve_system(implSystem, u0, L.time + L.dt * self.coll.nodes[m - 1])
-
+            print(f"dy_new={u_new.diff}")
+            print(f"z_new={u_new.alg}")
             # ---- update U' and z ----
-            L.f[m][: P.diff_nvars] = u_new[: P.diff_nvars]
-            L.u[m][P.diff_nvars :] = u_new[P.diff_nvars :]
+            L.f[m].diff[:] = u_new.diff
+            L.u[m].alg[:] = u_new.alg
 
         # Update solution approximation
         integral = self.integrate()
         for m in range(M):
-            L.u[m + 1][: P.diff_nvars] = u_0[: P.diff_nvars] + integral[m][: P.diff_nvars]
+            L.u[m + 1].diff = u_0.diff + integral[m].diff
 
         # indicate presence of new values at this level
         L.status.updated = True

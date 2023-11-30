@@ -27,7 +27,6 @@ def main():
     # initialize problem parameters
     problem_params = dict()
     problem_params['newton_tol'] = 1e-12  # tollerance for implicit solver
-    problem_params['nvars'] = 3  # 2
 
     # initialize step parameters
     step_params = dict()
@@ -72,7 +71,7 @@ def main():
     # store results
     sol = get_sorted(stats, type='approx_solution_hook', sortby='time')
     sol_dt = np.array([sol[i][0] for i in range(len(sol))])
-    sol_data = np.array([[sol[j][1][i] for j in range(len(sol))] for i in range(problem_params['nvars'])])
+    sol_data = np.array([[(sol[j][1].diff[id], sol[j][1].alg[ia]) for j in range(len(sol))] for id, ia in zip(range(len(uend.diff)), range(len(uend.alg)))])
 
     data = dict()
     data['dt'] = sol_dt

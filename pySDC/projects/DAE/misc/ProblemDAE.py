@@ -58,8 +58,6 @@ class ptype_dae(ptype):
         def implSysAsNumpy(unknowns, **kwargs):
             me.diff[:] = unknowns[: np.size(me.diff)].reshape(me.diff.shape)
             me.alg[:] =  unknowns[np.size(me.diff) :].reshape(me.alg.shape)
-            # print(f"diff me={me.diff}")    
-            # print(f"alg me={me.alg}")
             sys = impl_sys(me, **kwargs)
             return np.append(sys.diff.flatten(), sys.alg.flatten())  # TODO: more efficient way?
 

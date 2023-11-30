@@ -11,15 +11,22 @@ class pendulum_2d(ptype_dae):
     The DAE system is given by the equations
 
     .. math::
-        x' = u,
+        \frac{dp}{dt} = u,
 
     .. math::
-        \frac{d}{dt} \frac{\partial}{\partial u} L = \frac{\partial L}{\partial x} + f + G^{T} \lambda,
+        \frac{dq}{dt} = v,
 
     .. math::
-        0 = \phi.
+        m\frac{du}{dt} = -p \lambda,
 
-    The pendulum is used in most introductory literature on DAEs, for example on page 8 of [1]_.
+    .. math::
+        m\frac{dv}{dt} = -q \lambda - g,
+
+    .. math::
+        0 = p^2 + q^2 - l^2
+
+    for :math:`l=1` and :math:`m=1`. The pendulum is used in most introductory literature on DAEs, for example on page 8
+    of [1]_.
 
     Parameters
     ----------
@@ -39,9 +46,9 @@ class pendulum_2d(ptype_dae):
         Lect. Notes Math. (1989).
     """
 
-    def __init__(self, nvars, newton_tol):
+    def __init__(self, newton_tol):
         """Initialization routine"""
-        super().__init__(nvars, newton_tol)
+        super().__init__(nvars=(4, 1), newton_tol=newton_tol)
         # load reference solution
         # data file must be generated and stored under misc/data and self.t_end = t[-1]
         # data = np.load(r'pySDC/projects/DAE/misc/data/pendulum.npy')
@@ -72,7 +79,13 @@ class pendulum_2d(ptype_dae):
         # The last element of u is a Lagrange multiplier. Not sure if this needs to be time dependent, but must model the
         # weight somehow
         f = self.dtype_f(self.init)
-        f[:] = (du[0] - u[2], du[1] - u[3], du[2] + u[4] * u[0], du[3] + u[4] * u[1] + g, u[0] ** 2 + u[1] ** 2 - 1)
+        f.diff[:] = (
+            du.diff[0] - u.diff[2],
+            du.diff[1] - u.diff[3],
+            du.diff[2] + u.alg[0] * u.diff[0],
+            du.diff[3] + u.alg[0] * u.diff[1] + g,
+        )
+        f.alg[:] = u.diff[0] ** 2 + u.diff[1] ** 2 - 1
         self.work_counters['rhs']()
         return f
 
@@ -92,12 +105,14 @@ class pendulum_2d(ptype_dae):
         """
         me = self.dtype_u(self.init)
         if t == 0:
-            me[:] = (-1, 0, 0, 0, 0)
+            me.diff[:] = (-1, 0, 0, 0)
+            me.alg[:] = 0
         elif t < self.t_end:
             me[:] = self.u_ref(t)
         else:
             self.logger.warning("Requested time exceeds domain of the reference solution. Returning zero.")
-            me[:] = (0, 0, 0, 0, 0)
+            me.diff[:] = (0, 0, 0, 0)
+            me.alg[:] = 0
         return me
 
 
@@ -166,11 +181,6 @@ class simple_dae_1(ptype_dae):
         a = 10.0
         f = self.dtype_f(self.init)
 
-        # f[:] = (
-        #     -du[0] + (a - 1 / (2 - t)) * u[0] + (2 - t) * a * u[2] + (3 - t) / (2 - t) * np.exp(t),
-        #     -du[1] + (1 - a) / (t - 2) * u[0] - u[1] + (a - 1) * u[2] + 2 * np.exp(t),
-        #     (t + 2) * u[0] + (t**2 - 4) * u[1] - (t**2 + t - 2) * np.exp(t),
-        # )
         f.diff[:] = (
             -du.diff[0] + (a - 1 / (2 - t)) * u.diff[0] + (2 - t) * a * u.alg[0] + (3 - t) / (2 - t) * np.exp(t),
             -du.diff[1] + (1 - a) / (t - 2) * u.diff[0] - u.diff[1] + (a - 1) * u.alg[0] + 2 * np.exp(t),

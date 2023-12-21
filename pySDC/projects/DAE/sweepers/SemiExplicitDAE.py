@@ -93,7 +93,7 @@ class SemiExplicitDAE(sweeper):
             params['QI'] = 'IE'
 
         # call parent's initialization routine
-        super(SemiExplicitDAE, self).__init__(params)
+        super().__init__(params)
 
         msg = f"Quadrature type {self.params.quad_type} is not implemented yet. Use 'RADAU-RIGHT' instead!"
         if self.coll.left_is_node:
@@ -184,17 +184,14 @@ class SemiExplicitDAE(sweeper):
         for m in range(1, M + 1):
             for j in range(1, M + 1):
                 integral[m - 1].diff -= L.dt * self.QI[m, j] * L.f[j].diff
-            # add initial value
             integral[m - 1].diff += u_0.diff
-            print(f'diff. Integral m={m}', integral[m-1].diff)
-            print(f'alg. Integral m={m}', integral[m-1].alg)
+
         # do the sweep
         for m in range(1, M + 1):
             u_approx = P.dtype_u(integral[m - 1])
             for j in range(1, m):
                 u_approx.diff += L.dt * self.QI[m, j] * L.f[j].diff
-            print(f"m={m}, diff u_approx={u_approx.diff}")
-            print(f"m={m}, alg u_approx={u_approx.alg}")
+
             def implSystem(unknowns):
                 """
                 Build implicit system to solve in order to find the unknowns.
@@ -219,11 +216,8 @@ class SemiExplicitDAE(sweeper):
                 return sys
 
             u0 = P.dtype_u(P.init)
-            u0.diff[:] = L.f[m].diff
-            u0.alg[:] = L.u[m].alg
+            u0.diff[:], u0.alg[:] = L.f[m].diff, L.u[m].alg
             u_new = P.solve_system(implSystem, u0, L.time + L.dt * self.coll.nodes[m - 1])
-            print(f"dy_new={u_new.diff}")
-            print(f"z_new={u_new.alg}")
             # ---- update U' and z ----
             L.f[m].diff[:] = u_new.diff
             L.u[m].alg[:] = u_new.alg

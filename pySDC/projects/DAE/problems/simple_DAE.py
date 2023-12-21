@@ -242,7 +242,7 @@ class problematic_f(ptype_dae):
 
     def __init__(self, newton_tol, eta=1):
         """Initialization routine"""
-        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
+        super().__init__(nvars=(2, 0), newton_tol=newton_tol)
         self._makeAttributeAndRegister('eta', localVars=locals())
 
     def eval_f(self, u, du, t):
@@ -264,8 +264,10 @@ class problematic_f(ptype_dae):
             Current value of the right-hand side of f (which includes two components).
         """
         f = self.dtype_f(self.init)
-        f.diff[:] = u.diff + self.eta * t * u.alg - np.sin(t)
-        f.alg[:] = du.diff + self.eta * t * du.alg + (1 + self.eta) * u.alg - np.cos(t)
+        f.diff[:] = (
+            u.diff[0] + self.eta * t * u.diff[1] - np.sin(t),
+            du.diff[0] + self.eta * t * du.diff[1] + (1 + self.eta) * u.diff[1] - np.cos(t),
+        )
         self.work_counters['rhs']()
         return f
 
@@ -284,6 +286,5 @@ class problematic_f(ptype_dae):
             The reference solution as mesh object containing two components.
         """
         me = self.dtype_u(self.init)
-        me.diff[:] = np.sin(t)
-        me.alg[:] = 0
+        me.diff[:] = (np.sin(t), 0)
         return me

@@ -424,6 +424,8 @@ def getUnknownLabels(prob_cls_name):
         'simple_dae_1': ['u1', 'u2', 'z'],
         'DiscontinuousTestDAE': ['y', 'z'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': ['y', 'z'],
+        'LinearTestDAE' : ['ud', 'ua'],
+        'problematic_f': ['y1', 'y2'],
     }
 
     unknowns_labels = {
@@ -436,6 +438,8 @@ def getUnknownLabels(prob_cls_name):
         'simple_dae_1': [r'$u_1$', r'$u_2$', r'$z$'],
         'DiscontinuousTestDAE': [r'$y$', r'$z$'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': [r'$y$', r'$z$'],
+        'LinearTestDAE' : [r'$u_d$', r'$u_a$'],
+        'problematic_f': [r'$y_1$', r'$y_2$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -481,6 +485,7 @@ def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma
     unknowns_labels = u_num['unknowns_labels']
     for unknown, unknown_label in zip(unknowns, unknowns_labels):
         ax.plot(u_num['t'], u_num[unknown], label=unknown_label)
+        break
 
     if use_detection:
         t_switches = u_num['t_switches']
@@ -502,8 +507,9 @@ def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma
     plt_helper.plt.close(fig)
 
 
-def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed, t_switch_exact):
+def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, recomputed, t_switch_exact):
     r"""
+    TODO: Update docu!
     Extracts statistics and store it in a dictionary. In this routine, from ``stats`` different data are extracted
     such as
 
@@ -553,14 +559,20 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
         Dictionary with extracted data separated with reasonable keys.
     """
 
+    from pySDC.projects.DAE.misc.dae_mesh import DAEMesh
+
     res = {}
     unknowns, unknowns_labels = getUnknownLabels(prob_cls_name)
 
     # numerical solution
     u_val = get_sorted(stats, type='u', sortby='time', recomputed=recomputed)
     res['t'] = np.array([item[0] for item in u_val])
+    n_diff = len(u_val[0][1].diff)
     for i, label in enumerate(unknowns):
-        res[label] = np.array([item[1][i] for item in u_val])
+        if type(u_val[0][1]) == DAEMesh:
+            res[label] = np.array([item[1].diff[i] for item in u_val]) if i < len(u_val[0][1].diff) else np.array([item[1].alg[i - n_diff] for item in u_val])
+        else:
+            res[label] = np.array([item[1][i] for item in u_val])
 
     res['unknowns'] = unknowns
     res['unknowns_labels'] = unknowns_labels
@@ -568,9 +580,16 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
     # residual
     res['residual'] = np.array(get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed))
 
-    # global error - note that the error hook from the DAE project is used!
-    res['e_global'] = np.array(get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed))
-    res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
+    # choose between the error for DAEs and those for ODEs/PDEs
+    if type(u_val[0][1]) == DAEMesh:
+        res['e_global'] = np.array(get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed))
+        res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
+        res['e_global_post_iter'] = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, maxiter + 1)]
+        res['e_global_algebraic_post_iter'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, maxiter + 1)]
+        res['e_global_post_iter_du'] = [get_sorted(stats, iter=k, type='e_global_post_iter_du', sortby='time') for k in range(1, maxiter + 1)]
+        res['e_global_algebraic_post_iter_du'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter_du', sortby='time') for k in range(1, maxiter + 1)]
+    else:
+        res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
 
     # event time(s) found by event detection
     if use_detection:

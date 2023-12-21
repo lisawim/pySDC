@@ -599,7 +599,12 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
         res['sum_restarts'] = np.sum(np.array(get_sorted(stats, type='restart', recomputed=None, sortby='time'))[:, 1])
 
     # sum over all iterations
-    res['sum_niters'] = np.sum(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
+    niters = np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1]
+    res['sum_niters'] = np.sum(niters)
+    res['mean_niters'] = np.mean(niters)
+
+    res['newton'] = np.array(get_sorted(stats, type='work_newton', sortby='time', recomputed=recomputed))
+    res['rhs'] = np.array(get_sorted(stats, type='work_rhs', sortby='time', recomputed=recomputed))
     return res
 
 

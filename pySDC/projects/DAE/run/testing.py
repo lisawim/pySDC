@@ -5,20 +5,7 @@ from pySDC.core.Errors import ParameterError
 
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-# from pySDC.projects.DAE.sweepers.Runge_Kutta_DAE import (
-    # BackwardEulerDAE,
-    # ImplicitMidpointMethodDAE,
-    # ImplicitMidpointMethodIMEXDAE,
-    # TrapezoidalRuleDAE,
-    # DIRK43_2DAE,
-    # DIRK43_2IMEXDAE,
-    # EDIRK4_DAE,
-    # MillerDIRK_DAE,
-    # KurdiEDIRK45DAE,
-    # KurdiEDIRK45_2DAE,
-# )
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1, problematic_f
 
 import pySDC.helpers.plot_helper as plt_helper
 import matplotlib.pyplot as plt
@@ -40,7 +27,7 @@ def main():
     """
 
     # defines parameters for sweeper
-    M_fix = 3  # this M_fix will be ignored!! You can set number of collocation nodes in line 101
+    M_fix = 3  # this M_fix will be ignored!! You can set number of collocation nodes in line 88
     # you can also set more than one like nnodes = [3, 4, 5]
     quad_type = 'RADAU-RIGHT'
     sweeper_params = {
@@ -102,6 +89,8 @@ def main():
     )
 
     plotDtAgainstMeanNiter(u_num, prob_cls_name, sweeper_cls_name)
+
+    printItersAndNumberFunctionCalls(u_num, prob_cls_name, sweeper_cls_name)
 
 
 def runSimulationStudy(problem, sweeper, all_params, use_adaptivity, use_detection, hook_class, interval, dt_list, nnodes):
@@ -319,36 +308,91 @@ def plotDtAgainstMeanNiter(u_num, prob_cls_name, sweeper_cls_name):
     tol_event = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]].keys())
     alpha = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]].keys())
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
-    for QI in QI_keys:
-        mean_niters = [
-            u_num[QI][dt][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]]['mean_niters']
-            for dt in dt_keys
-        ]
+    QI_keys = QI_keys if len(QI_keys) > 1 else [QI_keys[0]]
+    M_keys = M_keys if len(M_keys) > 1 else [M_keys[0]]
 
-        ax.semilogx(
-            dt_keys,
-            mean_niters,
-            color=colors[QI],
-            linestyle=linestyles[QI],
-            marker=markers[QI],
-            linewidth=1.1,
-            alpha=0.6,
-            label=f'$Q_\Delta={QI}$',
-        )
+    for M in M_keys:
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        for QI in QI_keys:
+            mean_niters = [
+                u_num[QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]]['mean_niters']
+                for dt in dt_keys
+            ]
 
-    # ax.set_title(f"M={M_keys[0]} for {quad_type}")
-    ax.tick_params(axis='both', which='major', labelsize=16)
-    ax.set_ylim(0, 20)
-    ax.set_xscale('log', base=10)
-    ax.set_xlabel(r'Step size $\Delta t$', fontsize=16)
-    ax.set_ylabel(r'Mean number of iterations', fontsize=16)
-    ax.grid(visible=True)
-    ax.legend(frameon=False, fontsize=12, loc='upper right')
-    ax.minorticks_off()
+            ax.semilogx(
+                dt_keys,
+                mean_niters,
+                color=colors[QI],
+                linestyle=linestyles[QI],
+                marker=markers[QI],
+                linewidth=1.1,
+                alpha=0.6,
+                label=f'$Q_\Delta={QI}$',
+            )
 
-    fig.savefig(f"data/{prob_cls_name}/plot_dt_against_mean_niter_{sweeper_cls_name}_M={M_keys[0]}.png", dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig)
+        # ax.set_title(f"M={M_keys[0]} for {quad_type}")
+        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.set_ylim(0, 20)
+        ax.set_xscale('log', base=10)
+        ax.set_xlabel(r'Step size $\Delta t$', fontsize=16)
+        ax.set_ylabel(r'Mean number of iterations', fontsize=16)
+        ax.grid(visible=True)
+        ax.legend(frameon=False, fontsize=12, loc='upper right')
+        ax.minorticks_off()
+
+        fig.savefig(f"data/{prob_cls_name}/plot_dt_against_mean_niter_{sweeper_cls_name}_M={M}.png", dpi=300, bbox_inches='tight')
+        plt_helper.plt.close(fig)
+
+
+def printItersAndNumberFunctionCalls(u_num, prob_cls_name, sweeper_cls_name):
+    """
+    Prints number of iterations needed to converge. Moreover, number of function calls required over all
+    iterations is printed.
+
+    Considered keys: Only newton_tol, M have to be lists! All other keys are not considered!
+
+    Parameters
+    ----------
+    u_num : dict
+        Contains the numerical solution as well as some other statistics for different parameters.
+    prob_cls_name : str
+        Name of the problem class.
+    sweeper_cls_name : str
+        Name of the sweeper.
+    """
+
+    QI_keys = list(u_num.keys())
+    dt_keys = list(u_num[QI_keys[0]].keys())
+    M_keys = list(u_num[QI_keys[0]][dt_keys[0]].keys())
+    use_SE_keys = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]].keys())
+    use_A_keys = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]].keys())
+    newton_tolerances = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]].keys())
+    tol_event = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]].keys())
+    alpha = list(u_num[QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]].keys())
+
+    QI_keys = QI_keys if len(QI_keys) > 1 else [QI_keys[0]]
+    M_keys = M_keys if len(M_keys) > 1 else [M_keys[0]]
+    newton_tol_keys = newton_tolerances if len(newton_tolerances) > 1 else [newton_tolerances[0]]
+
+    print()
+    print(f'----------------------- Solve {prob_cls_name} using {sweeper_cls_name} -----------------------')
+    for M in M_keys:
+        for QI in QI_keys:
+            for ind, newton_tol in enumerate(newton_tolerances):
+                mean_niters = u_num[QI][dt_keys[0]][M][use_SE_keys[0]][use_A_keys[0]][newton_tol][tol_event[0]][alpha[0]]['mean_niters']
+                nfev_root_solver = u_num[QI][dt_keys[0]][M][use_SE_keys[0]][use_A_keys[0]][newton_tol][tol_event[0]][alpha[0]]['newton'][:, 1]
+                mean_nfev_root_solver = np.mean(nfev_root_solver)
+
+                print()
+                print(f'The costs for solving one time step of size {dt_keys[0]} with tolerance {newton_tol}')
+                print(f'with M={M} using {QI} preconditioner are:')
+                print()
+                print(f'Mean number of iterations: {mean_niters}')
+                print(f'Mean number of function calls along all iterations: {mean_nfev_root_solver}')
+                print()
+                print(f'----------------------------------------------------------------------------------------------')
+                print()
+
 
 
 if __name__ == "__main__":

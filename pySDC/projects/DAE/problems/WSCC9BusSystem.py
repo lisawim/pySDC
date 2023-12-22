@@ -770,6 +770,8 @@ class WSCC9BusSystem(ptype_dae):
         """Initialization routine"""
 
         nvars = 11 * m + 2 * m + 2 * n
+        diff_nvars = 11 * m
+
         # invoke super init, passing number of dofs
         super().__init__(nvars, newton_tol)
         self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
@@ -1173,6 +1175,41 @@ class WSCC9BusSystem(ptype_dae):
         me[11 * self.m + 2 * self.m : 11 * self.m + 2 * self.m + self.n] = self.V0
         me[11 * self.m + 2 * self.m + self.n : 11 * self.m + 2 * self.m + 2 * self.n] = self.TH0
         return me
+
+    def du_exact(self, t):
+        r"""
+        Returns the initial conditions at time :math:`t=0`.
+
+        Parameters
+        ----------
+        t : float
+            Time of the initial conditions.
+
+        Returns
+        -------
+        me : dtype_u
+            Initial conditions.
+        """
+        assert t == 0, 'ERROR: u_exact only valid for t=0'
+
+        me = self.dtype_u(self.init)
+        me[0 : self.m] = 0
+        me[self.m : 2 * self.m] = 0
+        me[2 * self.m : 3 * self.m] = 0
+        me[3 * self.m : 4 * self.m] = 0
+        me[4 * self.m : 5 * self.m] = 0
+        me[5 * self.m : 6 * self.m] = 0
+        me[6 * self.m : 7 * self.m] = 0
+        me[7 * self.m : 8 * self.m] = 0
+        me[8 * self.m : 9 * self.m] = 0
+        me[9 * self.m : 10 * self.m] = 0
+        me[10 * self.m : 11 * self.m] = 0
+        me[11 * self.m : 11 * self.m + self.m] = 0
+        me[11 * self.m + self.m : 11 * self.m + 2 * self.m] = 0
+        me[11 * self.m + 2 * self.m : 11 * self.m + 2 * self.m + self.n] = 0
+        me[11 * self.m + 2 * self.m + self.n : 11 * self.m + 2 * self.m + 2 * self.n] = 0
+        return me
+
 
     def get_switching_info(self, u, t, du=None):
         r"""

@@ -485,7 +485,6 @@ def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma
     unknowns_labels = u_num['unknowns_labels']
     for unknown, unknown_label in zip(unknowns, unknowns_labels):
         ax.plot(u_num['t'], u_num[unknown], label=unknown_label)
-        break
 
     if use_detection:
         t_switches = u_num['t_switches']
@@ -628,6 +627,9 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
     # newton and rhs work
     res['newton'] = np.array(get_sorted(stats, type='work_newton', sortby='time', recomputed=recomputed))
     res['rhs'] = np.array(get_sorted(stats, type='work_rhs', sortby='time', recomputed=recomputed))
+
+    # runtimes of steps
+    res['timing_step'] = np.array(get_sorted(stats, type='timing_step', sortby='time', recomputed=recomputed))
     return res
 
 

@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import optimize
 
 from pySDC.core.Errors import ParameterError
 from pySDC.core.Sweeper import sweeper

@@ -425,6 +425,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAE': ['y', 'z'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': ['y', 'z'],
         'LinearTestDAE' : ['ud', 'ua'],
+        'LinearTestDAEReduced' : ['ud', 'ua'],
         'problematic_f': ['y1', 'y2'],
     }
 
@@ -439,6 +440,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAE': [r'$y$', r'$z$'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': [r'$y$', r'$z$'],
         'LinearTestDAE' : [r'$u_d$', r'$u_a$'],
+        'LinearTestDAEReduced' : [r'$u_d$', r'$u_a$'],
         'problematic_f': [r'$y_1$', r'$y_2$'],
     }
 

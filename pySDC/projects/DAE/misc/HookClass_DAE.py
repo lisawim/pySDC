@@ -125,8 +125,9 @@ class LogGlobalErrorPostIter(hooks):
         upde = P.u_exact(step.time + step.dt)
         e_global = abs(upde.diff - L.uend.diff)
 
-        du_ref = P.du_exact(step.time + step.dt)
-        e_global_du = abs(du_ref.diff - L.f[-1].diff)
+        # du_ref = P.du_exact(step.time + step.dt)
+        # print(du_ref, L.f[-1])
+        # e_global_du = abs(du_ref.diff - L.f[-1].diff)
 
         self.add_to_stats(
             process=step.status.slot,
@@ -138,15 +139,15 @@ class LogGlobalErrorPostIter(hooks):
             value=e_global,
         )
 
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type='e_global_post_iter_du',
-            value=e_global_du,
-        )
+        # self.add_to_stats(
+        #     process=step.status.slot,
+        #     time=L.time + L.dt,
+        #     level=L.level_index,
+        #     iter=step.status.iter,
+        #     sweep=L.status.sweep,
+        #     type='e_global_post_iter_du',
+        #     value=e_global_du,
+        # )
 
 
 class LogGlobalErrorPostIterAlg(hooks):
@@ -164,8 +165,8 @@ class LogGlobalErrorPostIterAlg(hooks):
         upde = P.u_exact(step.time + step.dt)
         e_global_algebraic = abs(upde.alg - L.uend.alg)
 
-        du_ref = P.du_exact(step.time + step.dt)
-        e_global_algebraic_du = abs(du_ref.alg - L.f[-1].alg)
+        # du_ref = P.du_exact(step.time + step.dt)
+        # e_global_algebraic_du = abs(du_ref.alg - L.f[-1].alg)
 
         self.add_to_stats(
             process=step.status.slot,
@@ -177,12 +178,12 @@ class LogGlobalErrorPostIterAlg(hooks):
             value=e_global_algebraic,
         )
 
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type='e_global_algebraic_post_iter_du',
-            value=e_global_algebraic_du,
-        )
+        # self.add_to_stats(
+        #     process=step.status.slot,
+        #     time=L.time + L.dt,
+        #     level=L.level_index,
+        #     iter=step.status.iter,
+        #     sweep=L.status.sweep,
+        #     type='e_global_algebraic_post_iter_du',
+        #     value=e_global_algebraic_du,
+        # )

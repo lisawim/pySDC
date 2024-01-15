@@ -466,7 +466,7 @@ def plotStylingStuff():  # pragma: no cover
     return colors
 
 
-def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma: no cover
+def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_detection):  # pragma: no cover
     r"""
     Plots the numerical solution for one simulation run.
 
@@ -504,7 +504,7 @@ def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma
     ax.set_xlabel(r'$t$', fontsize=16)
     ax.set_ylabel(r'$u(t)$', fontsize=16)
 
-    fig.savefig('data/{}_model_solution.png'.format(prob_cls_name), dpi=300, bbox_inches='tight')
+    fig.savefig(f'data/{prob_cls_name}_model_solution_{sweeper_cls_name}.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 
@@ -567,6 +567,7 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
 
     # numerical solution
     u_val = get_sorted(stats, type='u', sortby='time', recomputed=recomputed)
+    print(u_val)
     res['t'] = np.array([item[0] for item in u_val])
     n_diff = len(u_val[0][1].diff)
     for i, label in enumerate(unknowns):

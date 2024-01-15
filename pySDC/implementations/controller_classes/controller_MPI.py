@@ -5,6 +5,7 @@ from pySDC.core.Controller import controller
 from pySDC.core.Errors import ControllerError
 from pySDC.core.Step import step
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestarting
+from pySDC.projects.DAE.misc.dae_mesh import DAEMesh
 
 
 class controller_MPI(controller):

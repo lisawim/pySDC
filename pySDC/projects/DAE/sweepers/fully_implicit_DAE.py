@@ -82,15 +82,14 @@ class fully_implicit_DAE(generic_implicit):
             for j in range(1, M + 1):
                 integral[m - 1] -= L.dt * self.QI[m, j] * L.f[j]
             integral[m - 1] += L.u[0]
-            # print('Update nodes pure integral:', m, integral[m - 1])
-        # print()
+
         # do the sweep
         for m in range(1, M + 1):
             # add the known components from current sweep del_t*Q_del*U_k+1
             u_approx = P.dtype_u(integral[m - 1])
             for j in range(1, m):
                 u_approx += L.dt * self.QI[m, j] * L.f[j]
-            # print(m, 'u_approx:', u_approx)
+
             # params contains U = u'
             def implSystem(params):
                 """
@@ -108,6 +107,8 @@ class fully_implicit_DAE(generic_implicit):
                 """
 
                 params_mesh = P.dtype_f(params)
+                # params_mesh = P.dtype_f(P.init)
+                # params_mesh[:] = params
 
                 # build parameters to pass to implicit function
                 local_u_approx = P.dtype_f(u_approx)
@@ -116,18 +117,17 @@ class fully_implicit_DAE(generic_implicit):
                 # these do not directly affect the output of eval_f but rather indirectly via QI
                 local_u_approx += L.dt * self.QI[m, m] * params_mesh
 
-                sys = P.eval_f(local_u_approx, L.time + L.dt * self.coll.nodes[m - 1], params_mesh)
+                sys = P.eval_f(local_u_approx, params_mesh, L.time + L.dt * self.coll.nodes[m - 1])
                 return sys
 
             # update gradient (recall L.f is being used to store the gradient)
             L.f[m] = P.solve_system(implSystem, L.f[m], L.time + L.dt * self.coll.nodes[m - 1])
-            # print('f new:', m, L.f[m])
+
         # Update solution approximation
         integral = self.integrate()
         for m in range(M):
-            print('integral:', m, integral[m])
             L.u[m + 1] = L.u[0] + integral[m]
-            # print('u new:', m, L.u[m + 1])
+
         # indicate presence of new values at this level
         L.status.updated = True
 
@@ -164,7 +164,7 @@ class fully_implicit_DAE(generic_implicit):
                 L.f[m] = P.dtype_f(init=P.init, val=np.random.rand(1)[0])
             else:
                 raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
-            print(L.time, m, 'u:', L.u[m], 'f:', L.f[m])
+
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True
@@ -198,7 +198,7 @@ class fully_implicit_DAE(generic_implicit):
         res_norm = []
         for m in range(self.coll.num_nodes):
             # use abs function from data type here
-            res_norm.append(abs(P.eval_f(L.u[m + 1], L.time + L.dt * self.coll.nodes[m], L.f[m + 1])))
+            res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m + 1], L.time + L.dt * self.coll.nodes[m])))
 
         # find maximal residual over the nodes
         if L.params.residual_type == 'full_abs':

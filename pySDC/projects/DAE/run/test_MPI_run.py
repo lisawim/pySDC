@@ -7,7 +7,9 @@ from pySDC.implementations.controller_classes.controller_nonMPI import controlle
 
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE.sweepers.SemiExplicitDAE import SemiExplicitDAE
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE_MPI import fully_implicit_DAE_MPI
+from pySDC.projects.DAE.sweepers.SemiExplicitDAEMPI import SemiExplicitDAEMPI
 
 from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE
 
@@ -111,15 +113,14 @@ def main():
     lambdas_diff = [2.0]  # [10 ** m for m in range(-3, 2)]
     lamb_alg = 1.0
     dt_list = [0.01]  # np.logspace(-1.0, -2.0, num=6)  # [1e-6]
-    Tend = 0.01
+    Tend = 1.0
     nnodes = [3]  # [2, 3, 4, 5]
     QIs = ['IEpar']
 
     useMPI = True
-    sweeper = fully_implicit_DAE_MPI if useMPI else fully_implicit_DAE
+    sweeper_classes = [SemiExplicitDAEMPI, fully_implicit_DAE_MPI] if useMPI else [SemiExplicitDAE, fully_implicit_DAE]
 
-    problem_classes = [LinearTestDAE]
-    sweeper_classes = [sweeper]
+    problem_classes = [LinearTestDAE] * len(sweeper_classes)
 
     if useMPI:
         comm = MPI.COMM_WORLD

@@ -37,7 +37,7 @@ class SweeperDAEMPI(SweeperMPI):
             L.status.residual = 0.0 if L.status.residual is None else L.status.residual
             return None
 
-        res = P.eval_f(L.u[self.rank + 1], L.time + L.dt * self.coll.nodes[self.rank], L.f[self.rank + 1])
+        res = P.eval_f(L.u[self.rank + 1], L.f[self.rank + 1], L.time + L.dt * self.coll.nodes[self.rank])
         res_norm = abs(res)  # use abs function from data type here
 
         # find maximal residual over the nodes
@@ -83,98 +83,10 @@ class SweeperDAEMPI(SweeperMPI):
             L.f[self.rank + 1] = P.dtype_f(init=P.init, val=0.0)
         else:
             raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
-        # print(L.time, 'Predict:', self.rank, 'u:', L.u[self.rank + 1], 'f:', L.f[self.rank + 1])
+
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True
-
-
-class fully_implicit_DAE_MPI(SweeperDAEMPI, fully_implicit_DAE):
-    """
-    Fully implicit DAE sweeper parallelized across the nodes.
-    Please supply a communicator as `comm` to the parameters!
-    """
-
-    def integrate(self, last_only=False):
-        """
-        Integrates the right-hand side
-
-        Args:
-            last_only (bool): Integrate only the last node for the residual or all of them
-
-        Returns:
-            list of dtype_u: containing the integral as values
-        """
-        L = self.level
-        P = L.prob
-
-        me = P.dtype_u(P.init, val=0.0)
-        for m in [self.coll.num_nodes - 1] if last_only else range(self.coll.num_nodes):
-            recvBuf = me[:] if m == self.rank else None
-            print('recvBuf', recvBuf)
-            # integral = L.dt * self.coll.Qmat[m + 1, self.rank + 1] * L.f[self.rank + 1]
-            print('data:', self.rank, self.coll.Qmat[m + 1, self.rank + 1], L.f[self.rank + 1])
-            self.comm.Reduce(
-                L.dt * self.coll.Qmat[m + 1, self.rank + 1] * L.f[self.rank + 1][:], recvBuf, root=m, op=MPI.SUM
-            )
-            # self.comm.Reduce(integral[:], root=m, op=MPI.SUM)
-        print(self.coll.Qmat)
-        return me
-
-    def update_nodes(self):
-        r"""
-        Updates values of ``u`` and ``f`` at collocation nodes. This correspond to a single iteration of the
-        preconditioned Richardson iteration in **"ordinary"** SDC.
-        """
-
-        L = self.level
-        P = L.prob
-
-        # only if the level has been touched before
-        assert L.status.unlocked
-
-        integral = self.integrate()
-        integral -= L.dt * self.QI[self.rank + 1, self.rank + 1] * L.f[self.rank + 1]
-        integral += L.u[0]
-        # print('Pure integral:', self.rank, integral[:])
-        u_approx = P.dtype_u(integral)
-        if self.rank == self.comm.size - 1:
-            print()
-        def implSystem(unknowns):
-            """
-            Build implicit system to solve in order to find the unknowns.
-
-            Parameters
-            ----------
-            params : dtype_u
-                Unknowns of the system.
-
-            Returns
-            -------
-            sys :
-                System to be solved as implicit function.
-            """
-            unknowns_mesh = P.dtype_f(unknowns)
-
-            # add implicit factor with unknown
-            local_u_approx = P.dtype_f(u_approx)
-            local_u_approx += L.dt * self.QI[self.rank + 1, self.rank + 1] * unknowns_mesh
-
-            sys = P.eval_f(local_u_approx, L.time + L.dt * self.coll.nodes[self.rank], unknowns_mesh)
-            return sys
-
-        L.f[self.rank + 1] = P.solve_system(
-            implSystem, L.f[self.rank + 1], L.time + L.dt * self.coll.nodes[self.rank]
-        )
-        # print('f new:', self.rank, L.f[self.rank + 1])
-        integral = self.integrate()
-        print('integral:', self.rank, integral)
-        L.u[self.rank + 1] = L.u[0] + integral
-        # print('u new:', self.rank, L.u[0] + integral)
-        # indicate presence of new values at this level
-        L.status.updated = True
-
-        return None
 
     def compute_end_point(self):
         """
@@ -197,8 +109,101 @@ class fully_implicit_DAE_MPI(SweeperDAEMPI, fully_implicit_DAE):
             root = self.comm.Get_size() - 1
             if self.comm.rank == root:
                 L.uend = P.dtype_u(L.u[-1])
-            self.comm.Bcast(L.uend[:], root=root)
+            # broadcast diff parts and alg parts separately
+            self.comm.Bcast(L.uend.diff, root=root)
+            self.comm.Bcast(L.uend.alg, root=root)
         else:
             raise NotImplementedError()
+
+        return None
+
+
+class fully_implicit_DAE_MPI(SweeperDAEMPI, generic_implicit_MPI, fully_implicit_DAE):
+    """
+    Fully implicit DAE sweeper parallelized across the nodes.
+    Please supply a communicator as `comm` to the parameters!
+    """
+
+    def integrate(self, last_only=False):
+        r"""
+        Integrates the gradient. ``me`` serves as buffer, and root process ``m`` stores
+        the result of integral at node :math:`\tau_m` there.
+
+        Parameters
+        ----------
+        last_only : bool, optional
+            Integrate only the last node for the residual or all of them.
+
+        Returns
+        -------
+        me : list of dtype_u
+            Containing the integral as values.
+        """
+
+        L = self.level
+        P = L.prob
+
+        me = P.dtype_u(P.init, val=0.0)
+        for m in [self.coll.num_nodes - 1] if last_only else range(self.coll.num_nodes):
+            recvBufDiff = me.diff[:] if m == self.rank else None
+            recvBufAlg = me.alg[:] if m == self.rank else None
+            integral = L.dt * self.coll.Qmat[m + 1, self.rank + 1] * L.f[self.rank + 1]
+            self.comm.Reduce(
+                integral.diff, recvBufDiff, root=m, op=MPI.SUM
+            )
+            self.comm.Reduce(
+                integral.alg, recvBufAlg, root=m, op=MPI.SUM
+            )
+
+        return me
+
+    def update_nodes(self):
+        r"""
+        Updates values of ``u`` and ``f`` at collocation nodes. This correspond to a single iteration of the
+        preconditioned Richardson iteration in **"ordinary"** SDC.
+        """
+
+        L = self.level
+        P = L.prob
+
+        # only if the level has been touched before
+        assert L.status.unlocked
+
+        integral = self.integrate()
+        integral -= L.dt * self.QI[self.rank + 1, self.rank + 1] * L.f[self.rank + 1]
+        integral += L.u[0]
+
+        u_approx = P.dtype_u(integral)
+        def implSystem(unknowns):
+            """
+            Build implicit system to solve in order to find the unknowns.
+
+            Parameters
+            ----------
+            params : dtype_u
+                Unknowns of the system.
+
+            Returns
+            -------
+            sys :
+                System to be solved as implicit function.
+            """
+            unknowns_mesh = P.dtype_f(unknowns)
+
+            # add implicit factor with unknown
+            local_u_approx = P.dtype_f(u_approx)
+            local_u_approx += L.dt * self.QI[self.rank + 1, self.rank + 1] * unknowns_mesh
+
+            sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[self.rank])
+            return sys
+
+        L.f[self.rank + 1] = P.solve_system(
+            implSystem, L.f[self.rank + 1], L.time + L.dt * self.coll.nodes[self.rank]
+        )
+
+        integral = self.integrate()
+        L.u[self.rank + 1] = L.u[0] + integral
+        # indicate presence of new values at this level
+        L.status.updated = True
 
         return None

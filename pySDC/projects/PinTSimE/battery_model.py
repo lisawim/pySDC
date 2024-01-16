@@ -567,12 +567,12 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
 
     # numerical solution
     u_val = get_sorted(stats, type='u', sortby='time', recomputed=recomputed)
-    print(u_val)
     res['t'] = np.array([item[0] for item in u_val])
     n_diff = len(u_val[0][1].diff)
     for i, label in enumerate(unknowns):
         if type(u_val[0][1]) == DAEMesh:
             res[label] = np.array([item[1].diff[i] for item in u_val]) if i < len(u_val[0][1].diff) else np.array([item[1].alg[i - n_diff] for item in u_val])
+            # print(label, res[label])
         else:
             res[label] = np.array([item[1][i] for item in u_val])
 

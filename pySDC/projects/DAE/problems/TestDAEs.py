@@ -258,6 +258,8 @@ class LinearTestDAE(ptype_dae):
         Counts work, here, the number of right-hand side evaluations and work in inner solver
         are counted.
     """
+    # dtype_u = mesh
+    # dtype_f = mesh
 
     def __init__(self, lamb_diff=1.0, lamb_alg=1.0, newton_tol=1e-12):
         """Initialization routine"""
@@ -266,7 +268,7 @@ class LinearTestDAE(ptype_dae):
         self.work_counters['rhs'] = WorkCounter()
         self.work_counters['newton'] = WorkCounter()
 
-    def eval_f(self, u, t, du=None):
+    def eval_f(self, u, du, t):
         r"""
         Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
 
@@ -285,14 +287,12 @@ class LinearTestDAE(ptype_dae):
             The right-hand side of f (contains two components).
         """
 
-        f = self.dtype_f(self.init)
-        if du is not None:
-            u_diff, u_alg = u.diff, u.alg
-            du_diff = du.diff
+        u_diff, u_alg = u.diff, u.alg
+        du_diff = du.diff
 
-            f.diff[:] = du_diff - self.lamb_diff * u_diff - self.lamb_alg * u_alg
-            f.alg[:] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
-            self.work_counters['rhs']()
+        f = self.dtype_f(self.init)
+        f.diff[:] = du_diff - self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        f.alg[:] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
         return f
 
     def u_exact(self, t, **kwargs):

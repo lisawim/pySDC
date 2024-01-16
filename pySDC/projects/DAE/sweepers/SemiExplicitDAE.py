@@ -1,10 +1,10 @@
 import numpy as np
 
 from pySDC.core.Errors import ParameterError
-from pySDC.core.Sweeper import sweeper
+from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 
 
-class SemiExplicitDAE(sweeper):
+class SemiExplicitDAE(fully_implicit_DAE):
     r"""
     Custom sweeper class to implement SDC for solving semi-explicit DAEs of the form
 
@@ -100,46 +100,6 @@ class SemiExplicitDAE(sweeper):
 
         self.QI = self.get_Qdelta_implicit(coll=self.coll, qd_type=self.params.QI)
 
-    def predict(self):
-        r"""
-        Predictor to fill values at nodes before first sweep. It can decides whether the
-
-            - initial condition is spread to each node ('initial_guess' = 'spread'),
-            - zero values are spread to each node ('initial_guess' = 'zero'),
-            - or random values are spread to each collocation node ('initial_guess' = 'random').
-
-        Default prediction for the sweepers, only copies the values to all collocation nodes. This function
-        overrides the base implementation by always initialising ``level.f`` to zero. This is necessary since
-        ``level.f`` stores the solution derivative, which is not initially known.
-        """
-
-        # get current level and problem description
-        L = self.level
-        P = L.prob
-
-        # set initial guess for gradient to zero
-        L.f[0] = P.dtype_f(init=P.init, val=0.0)
-
-        for m in range(1, self.coll.num_nodes + 1):
-            # copy u[0] to all collocation nodes and set f (the gradient) to zero
-            if self.params.initial_guess == 'spread':
-                L.u[m] = P.dtype_u(L.u[0])
-                L.f[m] = P.dtype_f(init=P.init, val=0.0)
-            # start with zero everywhere
-            elif self.params.initial_guess == 'zero':
-                L.u[m] = P.dtype_u(init=P.init, val=0.0)
-                L.f[m] = P.dtype_f(init=P.init, val=0.0)
-            # start with random initial guess
-            elif self.params.initial_guess == 'random':
-                L.u[m] = P.dtype_u(init=P.init, val=np.random.rand(1)[0])
-                L.f[m] = P.dtype_f(init=P.init, val=np.random.rand(1)[0])
-            else:
-                raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
-
-        # indicate that this level is now ready for sweeps
-        L.status.unlocked = True
-        L.status.updated = True
-
     def integrate(self):
         r"""
         Returns the solution by integrating its gradient (fundamental theorem of calculus) at each collocation node.
@@ -206,12 +166,13 @@ class SemiExplicitDAE(sweeper):
                     System to be solved as implicit function.
                 """
 
+                unknowns_mesh = P.dtype_f(unknowns)
+
                 local_u_approx = P.dtype_u(u_approx)
+                local_u_approx.diff += L.dt * self.QI[m, m] * unknowns_mesh.diff
+                local_u_approx.alg = unknowns_mesh.alg
 
-                local_u_approx.diff += L.dt * self.QI[m, m] * unknowns.diff
-                local_u_approx.alg = unknowns.alg
-                sys = P.eval_f(local_u_approx, unknowns, L.time + L.dt * self.coll.nodes[m - 1])
-
+                sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[m - 1])
                 return sys
 
             u0 = P.dtype_u(P.init)
@@ -228,79 +189,5 @@ class SemiExplicitDAE(sweeper):
 
         # indicate presence of new values at this level
         L.status.updated = True
-
-        return None
-    
-    def compute_residual(self, stage=None):
-        r"""
-        Uses the absolute value of the DAE system
-
-        .. math::
-            ||F(t, u, u')||
-
-        for computing the residual.
-
-        Parameters
-        ----------
-        stage : str, optional
-            The current stage of the step the level belongs to.
-        """
-        
-        # get current level and problem description
-        L = self.level
-        P = L.prob
-
-        # Check if we want to skip the residual computation to gain performance
-        # Keep in mind that skipping any residual computation is likely to give incorrect outputs of the residual!
-        if stage in self.params.skip_residual_computation:
-            L.status.residual = 0.0 if L.status.residual is None else L.status.residual
-            return None
-        
-        res_norm = []
-        for m in range(self.coll.num_nodes):
-            # use abs function from data type here
-            res_norm.append(abs(P.eval_f(L.u[m + 1], L.f[m + 1], L.time + L.dt * self.coll.nodes[m])))
-
-        # find maximal residual over the nodes
-        if L.params.residual_type == 'full_abs':
-            L.status.residual = max(res_norm)
-        elif L.params.residual_type == 'last_abs':
-            L.status.residual = res_norm[-1]
-        elif L.params.residual_type == 'full_rel':
-            L.status.residual = max(res_norm) / abs(L.u[0])
-        elif L.params.residual_type == 'last_rel':
-            L.status.residual = res_norm[-1] / abs(L.u[0])
-        else:
-            raise ParameterError(
-                f'residual_type = {L.params.residual_type} not implemented, choose '
-                f'full_abs, last_abs, full_rel or last_rel instead'
-            )
-
-        # indicate that the residual has seen the new values
-        L.status.updated = False
-
-        return None
-    
-    def compute_end_point(self):
-        r"""
-        Computes the solution ``u`` at the right-hand point. For ``quad_type='RADAU-LEFT'`` a collocation update
-        has to be done, which is the full evaluation of the Picard formulation. In cases of
-        ``quad_type='RADAU-RIGHT'`` or ``quad_type='LOBATTO'`` the value at last collocation node is the new value
-        for the next step.
-        """
-
-        # get current level and problem description
-        L = self.level
-        P = L.prob
-
-        # check if Mth node is equal to right point and do_coll_update is false, perform a simple copy
-        if self.coll.right_is_node and not self.params.do_coll_update:
-            # a copy is sufficient
-            L.uend = P.dtype_u(L.u[-1])
-        else:
-            # start with u0 and add integral over the full interval (using coll.weights)
-            L.uend = P.dtype_u(L.u[0])
-            for m in range(self.coll.num_nodes):
-                L.uend += L.dt * self.coll.weights[m] * L.f[m + 1]
 
         return None

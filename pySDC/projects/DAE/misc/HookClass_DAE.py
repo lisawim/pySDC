@@ -190,3 +190,26 @@ class LogGlobalErrorPostIterAlg(hooks):
         #     type='e_global_algebraic_post_iter_du',
         #     value=e_global_algebraic_du,
         # )
+
+
+class LogIterationsLinearSolverCollocationNode(hooks):
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point() 
+
+        niters_linear_node = P.getNitersLinearNode()
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='niter_linear_node',
+            value=niters_linear_node,
+        )
+        P.setNitersLinearNode()

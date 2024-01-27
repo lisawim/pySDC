@@ -80,6 +80,8 @@ class sweeper(object):
     def get_Qdelta_implicit(self, coll, qd_type):
         def rho(x):
             return max(abs(np.linalg.eigvals(np.eye(m) - np.diag([x[i] for i in range(m)]).dot(coll.Qmat[1:, 1:]))))
+        def rho_A(x):
+            return max(abs(np.linalg.eigvals(np.kron(A, coll.Qmat[1:, 1:] - np.diag([x[i] for i in range(m)])))))
 
         QDmat = np.zeros(coll.Qmat.shape)
         if qd_type == 'LU':
@@ -117,6 +119,9 @@ class sweeper(object):
             d = opt.minimize(rho, x0, method='Nelder-Mead')
             QDmat[1:, 1:] = np.linalg.inv(np.diag(d.x))
             self.parallelizable = True
+        # elif qd_type == 'MIN-A':
+        #     QDmat = np.zeros(coll.Qmat.shape)
+        #     self.parallelizable = True
         elif qd_type in ['MIN_GT', 'MIN-SR-NS']:
             m = QDmat.shape[0] - 1
             QDmat[1:, 1:] = np.diag(coll.nodes) / m

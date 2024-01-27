@@ -58,6 +58,7 @@ def generateDescription(
     problem_params,
     restol,
     maxiter,
+    e_tol=-1,
     max_restarts=None,
     tol_event=1e-10,
     alpha=1.0,
@@ -110,6 +111,7 @@ def generateDescription(
     # initialize level parameters
     level_params = {
         'restol': -1 if use_adaptivity else restol,
+        'e_tol': e_tol,
         'dt': dt,
     }
     if use_adaptivity:
@@ -425,8 +427,82 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAE': ['y', 'z'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': ['y', 'z'],
         'LinearTestDAE' : ['ud', 'ua'],
+        'LinearTestDAEMinion': ['u1', 'u2', 'u3', 'u4'],
         'LinearTestDAEReduced' : ['ud', 'ua'],
         'problematic_f': ['y1', 'y2'],
+        'WSCC9BusSystem': [
+            'Eqp0',
+            'Eqp1',
+            'Eqp2',
+            'S1d0',
+            'S1d1',
+            'S1d2',
+            'Edp0',
+            'Edp1',
+            'Edp2',
+            'S2q0',
+            'S2q1',
+            'S2q2',
+            'D0',
+            'D1',
+            'D2',
+            'ws0',
+            'ws1',
+            'ws2',
+            'Efd0',
+            'Efd1',
+            'Efd2',
+            'RF0',
+            'RF1',
+            'RF2',
+            'VR0',
+            'VR1',
+            'VR2',
+            'TM0',
+            'TM1',
+            'TM2',
+            'PSV0',
+            'PSV1',
+            'PSV2',
+            'Id0',
+            'Id1',
+            'Id2',
+            'Iq0',
+            'Iq1',
+            'Iq2',
+            'V0',
+            'V1',
+            'V2',
+            'V3',
+            'V4',
+            'V5',
+            'V6',
+            'V7',
+            'V8',
+            'TH0',
+            'TH1',
+            'TH2',
+            'TH3',
+            'TH4',
+            'TH5',
+            'TH6',
+            'TH7',
+            'TH8',
+        ],
+        'PilineDAE': [
+            'vC1',
+            'vC2',
+            'iLp',
+            'vRs',
+            'vRp',
+            'vLp',
+            'vRl',
+            'iRs',
+            'iC1',
+            'iRp',
+            'iC2',
+            'iRl',
+        ],
     }
 
     unknowns_labels = {
@@ -440,8 +516,82 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAE': [r'$y$', r'$z$'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': [r'$y$', r'$z$'],
         'LinearTestDAE' : [r'$u_d$', r'$u_a$'],
+        'LinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
         'LinearTestDAEReduced' : [r'$u_d$', r'$u_a$'],
         'problematic_f': [r'$y_1$', r'$y_2$'],
+        'WSCC9BusSystem': [
+            r"$E^'_{q,0}$",
+            r"$E^'_{q,1}$",
+            r"$E^'_{q,2}$",
+            r'$\phi_{1d,0}$',
+            r'$\phi_{1d,1}$',
+            r'$\phi_{1d,2}$',
+            r"$E^'_{d,0}$",
+            r"$E^'_{d,1}$",
+            r"$E^'_{d,2}$",
+            r'$\phi_{2q,0}$',
+            r'$\phi_{2q,1}$',
+            r'$\phi_{2q,2}$',
+            r'$\delta_0$',
+            r'$\delta_1$',
+            r'$\delta_2$',
+            r'$\omega_0$',
+            r'$\omega_1$',
+            r'$\omega_2$',
+            r'$E_{fd,0}$',
+            r'$E_{fd,1}$',
+            r'$E_{fd,2}$',
+            r'$R_{f,0}$',
+            r'$R_{f,1}$',
+            r'$R_{f,2}$',
+            r'$V_{R,0}$',
+            r'$V_{R,1}$',
+            r'$V_{R,2}$',
+            r'$T_{M,0}$',
+            r'$T_{M,1}$',
+            r'$T_{M,2}$',
+            r'$P_{SV,0}$',
+            r'$P_{SV,1}$',
+            r'$P_{SV,2}$',
+            r'$I_{d,0}$',
+            r'$I_{d,1}$',
+            r'$I_{d,2}$',
+            r'$I_{q,0}$',
+            r'$I_{q,1}$',
+            r'$I_{q,2}$',
+            r'$V_0$',
+            r'$V_1$',
+            r'$V_2$',
+            r'$V_3$',
+            r'$V_4$',
+            r'$V_5$',
+            r'$V_6$',
+            r'$V_7$',
+            r'$V_8$',
+            r'$T_{H,0}$',
+            r'$T_{H,1}$',
+            r'$T_{H,2}$',
+            r'$T_{H,3}$',
+            r'$T_{H,4}$',
+            r'$T_{H,5}$',
+            r'$T_{H,6}$',
+            r'$T_{H,7}$',
+            r'$T_{H,8}$',
+        ],
+        'PilineDAE': [
+            r'$v_{C_1}$'
+            r'$v_{C_2}$'
+            r'$i_{L_\pi}$'
+            r'$v_{R_s}$'
+            r'$v_{R_\pi}$'
+            r'$v_{L_\pi}$'
+            r'$v_{R_\ell}$'
+            r'$i_{R_s}$'
+            r'$i_{C_1}$'
+            r'$i_{R_\pi}$'
+            r'$i_{C_2}$',
+            r'$i_{R_\ell}$',
+        ],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -466,7 +616,7 @@ def plotStylingStuff():  # pragma: no cover
     return colors
 
 
-def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_detection):  # pragma: no cover
+def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_detection, plot_labels=None):  # pragma: no cover
     r"""
     Plots the numerical solution for one simulation run.
 
@@ -479,12 +629,16 @@ def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_det
         Name of the problem class to be plotted.
     use_adaptivity : bool
         Indicates whether adaptivity is used in the simulation or not.
+    use_detection : bool
+        Indicates whether switch detection is used in the simulation or not.
+    plot_labels : list, optional
+        Plot the labels.
     """
 
     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
 
     unknowns = u_num['unknowns']
-    unknowns_labels = u_num['unknowns_labels']
+    unknowns_labels = u_num['unknowns_labels'] if plot_labels is None else plot_labels
     for unknown, unknown_label in zip(unknowns, unknowns_labels):
         ax.plot(u_num['t'], u_num[unknown], label=unknown_label)
 
@@ -576,11 +730,14 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
         else:
             res[label] = np.array([item[1][i] for item in u_val])
 
+    res['u_iter'] = [get_sorted(stats, iter=k, type='u', sortby='time') for k in range(1, maxiter + 1)]
+
     res['unknowns'] = unknowns
     res['unknowns_labels'] = unknowns_labels
 
     # residual
     res['residual'] = np.array(get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed))
+    res['residual_post_iter'] = [get_sorted(stats, iter=k, type='residual_post_iteration', sortby='time') for k in range(1, maxiter + 1)]
 
     # choose between the error for DAEs and those for ODEs/PDEs
     if type(u_val[0][1]) == DAEMesh:
@@ -624,8 +781,11 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
 
     # sum over all iterations
     niters = np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1]
+    res['niters'] = niters
     res['sum_niters'] = np.sum(niters)
     res['mean_niters'] = np.mean(niters)
+
+    res['niter_linear_node_post_iter'] = [get_sorted(stats, iter=k, type='niter_linear_node', sortby='time') for k in range(1, maxiter + 1)]
 
     # newton and rhs work
     res['newton'] = np.array(get_sorted(stats, type='work_newton', sortby='time', recomputed=recomputed))

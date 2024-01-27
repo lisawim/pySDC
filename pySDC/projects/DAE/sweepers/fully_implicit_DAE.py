@@ -148,6 +148,25 @@ class fully_implicit_DAE(generic_implicit):
         # get current level and problem description
         L = self.level
         P = L.prob
+        # if self.params.QI == 'MIN-A':
+        #     def rho_A(x):
+        #         M = self.coll.num_nodes
+        #         E = np.zeros((2 * M, 2 * M))
+        #         E[: M, : M] = np.identity(M)
+        #         E[: M, M :] = -P.lamb_alg * np.identity(M)
+        #         E[M : , M :] = P.lamb_alg * np.identity(M)
+        #         # A = np.array([[P.lamb_diff, 0], [P.lamb_diff, 0]])
+        #         A = np.array([[P.lamb_diff, P.lamb_alg], [P.lamb_diff, -P.lamb_alg]])
+
+        #         # K = np.matmul(np.linalg.inv(E - L.dt * np.kron(A, np.diag([x[i] for i in range(m)]))), L.dt * np.kron(A, np.matmul(np.diag([x[i] for i in range(m)]), np.matmul(np.linalg.inv(np.diag([x[i] for i in range(m)])), self.coll.Qmat[1:, 1:]) - np.identity(M))))
+        #         # K = np.matmul(np.linalg.inv(E - L.dt * np.kron(A, np.diag([x[i] for i in range(m)]))), L.dt * np.kron(A, self.coll.Qmat[1:, 1:] - np.diag([x[i] for i in range(m)])))
+        #         K = np.kron(A, self.coll.Qmat[1:, 1:] - np.diag([x[i] for i in range(m)]))
+        #         return max(abs(np.linalg.eigvals(K)))
+        #     m = self.coll.Qmat.shape[0] - 1
+        #     x0 = 10 * np.ones(m)
+        #     d = optimize.minimize(rho_A, x0, method='Nelder-Mead')
+        #     print(f'Minimized spectral radius for lamb_diff={P.lamb_diff}, lamb_alg={P.lamb_alg}:', rho_A(d.x))
+        #     self.QI[1:, 1:] = np.diag(d.x)
         # set initial guess for gradient to zero
         L.f[0] = P.dtype_f(init=P.init, val=0.0)
         for m in range(1, self.coll.num_nodes + 1):
@@ -164,7 +183,7 @@ class fully_implicit_DAE(generic_implicit):
                 L.f[m] = P.dtype_f(init=P.init, val=np.random.rand(1)[0])
             else:
                 raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
-
+        print(L.time)
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True

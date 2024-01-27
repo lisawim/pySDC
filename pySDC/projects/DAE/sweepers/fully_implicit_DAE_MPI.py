@@ -83,7 +83,7 @@ class SweeperDAEMPI(SweeperMPI):
             L.f[self.rank + 1] = P.dtype_f(init=P.init, val=0.0)
         else:
             raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
-
+        print(L.time)
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True

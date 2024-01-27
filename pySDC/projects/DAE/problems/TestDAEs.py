@@ -336,6 +336,89 @@ class LinearTestDAE(ptype_dae):
         return me
 
 
+class LinearTestDAEMinion(ptype_dae):
+    r"""
+    TODO: Write docu about class!
+    """
+
+    def __init__(self, newton_tol=1e-12, method='gmres'):
+        """Initialization routine"""
+        super().__init__(nvars=(3, 1), newton_tol=newton_tol, method=method)
+        self._makeAttributeAndRegister('newton_tol', localVars=locals())
+        self.work_counters['rhs'] = WorkCounter()
+    
+    def eval_f(self, u, du, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        du : dtype_u
+            Current values of the derivative of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains four components).
+        """
+        c = 1e4
+        u1, u2, u3, u4 = u.diff[0], u.diff[1], u.diff[2], u.alg[0]
+        du1, du2, du3 = du.diff[0], du.diff[1], du.diff[2]
+
+        f = self.dtype_f(self.init)
+        f.diff[:] = (
+            u1 - u3 + u4 - du1,
+            -c * u2 + (1 + c) * np.exp(t) - du2,
+            u1 - du3,
+        )
+        f.alg[:] = u1 + u2 + u4 - np.exp(t)
+        return f
+
+    def u_exact(self, t, **kwargs):
+        r"""
+        Routine for the exact solution at time :math:`t`.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
+
+        Returns
+        -------
+        me : dtype_u
+            Exact solution.
+        """
+
+        me = self.dtype_u(self.init)
+        me.diff[:] = (np.cos(t), np.exp(t), np.sin(t))
+        me.alg[:] = -np.cos(t)
+        return me
+
+    def du_exact(self, t, **kwargs):
+        r"""
+        Routine for the derivative exact solution at time :math:`t`.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution's derivative.
+
+        Returns
+        -------
+        me : dtype_u
+            Derivative exact solution.
+        """
+
+        me = self.dtype_u(self.init)
+        me.diff[:] = (-np.sin(t), np.exp(t), np.cos(t))
+        me.alg[:] = np.sin(t)
+        return me
+
+
 class LinearTestDAEReduced(LinearTestDAE):
     r"""
     Reduced system of problem ``LinearTestDAE`` of the form

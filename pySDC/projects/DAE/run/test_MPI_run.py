@@ -11,7 +11,8 @@ from pySDC.projects.DAE.sweepers.SemiExplicitDAE import SemiExplicitDAE
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE_MPI import fully_implicit_DAE_MPI
 from pySDC.projects.DAE.sweepers.SemiExplicitDAEMPI import SemiExplicitDAEMPI
 
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE, LinearTestDAEMinion
+from pySDC.projects.DAE.problems.WSCC9BusSystem import WSCC9BusSystem
 
 import pySDC.helpers.plot_helper as plt_helper
 import matplotlib.pyplot as plt
@@ -29,7 +30,7 @@ from pySDC.implementations.hooks.log_work import LogWork
 from pySDC.projects.DAE.run.DAE_study import plotStylingStuff
 from pySDC.projects.PinTSimE.battery_model import getDataDict, plotSolution
 
-def run(QI, M, lamb_diff, lamb_alg, dt, Tend, problem, sweeper, comm, useMPI):
+def run(QI, M, pre_problem_params, maxiter, dt, Tend, problem, sweeper, comm, useMPI):
     """
     Routine to initialise iteration test parameters
     """
@@ -41,7 +42,7 @@ def run(QI, M, lamb_diff, lamb_alg, dt, Tend, problem, sweeper, comm, useMPI):
 
     # initialize level parameters
     level_params = dict()
-    level_params['restol'] = 1e-13
+    level_params['restol'] = 5e-13
     level_params['dt'] = dt
 
     # This comes as read-in for the sweeper class
@@ -58,23 +59,22 @@ def run(QI, M, lamb_diff, lamb_alg, dt, Tend, problem, sweeper, comm, useMPI):
 
     # This comes as read-in for the problem class
     problem_params = dict()
-    problem_params['newton_tol'] = 1e-2
-    problem_params['lamb_diff'] = lamb_diff
-    problem_params['lamb_alg'] = lamb_alg
-
+    problem_params['newton_tol'] = 1e-10
+    problem_params['method'] = 'hybr'
+    problem_params.update(pre_problem_params)
 
     # This comes as read-in for the step class
     step_params = dict()
-    step_params['maxiter'] = 5
+    step_params['maxiter'] = maxiter
 
     hook_class = [
         DefaultHooks,
         LogSolution,
-        error_hook,
-        LogWork,
-        LogGlobalErrorPostStepAlgebraicVariable,
-        LogGlobalErrorPostIter,
-        LogGlobalErrorPostIterAlg,
+        # error_hook,
+        # LogWork,
+        # LogGlobalErrorPostStepAlgebraicVariable,
+        # LogGlobalErrorPostIter,
+        # LogGlobalErrorPostIterAlg,
     ]
 
     # initialize controller parameters
@@ -110,17 +110,31 @@ def run(QI, M, lamb_diff, lamb_alg, dt, Tend, problem, sweeper, comm, useMPI):
 
 
 def main():
-    lambdas_diff = [2.0]  # [10 ** m for m in range(-3, 2)]
+    lamb_diff = 2.0  # [10 ** m for m in range(-3, 2)]
     lamb_alg = 1.0
+    t_line_outage = 0.0
+    detect_disturbance = False
     dt_list = [0.01]  # np.logspace(-1.0, -2.0, num=6)  # [1e-6]
-    Tend = 1.0
+    Tend = 2 * dt_list[0]
     nnodes = [3]  # [2, 3, 4, 5]
-    QIs = ['IEpar']
+    maxiter = 100
+    QIs = ['IE']
 
     useMPI = True
-    sweeper_classes = [SemiExplicitDAEMPI, fully_implicit_DAE_MPI] if useMPI else [SemiExplicitDAE, fully_implicit_DAE]
+    sweeper_classes = [fully_implicit_DAE]  # [fully_implicit_DAE_MPI] if useMPI else [fully_implicit_DAE]
 
-    problem_classes = [LinearTestDAE] * len(sweeper_classes)
+    problem_classes = [LinearTestDAEMinion] * len(sweeper_classes)
+    prob_cls_name = problem_classes[0].__name__
+
+    pre_problem_params = {}
+    if prob_cls_name == 'LinearTestDAE':
+        pre_problem_params = {'lamb_diff': lamb_diff, 'lamb_alg': lamb_alg}
+        plot_labels = None
+    elif prob_cls_name == 'WSCC9BusSystem':
+        pre_problem_params = {'t_line_outage': t_line_outage, 'detect_disturbance': detect_disturbance}
+        plot_labels = [r'$P_{SV,0}$', r'$P_{SV,1}$', r'$P_{SV,2}$']
+    elif prob_cls_name == 'LinearTestDAEMinion':
+        plot_labels = None
 
     if useMPI:
         comm = MPI.COMM_WORLD
@@ -141,24 +155,20 @@ def main():
                 for QI in QIs:
                     u_num[sweeper_cls_name][dt][M][QI] = {}
 
-                    for lamb_diff in lambdas_diff:
-                        u_num[sweeper_cls_name][dt][M][QI][lamb_diff] = {}
+                    stats = run(QI, M, pre_problem_params, maxiter, dt, Tend, prob_cls, sweeper_cls, comm, useMPI)
 
-                        u_num[sweeper_cls_name][dt][M][QI][lamb_diff] = {}
+                    u_num[sweeper_cls_name][dt][M][QI] = getDataDict(
+                        stats, prob_cls.__name__, maxiter, False, False, False, None
+                    )
 
-                        stats = run(QI, M, lamb_diff, lamb_alg, dt, Tend, prob_cls, sweeper_cls, comm, useMPI)
-
-                        u_num[sweeper_cls_name][dt][M][QI][lamb_diff] = getDataDict(
-                            stats, prob_cls.__name__, 5, False, False, False, None
-                        )
-
-                        plotSolution(
-                            u_num[sweeper_cls_name][dt][M][QI][lamb_diff],
-                            prob_cls.__name__,
-                            sweeper_cls_name,
-                            False,
-                            False,
-                        )
+                    plotSolution(
+                        u_num[sweeper_cls_name][dt][M][QI],
+                        prob_cls.__name__,
+                        sweeper_cls_name,
+                        False,
+                        False,
+                        plot_labels,
+                    )
 
 
 if __name__ == "__main__":

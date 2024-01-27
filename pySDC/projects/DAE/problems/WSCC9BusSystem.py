@@ -586,6 +586,10 @@ class WSCC9BusSystem(ptype_dae):
         Number of unknowns of the system of DAEs (not used here, since it is set up inside this class).
     newton_tol : float
         Tolerance for Newton solver.
+    t_line_outage : float, optional
+        Time of line outage of bus6 in system. Default is ``0.05``.
+    detect_disturbance : bool, optional
+        Flag that indicates if disturbance added by line outage should be detected. Default is ``True``. 
 
     Attributes
     ----------
@@ -764,14 +768,14 @@ class WSCC9BusSystem(ptype_dae):
        for Power Systems Research and Education. IEEE Transactions on Power Systems. Vol. 26, No. 1, pp. 12–19 (2011).
     """
 
-    def __init__(self, newton_tol=1e-10, m=3, n=9):
+    def __init__(self, newton_tol=1e-10, m=3, n=9, t_line_outage=0.05, detect_disturbance=True):
         """Initialization routine"""
 
         nvars = 11 * m + 2 * m + 2 * n
         # invoke super init, passing number of dofs
         super().__init__(nvars=(11 * m, 2 * n + 2 * m), newton_tol=newton_tol)
         self._makeAttributeAndRegister('newton_tol', localVars=locals(), readOnly=True)
-        self._makeAttributeAndRegister('m', 'n', localVars=locals())
+        self._makeAttributeAndRegister('m', 'n', 't_line_outage', 'detect_disturbance', localVars=locals())
         self.mpc = WSCC9Bus()
 
         self.baseMVA = self.mpc['baseMVA']
@@ -1005,8 +1009,8 @@ class WSCC9BusSystem(ptype_dae):
         V = u.alg[2 * self.m : 2 * self.m + self.n]
         TH = u.alg[2 * self.m + self.n : 2 * self.m + 2 * self.n]
 
-        # line outage disturbance:
-        if t >= 0.05:
+        # line outage disturbance
+        if t >= self.t_line_outage:
             self.YBus = self.YBus_line6_8_outage
 
         self.Yang = np.angle(self.YBus)
@@ -1102,14 +1106,19 @@ class WSCC9BusSystem(ptype_dae):
         )  # (9)
 
         # Limitation of valve position Psv with limiter start
-        if PSV[0] >= self.psv_max or t >= t_switch:
-            _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (
-                -PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)
-            ) - dPSV[1]
-            _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (
-                -PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)
-            ) - dPSV[2]
-            eqs.append(np.array([dPSV[0], _temp_dPSV_g1, _temp_dPSV_g2]))
+        if self.detect_disturbance:
+            if PSV[0] >= self.psv_max or t >= t_switch:
+                _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (
+                    -PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)
+                ) - dPSV[1]
+                _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (
+                    -PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)
+                ) - dPSV[2]
+                eqs.append(np.array([dPSV[0], _temp_dPSV_g1, _temp_dPSV_g2]))
+                print('After event')
+            else:
+                eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
+                print('Before event')
         else:
             eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
         # Limitation of valve position Psv with limiter end
@@ -1137,7 +1146,6 @@ class WSCC9BusSystem(ptype_dae):
 
         f.diff[:] = eqs_flatten[0 : 11 * self.m]
         f.alg[:] = eqs_flatten[11 * self.m :]
-        # f[:] = eqs_flatten
         return f
 
     def u_exact(self, t):

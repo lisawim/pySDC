@@ -376,6 +376,7 @@ class LinearTestDAEMinion(ptype_dae):
             u1 - du3,
         )
         f.alg[:] = u1 + u2 + u4 - np.exp(t)
+        self.work_counters['rhs']()
         return f
 
     def u_exact(self, t, **kwargs):

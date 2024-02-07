@@ -192,7 +192,7 @@ class LogGlobalErrorPostIterAlg(hooks):
         # )
 
 
-class LogIterationsLinearSolverCollocationNode(hooks):
+class LogIterationsNewtonGMRESCollocationNode(hooks):
     def post_iteration(self, step, level_number):
         super().post_iteration(step, level_number)
 
@@ -200,6 +200,19 @@ class LogIterationsLinearSolverCollocationNode(hooks):
         P = L.prob
 
         L.sweep.compute_end_point() 
+
+        niters_newton_node = P.getNitersNewtonNode()
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='niter_newton_node',
+            value=niters_newton_node,
+        )
+        P.setNitersNewtonNode()
 
         niters_linear_node = P.getNitersLinearNode()
 

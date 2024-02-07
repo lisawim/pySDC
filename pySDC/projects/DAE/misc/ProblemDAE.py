@@ -1,10 +1,48 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.optimize import root, newton_krylov
 from scipy.optimize._nonlin import KrylovJacobian
 from scipy.sparse.linalg import gmres
 
 from pySDC.core.Problem import ptype, WorkCounter
 from pySDC.projects.DAE.misc.dae_mesh import DAEMesh
+
+
+class Jacobian:
+    def __init__(self, u, func, rdiff=1e-9):
+        self.n = len(u)
+        self.m = len(func(u))
+        self.rdiff = rdiff
+
+        self.jacobian = np.zeros((self.n, self.m))
+
+    def evalJacobian(self, u, func):
+        e = np.zeros(self.n)
+        e[0] = 1
+        for k in range(self.n):
+            self.jacobian[:, k] = 1 / self.rdiff * (func(u + self.rdiff * e) - func(u))
+            e = np.roll(e, 1)
+        # if sweeper_label == 'FI-SDC':
+            # self.jacobian = (-1) * np.array(
+                # [
+                    # [1 - factor, 0, factor, - factor],
+                    # [0, (1 + 1e4) * factor, 0, 0],
+                    # [-factor, 0, 1, 0],
+                    # [-factor, -factor, 0, -factor]
+                # ]
+            # )
+        # elif sweeper_label == 'SI-SDC':
+            # self.jacobian = (-1) * np.array(
+                # [
+                    # [1 - factor, 0, factor, -1],
+                    # [0, (1 + 1e4) * factor, 0, 0],
+                    # [-factor, 0, 1, 0],
+                    # [-factor, -factor, 0, -1]
+                # ]
+            # )
+
+    def invJacobian(self):
+        return np.linalg.inv(self.jacobian)
 
 
 class ptype_dae(ptype):
@@ -36,10 +74,19 @@ class ptype_dae(ptype):
         self._makeAttributeAndRegister('nvars', 'newton_tol', 'method', localVars=locals(), readOnly=True)
 
         self.work_counters['newton'] = WorkCounter()
-        # self.work_counters['linear'] = WorkCounter()
+        self.work_counters['linear'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
-        self.niter = 0
+
+        self.niter_newton = 0
+        self.niter_linear = 0
+
+        # logs Newton iterations for each node as list
+        self.niter_newton_node = []
         self.niter_linear_node = []
+        self.get_pr_norm = 0
+        self.pr_norm = []
+        self.pr_norm_iters = []
+        self.count_pr_norm_plots = 1
 
     def solve_system(self, impl_sys, u0, t):
         r"""
@@ -66,7 +113,7 @@ class ptype_dae(ptype):
             sys = impl_sys(me, **kwargs)
             return np.append(sys.diff.flatten(), sys.alg.flatten())  # TODO: more efficient way?
 
-        if self.method in ('hybr', 'krylov'):#self.method == 'hybr':
+        if self.method in ('hybr'):
             opt = root(
                 implSysAsNumpy,
                 np.append(u0.diff.flatten(), u0.alg.flatten()),
@@ -74,81 +121,87 @@ class ptype_dae(ptype):
                 tol=self.newton_tol,
             )
             sol = opt.x
-            print(opt)
-            if self.method == 'hybr':
-                self.setNiter(opt.nfev)
-            elif self.method == 'krylov':
-                self.setNiter(opt.nit)
+
+            self.work_counters['newton'].niter += opt.nfev
 
         elif self.method == 'gmres':
-            # class to approximate Jacobian
-            J = KrylovJacobian()
+            callback_pr_norm = lambda res: self.pr_norm_iters.append(res)
+
             u = np.append(u0.diff.flatten(), u0.alg.flatten())
-            # opt = newton_krylov(
-            #     implSysAsNumpy,
-            #     np.append(u0.diff.flatten(), u0.alg.flatten()),
-            #     method='gmres',
-            #     f_tol=self.newton_tol,
-            #     line_search=None,
-            #     callback=self.callback(),
-            # )
-            # sol = opt
 
             # computes right-hand side + define linear operator using setup method from class
-            Fu = implSysAsNumpy(u)
-            J.setup(u.copy(), Fu, implSysAsNumpy)
+            rhs = implSysAsNumpy(u)
+            J = Jacobian(rhs, implSysAsNumpy)
+            J.evalJacobian(u, implSysAsNumpy)
 
             n = 0
             newton_maxiter = 100
             while n < newton_maxiter:
                 # check for termination
-                res = np.linalg.norm(Fu, np.inf)
+                res = np.linalg.norm(rhs, np.inf)
                 if res < self.newton_tol:
                     break
 
-                # compute direction for Newton
-                sol_lin, info = gmres(
-                    J.op,
-                    Fu,
-                    tol=1e-10,
-                    maxiter=100,
-                    callback=self.callback(),
+                # compute direction for Newton, default for restart here: restart after 4(=size of DAE system) iterations
+                dx, _ = gmres(
+                    J.jacobian,
+                    rhs,
+                    rtol=1e-12,
+                    maxiter=1000,
+                    callback=self.callback_linear(),
                     callback_type='legacy',
                 )
-                dx = -sol_lin
 
-                if np.linalg.norm(dx) == 0:
-                    raise ValueError("Jacobian inversion yielded zero vector. "
-                                     "This indicates a bug in the Jacobian "
-                                     "approximation.")
+                # Update step with direction dx
+                u = u - dx
 
-                u = u + dx
-
-                Fu = implSysAsNumpy(u)
-                J.update(u.copy(), Fu)
+                rhs = implSysAsNumpy(u)
+                J.evalJacobian(u, implSysAsNumpy)
                 
                 n += 1
+                self.work_counters['newton']()
+                self.niter_newton += 1
 
             sol = u
+            self.pr_norm.append(self.pr_norm_iters)
+            self.pr_norm_iters = []
+            self.work_counters['linear'].niter += self.niter_linear
+            self.niter_linear_node.append(self.niter_linear)
+            self.niter_linear = 0
 
         else:
             raise NotImplementedError
         
-        self.work_counters['newton'].niter += self.niter
-        self.niter_linear_node.append(self.niter)
-        
-        me.diff[:] = sol[: np.size(me.diff)].reshape(me.diff.shape) # opt.x[: np.size(me.diff)].reshape(me.diff.shape)
-        me.alg[:] = sol[np.size(me.diff) :].reshape(me.alg.shape) # opt.x[np.size(me.diff) :].reshape(me.alg.shape)
-        # me[:] = opt.x
-        # print(t, self.niter)#opt.nfev
-        self.niter = 0
+        self.niter_newton_node.append(self.niter_newton)
+        # print(self.niter_newton_node)
+        # print()
+        self.niter_newton = 0
+
+        # if abs(t - 0.01) < 1e-14:
+        #     plt.figure()
+        #     for m in range(len(self.pr_norm)):
+        #         plt.semilogy(np.arange(1, len(self.pr_norm[m]) + 1), self.pr_norm[m], label=rf'Node $\tau_{m+1}$')
+        #     plt.xlabel('Iterations', fontsize=16)
+        #     plt.ylabel('pr_norm')
+        #     plt.ylim(1e-16, 1e0)
+        #     plt.legend(loc='best')
+        #     self.pr_norm = []
+        #     plt.savefig(f"data/LinearTestDAEMinion/Talk/Errors/pr_norm/{self.count_pr_norm_plots}_pr_normEachNode_FISDC_M=6_IE_dt=0.01.png", dpi=300, bbox_inches='tight')
+        #     # plt.savefig(f"data/LinearTestDAEMinion/Talk/Errors/pr_norm/{self.count_pr_norm_plots}_pr_normEachNode_SISDC_M=6_IE_dt=0.01.png", dpi=300, bbox_inches='tight')
+        #     self.count_pr_norm_plots += 1
+
+        me.diff[:] = sol[: np.size(me.diff)].reshape(me.diff.shape)
+        me.alg[:] = sol[np.size(me.diff) :].reshape(me.alg.shape)
         return me
     
-    def setNiter(self, niter):
-        self.niter = niter
+    def callback_linear(self):
+        self.niter_linear += 1
 
-    def callback(self):
-        self.niter += 1
+    def getNitersNewtonNode(self):
+        return self.niter_newton_node
+
+    def setNitersNewtonNode(self):
+        self.niter_newton_node = []
 
     def getNitersLinearNode(self):
         return self.niter_linear_node

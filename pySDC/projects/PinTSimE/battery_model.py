@@ -17,6 +17,7 @@ from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedE
 from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
 from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
 from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
+from pySDC.projects.DAE.misc.check_convergence_error import CheckConvergenceError
 
 from pySDC.projects.PinTSimE.hardcoded_solutions import testSolution
 
@@ -58,7 +59,7 @@ def generateDescription(
     problem_params,
     restol,
     maxiter,
-    e_tol=-1,
+    e_tol_conv=-1,
     max_restarts=None,
     tol_event=1e-10,
     alpha=1.0,
@@ -111,7 +112,7 @@ def generateDescription(
     # initialize level parameters
     level_params = {
         'restol': -1 if use_adaptivity else restol,
-        'e_tol': e_tol,
+        'e_tol': e_tol_conv,
         'dt': dt,
     }
     if use_adaptivity:
@@ -157,6 +158,9 @@ def generateDescription(
             'crash_after_max_restarts': False,
         }
         convergence_controllers.update({BasicRestartingNonMPI: restarting_params})
+    if e_tol_conv > 0:
+        print('e_tol_conv')
+        convergence_controllers.update({CheckConvergenceError: {}})
 
     # fill description dictionary for easy step instantiation
     description = {
@@ -785,10 +789,12 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
     res['sum_niters'] = np.sum(niters)
     res['mean_niters'] = np.mean(niters)
 
+    res['niter_newton_node_post_iter'] = [get_sorted(stats, iter=k, type='niter_newton_node', sortby='time') for k in range(1, maxiter + 1)]
     res['niter_linear_node_post_iter'] = [get_sorted(stats, iter=k, type='niter_linear_node', sortby='time') for k in range(1, maxiter + 1)]
 
     # newton and rhs work
     res['newton'] = np.array(get_sorted(stats, type='work_newton', sortby='time', recomputed=recomputed))
+    res['linear'] = np.array(get_sorted(stats, type='work_linear', sortby='time', recomputed=recomputed))
     res['rhs'] = np.array(get_sorted(stats, type='work_rhs', sortby='time', recomputed=recomputed))
 
     # runtimes of steps

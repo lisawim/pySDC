@@ -88,6 +88,7 @@ def main():
         9.94039645e-01,
     ]
     err = np.linalg.norm(uend - uend_ref, np.inf)
+    print(err)
     assert np.isclose(err, 0, atol=1e-4), "Error too large."
 
     # store results

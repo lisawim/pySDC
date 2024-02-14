@@ -70,7 +70,6 @@ class fully_implicit_DAE(generic_implicit):
         Updates values of ``u`` and ``f`` at collocation nodes. This correspond to a single iteration of the
         preconditioned Richardson iteration in **"ordinary"** SDC.
         """
-
         # get current level and problem description
         L = self.level
         # in the fully implicit case L.prob.eval_f() evaluates the function F(u, u', t)
@@ -92,7 +91,7 @@ class fully_implicit_DAE(generic_implicit):
             for j in range(1, M + 1):
                 integral[m - 1] -= L.dt * self.QI[m, j] * L.f[j]
             # add initial value
-            integral[m - 1] += u_0
+            integral[m - 1] += L.u[0]
 
         # do the sweep
         for m in range(1, M + 1):
@@ -100,7 +99,7 @@ class fully_implicit_DAE(generic_implicit):
             u_approx = P.dtype_u(integral[m - 1])
             # add the known components from current sweep del_t*Q_del*U_k+1
             for j in range(1, m):
-                u_approx += L.dt * self.QI[m, j] * L.f[j]
+                u_approx[:] = u_approx[:] + L.dt * self.QI[m, j] * L.f[j][:]
 
             # params contains U = u'
             def implSystem(params):
@@ -118,15 +117,12 @@ class fully_implicit_DAE(generic_implicit):
                     System to be solved as implicit function.
                 """
 
-                params_mesh = P.dtype_f(P.init)
-                params_mesh[:] = params
-
-                # build parameters to pass to implicit function
-                local_u_approx = u_approx
+                params_mesh = P.dtype_f(params)
+                local_u_approx = P.dtype_u(u_approx)
 
                 # note that derivatives of algebraic variables are taken into account here too
                 # these do not directly affect the output of eval_f but rather indirectly via QI
-                local_u_approx += L.dt * self.QI[m, m] * params_mesh
+                local_u_approx = local_u_approx + L.dt * self.QI[m, m] * params_mesh
 
                 sys = P.eval_f(local_u_approx, params_mesh, L.time + L.dt * self.coll.nodes[m - 1])
                 return sys
@@ -146,7 +142,7 @@ class fully_implicit_DAE(generic_implicit):
         # Update solution approximation
         integral = self.integrate()
         for m in range(M):
-            L.u[m + 1] = u_0 + integral[m]
+            L.u[m + 1] = L.u[0] + integral[m]
         # indicate presence of new values at this level
         L.status.updated = True
 
@@ -206,7 +202,6 @@ class fully_implicit_DAE(generic_implicit):
         # get current level and problem description
         L = self.level
         P = L.prob
-
         # Check if we want to skip the residual computation to gain performance
         # Keep in mind that skipping any residual computation is likely to give incorrect outputs of the residual!
         if stage in self.params.skip_residual_computation:
@@ -217,7 +212,6 @@ class fully_implicit_DAE(generic_implicit):
         # assert L.status.updated
 
         # compute the residual for each node
-
         res_norm = []
         for m in range(self.coll.num_nodes):
             # use abs function from data type here

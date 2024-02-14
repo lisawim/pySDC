@@ -32,6 +32,7 @@ class mesh(np.ndarray):
             obj of type mesh
 
         """
+        # print('init new mesh:', type(init))
         if isinstance(init, mesh):
             obj = np.ndarray.__new__(
                 cls, shape=init.shape, dtype=init.dtype, buffer=buffer, offset=offset, strides=strides, order=order
@@ -92,9 +93,10 @@ class mesh(np.ndarray):
         Returns:
             float: absolute maximum of all mesh values
         """
+        # print('__abs__ mesh', dir(self))
         # take absolute values of the mesh values
         local_absval = float(np.amax(np.ndarray.__abs__(self)))
-
+        # print(local_absval)
         if self.comm is not None:
             if self.comm.Get_size() > 1:
                 global_absval = 0.0

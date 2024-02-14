@@ -69,6 +69,10 @@ class ptype_dae(ptype):
             method='hybr',
             tol=self.newton_tol,
         )
-        me[:] = opt.x
+        sol = opt.x
+        me.diff[:] = sol[: np.size(me.diff)].reshape(me.diff.shape)
+        me.alg[:] = sol[np.size(me.diff) :].reshape(me.alg.shape)
+        # me[:] = opt.x
+
         self.work_counters['newton'].niter += opt.nfev
         return me

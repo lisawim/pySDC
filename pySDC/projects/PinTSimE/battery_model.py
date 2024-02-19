@@ -432,8 +432,11 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAEWithAlgebraicStateFunction': ['y', 'z'],
         'LinearTestDAE' : ['ud', 'ua'],
         'LinearTestDAEMinion': ['u1', 'u2', 'u3', 'u4'],
+        'LinearTestODEMinion': ['u1', 'u2', 'u3', 'u4'],
         'LinearTestDAEReduced' : ['ud', 'ua'],
         'problematic_f': ['y1', 'y2'],
+        'VanDerPolDAE': ['y', 'z'],
+        'VanDerPolODE': ['y', 'z'],
         'WSCC9BusSystem': [
             'Eqp0',
             'Eqp1',
@@ -521,8 +524,11 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAEWithAlgebraicStateFunction': [r'$y$', r'$z$'],
         'LinearTestDAE' : [r'$u_d$', r'$u_a$'],
         'LinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
+        'LinearTestODEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
         'LinearTestDAEReduced' : [r'$u_d$', r'$u_a$'],
         'problematic_f': [r'$y_1$', r'$y_2$'],
+        'VanDerPolDAE': [r'$y$', r'$z$'],
+        'VanDerPolODE': [r'$y$', r'$z$'],
         'WSCC9BusSystem': [
             r"$E^'_{q,0}$",
             r"$E^'_{q,1}$",
@@ -726,9 +732,9 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
     # numerical solution
     u_val = get_sorted(stats, type='u', sortby='time', recomputed=recomputed)
     res['t'] = np.array([item[0] for item in u_val])
-    n_diff = len(u_val[0][1].diff)
     for i, label in enumerate(unknowns):
         if type(u_val[0][1]) == DAEMesh:
+            n_diff = len(u_val[0][1].diff)
             res[label] = np.array([item[1].diff[i] for item in u_val]) if i < len(u_val[0][1].diff) else np.array([item[1].alg[i - n_diff] for item in u_val])
             # print(label, res[label])
         else:
@@ -753,6 +759,8 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
         res['e_global_algebraic_post_iter_du'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter_du', sortby='time') for k in range(1, maxiter + 1)]
     else:
         res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+        res['e_global_post_iter'] = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, maxiter + 1)]
+        res['e_global_algebraic_post_iter'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, maxiter + 1)]
 
     # event time(s) found by event detection
     if use_detection:

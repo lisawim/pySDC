@@ -1,11 +1,11 @@
 import numpy as np
 from scipy.optimize import root
 
-from pySDC.core.Problem import WorkCounter
+from pySDC.core.Problem import ptype, WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
 from pySDC.projects.DAE.misc.dae_mesh import DAEMesh
 from pySDC.implementations.datatype_classes.mesh import mesh
-from pySDC.core.Errors import ParameterError
+from pySDC.core.Errors import ParameterError, ProblemError
 
 
 class DiscontinuousTestDAE(ptype_dae):
@@ -418,6 +418,142 @@ class LinearTestDAEMinion(ptype_dae):
         me.diff[:] = (-np.sin(t), np.exp(t), np.cos(t))
         me.alg[:] = np.sin(t)
         return me
+
+
+class LinearTestODEMinion(ptype):
+    dtype_u = mesh
+    dtype_f = mesh
+
+    def __init__(self, nvars=4, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
+        """Initialization routine"""
+        super().__init__(init=(nvars, None, np.dtype('float64')))
+        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
+        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['rhs'] = WorkCounter()
+        self.A = np.zeros((4, 4))
+        self.A[0, :] = [1, 0, -1, 1]
+        self.A[1, :] = [0, -1e4, 0, 0]
+        self.A[2, :] = [1, 0, 0, 0]
+        self.A[3, :] = [1 / self.eps, 1 / self.eps, 0, 1 / self.eps]
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains four components).
+        """
+        c = 1e4
+        u1, u2, u3, u4 = u[0], u[1], u[2], u[3]
+
+        f = self.dtype_f(self.init)
+        b = np.array([0, (1 + 1e4) * np.exp(t), 0, -1 / self.eps * np.exp(t)])
+        f[:] = self.A.dot(u) + b
+        self.work_counters['rhs']()
+        return f
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver.
+
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the nonlinear system.
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (required here for the BC).
+
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
+        """
+
+        u = self.dtype_u(u0)
+        Id = np.identity(4)
+        b = np.array([0, (1 + 1e4) * np.exp(t), 0, -1 / self.eps * np.exp(t)])
+
+        # start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            # # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            g = u - factor * (self.A.dot(u) + b) - rhs
+
+            # if g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+            #print(n, res)
+            if res < self.newton_tol:
+                break
+
+            # assemble dg
+            dg = Id - factor * self.A
+            # newton update: u1 = u0 - g/dg
+            u -= np.linalg.solve(dg, g)
+
+            n += 1
+            self.work_counters['newton']()
+
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+        elif np.isnan(res):
+            self.logger.warning('Newton got nan after %i iterations...' % n)
+
+        if n == self.newton_maxiter:
+            msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+            if self.stop_at_maxiter:
+                raise ProblemError(msg)
+            else:
+                self.logger.warning(msg)
+
+        me = self.dtype_u(self.init)
+        me[:] = u[:]
+
+        return me
+
+    def u_exact(self, t, u_init=None, t_init=None):
+        r"""
+        Routine to approximate the exact solution at time t by ``SciPy`` or give initial conditions when called at :math:`t=0`.
+
+        Parameters
+        ----------
+        t : float
+            Current time.
+        u_init : pySDC.problem.vanderpol.dtype_u
+            Initial conditions for getting the exact solution.
+        t_init : float
+            The starting time.
+
+        Returns
+        -------
+        me : dtype_u
+            Approximate exact solution.
+        """
+
+        me = self.dtype_u(self.init)
+
+        if t > 0.0:
+            def eval_rhs(t, u):
+                return self.eval_f(u, t)
+
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init)
+        else:
+            me[:] = (0, 0, 0, 0)
+        return me
+
 
 
 class LinearTestDAEReduced(LinearTestDAE):

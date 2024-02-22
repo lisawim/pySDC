@@ -14,6 +14,7 @@ from pySDC.helpers.stats_helper import get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE, LogEventWSCC9
+from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 from pySDC.implementations.hooks.log_restarts import LogRestarts
 
@@ -51,7 +52,7 @@ def make_plots_for_test_DAE():  # pragma: no cover
     tol_hybr = 1e-6
     restol = 1e-13
 
-    hook_class = [LogGlobalErrorPostStep, LogEventDiscontinuousTestDAE, LogRestarts]
+    hook_class = [error_hook, LogEventDiscontinuousTestDAE, LogRestarts]
 
     problem_params = dict()
     problem_params['newton_tol'] = tol_hybr
@@ -112,7 +113,7 @@ def make_plots_for_test_DAE():  # pragma: no cover
                     description, controller_params, t0, Tend, exact_event_time_avail=True
                 )
 
-                err_val = get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed)
+                err_val = get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed)
                 results_error_over_time[M][dt][use_SE] = err_val
 
                 err_norm = max([item[1] for item in err_val])

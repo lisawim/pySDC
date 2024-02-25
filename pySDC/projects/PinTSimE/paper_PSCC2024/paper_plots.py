@@ -14,7 +14,7 @@ from pySDC.helpers.stats_helper import get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE, LogEventWSCC9
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
 from pySDC.implementations.hooks.log_restarts import LogRestarts
 
 
@@ -44,14 +44,14 @@ def make_plots_for_test_DAE():  # pragma: no cover
     prob_class_name = DiscontinuousTestDAE.__name__
 
     sweeper = fully_implicit_DAE
-    nnodes = [2, 3, 4, 5]
+    nnodes = [3, 4, 5]
     quad_type = 'RADAU-RIGHT'
-    QI = 'LU'
-    maxiter = 45
-    tol_hybr = 1e-6
+    QI = 'IE'#'LU'
+    maxiter = 90#45
+    tol_hybr = 1e-12
     restol = 1e-13
 
-    hook_class = [LogGlobalErrorPostStep, LogEventDiscontinuousTestDAE, LogRestarts]
+    hook_class = [error_hook, LogEventDiscontinuousTestDAE, LogRestarts]
 
     problem_params = dict()
     problem_params['newton_tol'] = tol_hybr
@@ -61,11 +61,11 @@ def make_plots_for_test_DAE():  # pragma: no cover
     epsilon_SE = 1e-10
     alpha = 0.95
 
-    t0 = 3.0
-    Tend = 5.4
+    t0 = 3.5
+    Tend = 5.0
 
-    dt_list = [1 / (2**m) for m in range(2, 9)]
-    dt_fix = 1 / (2**7)
+    dt_list = np.logspace(-2.0, -1.0, num=7)#[1 / (2**m) for m in range(2, 9)]
+    dt_fix = dt_list[3]#1 / (2**7)
 
     recomputed = False
 
@@ -89,7 +89,7 @@ def make_plots_for_test_DAE():  # pragma: no cover
                 results_error_over_time[M][dt][use_SE], results_error_norm[M][dt][use_SE] = {}, {}
                 results_state_function[M][dt][use_SE], results_event_error[M][dt][use_SE] = {}, {}
                 results_event_error_restarts[M][dt][use_SE] = {}
-
+                print(M, dt, use_SE)
                 description, controller_params = generateDescription(
                     dt,
                     problem_class,
@@ -112,7 +112,7 @@ def make_plots_for_test_DAE():  # pragma: no cover
                     description, controller_params, t0, Tend, exact_event_time_avail=True
                 )
 
-                err_val = get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed)
+                err_val = get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed)
                 results_error_over_time[M][dt][use_SE] = err_val
 
                 err_norm = max([item[1] for item in err_val])

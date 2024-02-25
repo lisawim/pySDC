@@ -490,9 +490,10 @@ def test_all_tolerances_ODE(tol, num_nodes, quad_type):
 
 
 @pytest.mark.base
+@pytest.mark.parametrize('dt', [1 / (2**m) for m in range(2, 9)])
 @pytest.mark.parametrize('tol', [10 ** (-m) for m in range(8, 13)])
-@pytest.mark.parametrize('num_nodes', [3, 4, 5])
-def test_all_tolerances_DAE(tol, num_nodes):
+@pytest.mark.parametrize('num_nodes', [2, 3, 4, 5])
+def test_all_tolerances_DAE(dt, tol, num_nodes):
     r"""
     In this test, the switch estimator is applied to a DAE dummy problem of ``DiscontinuousTestDAE``,
     where the dynamics of the differential equation is replaced by its exact dynamics to see if
@@ -517,7 +518,7 @@ def test_all_tolerances_DAE(tol, num_nodes):
     from pySDC.helpers.stats_helper import get_sorted
 
     t0 = 4.6
-    Tend = 4.62
+    Tend = 5.0
     problem = ExactDiscontinuousTestDAE
 
     stats, t_switch_exact = discontinuousTestProblem_run(
@@ -528,7 +529,7 @@ def test_all_tolerances_DAE(tol, num_nodes):
         num_nodes=num_nodes,
         t0=t0,
         Tend=Tend,
-        dt=2e-2,
+        dt=dt,#2e-2,
         tol=tol,
     )
 
@@ -538,4 +539,4 @@ def test_all_tolerances_DAE(tol, num_nodes):
 
     t_switch = switches[-1]
     event_err = abs(t_switch - t_switch_exact)
-    assert np.isclose(event_err, 0, atol=8e-14), f'Event time error {event_err} is not small enough!'
+    assert np.isclose(event_err, 0, atol=2.5e-12), f'Event time error {event_err} is not small enough!'

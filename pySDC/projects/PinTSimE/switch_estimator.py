@@ -316,7 +316,8 @@ class SwitchEstimator(ConvergenceController):
 
             if chooseFD == 'centered':
                 dt_FD = 1e-12
-                dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)
+                # dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)
+                dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 *p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)
             elif chooseFD == 'backward':
                 dt_FD = 1e-10
                 dp = (p(t) - p(t - dt_FD)) / (dt_FD)
@@ -324,7 +325,7 @@ class SwitchEstimator(ConvergenceController):
                 raise NotImplementedError
             return dp
 
-        newton_tol, newton_maxiter = 1e-12, 100
+        newton_tol, newton_maxiter = 1e-15, 100
         t_switch = newton(t_interp[m_guess], p, fprime, newton_tol, newton_maxiter)
         return t_switch
 
@@ -401,7 +402,7 @@ def newton(x0, p, fprime, newton_tol, newton_maxiter):
         msg = f'Newton did not converge after {n} iterations, error is {res}'
     else:
         msg = f'Newton did converge after {n} iterations, error for root {x0} is {res}'
-    print(msg)
+    # print(msg)
 
     root = x0
     return root

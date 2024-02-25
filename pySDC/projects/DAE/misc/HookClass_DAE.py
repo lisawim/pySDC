@@ -10,7 +10,7 @@ class approx_solution_hook(hooks):
         """
         Initialization routine for the custom hook
         """
-        super(approx_solution_hook, self).__init__()
+        super().__init__()
 
     def post_step(self, step, level_number):
         """
@@ -20,7 +20,7 @@ class approx_solution_hook(hooks):
             level_number: the current level number
         """
 
-        super(approx_solution_hook, self).post_step(step, level_number)
+        super().post_step(step, level_number)
 
         # some abbreviations
         L = step.levels[level_number]
@@ -48,7 +48,7 @@ class error_hook(hooks):
         """
         Initialization routine for the custom hook
         """
-        super(error_hook, self).__init__()
+        super().__init__()
 
     def post_step(self, step, level_number):
         """
@@ -58,7 +58,7 @@ class error_hook(hooks):
             level_number: the current level number
         """
 
-        super(error_hook, self).post_step(step, level_number)
+        super().post_step(step, level_number)
 
         # some abbreviations
         L = step.levels[level_number]

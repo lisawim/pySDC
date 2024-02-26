@@ -107,7 +107,6 @@ def main():
     problem_classes = [DiscontinuousTestDAE] * len(sweeper_classes)
 
     pre_problem_params = {}
-    plot_labels = None  # None indicates that all unknowns shall be plotted (a bit confusing I know..)
 
     comm = MPI.COMM_WORLD
 

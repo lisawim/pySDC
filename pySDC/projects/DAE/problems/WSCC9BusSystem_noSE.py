@@ -774,7 +774,8 @@ class WSCC9BusSystem(ptype_dae):
 
         # invoke super init, passing number of dofs
         super().__init__(nvars, newton_tol)
-        self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
+        self._makeAttributeAndRegister('newton_tol', localVars=locals(), readOnly=True)
+        self._makeAttributeAndRegister('nvars', 'diff_nvars', localVars=locals(), readOnly=True)
         self._makeAttributeAndRegister('m', 'n', localVars=locals())
         self.mpc = WSCC9Bus()
 
@@ -1010,8 +1011,11 @@ class WSCC9BusSystem(ptype_dae):
         TH = u[11 * self.m + 2 * self.m + self.n : 11 * self.m + 2 * self.m + 2 * self.n]
 
         # line outage disturbance:
-        if t >= 0.05:
+        # if t >= 0.05:
+        if t >= 0.002 and t < 0.012:
             self.YBus = self.YBus_line6_8_outage
+        elif t >= 0.012:
+            self.YBus = get_initial_Ybus()
 
         self.Yang = np.angle(self.YBus)
         self.Yabs = np.abs(self.YBus)
@@ -1106,16 +1110,16 @@ class WSCC9BusSystem(ptype_dae):
         )  # (9)
 
         # Limitation of valve position Psv with limiter start
-        if PSV[0] >= self.psv_max or t >= t_switch:
-            _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (
-                -PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)
-            ) - dPSV[1]
-            _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (
-                -PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)
-            ) - dPSV[2]
-            eqs.append(np.array([dPSV[0], _temp_dPSV_g1, _temp_dPSV_g2]))
-        else:
-            eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
+        # if PSV[0] >= self.psv_max or t >= t_switch:
+        #     _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (
+        #         -PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)
+        #     ) - dPSV[1]
+        #     _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (
+        #         -PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)
+        #     ) - dPSV[2]
+        #     eqs.append(np.array([dPSV[0], _temp_dPSV_g1, _temp_dPSV_g2]))
+        # else:
+        eqs.append((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)) - dPSV)
         # Limitation of valve position Psv with limiter end
 
         eqs.append((1.0 / self.TCH) * (-TM + PSV) - dTM)  # (10)
@@ -1193,70 +1197,182 @@ class WSCC9BusSystem(ptype_dae):
         assert t == 0, 'ERROR: u_exact only valid for t=0'
 
         me = self.dtype_u(self.init)
-        me[0 : self.m] = 0
-        me[self.m : 2 * self.m] = 0
-        me[2 * self.m : 3 * self.m] = 0
-        me[3 * self.m : 4 * self.m] = 0
-        me[4 * self.m : 5 * self.m] = 0
-        me[5 * self.m : 6 * self.m] = 0
-        me[6 * self.m : 7 * self.m] = 0
-        me[7 * self.m : 8 * self.m] = 0
-        me[8 * self.m : 9 * self.m] = 0
-        me[9 * self.m : 10 * self.m] = 0
-        me[10 * self.m : 11 * self.m] = 0
-        me[11 * self.m : 11 * self.m + self.m] = 0
-        me[11 * self.m + self.m : 11 * self.m + 2 * self.m] = 0
-        me[11 * self.m + 2 * self.m : 11 * self.m + 2 * self.m + self.n] = 0
-        me[11 * self.m + 2 * self.m + self.n : 11 * self.m + 2 * self.m + 2 * self.n] = 0
+
+        Eqp = self.Eqp0
+        Si1d = self.Si1d0
+        Edp = self.Edp0
+        Si2q = self.Si2q0
+        Delta = self.D0
+        w = self.ws_vector
+        Efd = self.Efd0
+        RF = self.RF0
+        VR = self.VR0
+        TM = self.TM0
+        PSV = self.PSV0
+        Id = self.Id0
+        Iq = self.Iq0
+        V = self.V0
+        TH = self.TH0
+
+        self.Yang = np.angle(self.YBus)
+        self.Yabs = np.abs(self.YBus)
+
+        COI = np.sum(w * self.MH) / np.sum(self.MH)
+
+        # Voltage-dependent active loads PL2, and voltage-dependent reactive loads QL2
+        PL2 = np.array(self.PL)
+        QL2 = np.array(self.QL)
+
+        V = V.T
+
+        # Vectorized calculations
+        Vectorized_angle1 = (
+            np.array([TH.take(indices) for indices in self.bb1.T])
+            - np.array([TH.take(indices) for indices in self.aa1.T])
+            - self.Yang[: self.m, : self.n]
+        )
+        Vectorized_mag1 = (V[: self.m] * V[: self.n].reshape(-1, 1)).T * self.Yabs[: self.m, : self.n]
+
+        sum1 = np.sum(Vectorized_mag1 * np.cos(Vectorized_angle1), axis=1)
+        sum2 = np.sum(Vectorized_mag1 * np.sin(Vectorized_angle1), axis=1)
+
+        VG = V[: self.m]
+        THG = TH[: self.m]
+        Angle_diff = Delta - THG
+
+        Vectorized_angle2 = (
+            np.array([TH.take(indices) for indices in self.bb2.T])
+            - np.array([TH.take(indices) for indices in self.aa2.T])
+            - self.Yang[self.m : self.n, : self.n]
+        )
+        Vectorized_mag2 = (V[self.m : self.n] * V[: self.n].reshape(-1, 1)).T * self.Yabs[self.m : self.n, : self.n]
+
+        sum3 = np.sum(Vectorized_mag2 * np.cos(Vectorized_angle2), axis=1)
+        sum4 = np.sum(Vectorized_mag2 * np.sin(Vectorized_angle2), axis=1)
+
+        dEqp = (
+            (1.0 / self.Td0p)
+            * (
+                -Eqp
+                - (self.Xd - self.Xdp)
+                * (
+                    Id
+                    - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls) ** 2) * (Si1d + (self.Xdp - self.Xls) * Id - Eqp)
+                )
+                + Efd
+            )
+        )  # (1)
+
+        dSi1d = ((1.0 / self.Td0pp) * (-Si1d + Eqp - (self.Xdp - self.Xls) * Id))  # (2)
+        dEdp = (
+            (1.0 / self.Tq0p)
+            * (
+                -Edp
+                + (self.Xq - self.Xqp)
+                * (
+                    Iq
+                    - ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls) ** 2) * (Si2q + (self.Xqp - self.Xls) * Iq + Edp)
+                )
+            )
+        )  # (3)
+
+        dSi2q = ((1.0 / self.Tq0pp) * (-Si2q - Edp - (self.Xqp - self.Xls) * Iq))  # (4)
+        dDelta = (w - COI)  # (5)
+        dw = (
+            (self.ws / (2.0 * self.H))
+            * (
+                TM
+                - ((self.Xdpp - self.Xls) / (self.Xdp - self.Xls)) * Eqp * Iq
+                - ((self.Xdp - self.Xdpp) / (self.Xdp - self.Xls)) * Si1d * Iq
+                - ((self.Xqpp - self.Xls) / (self.Xqp - self.Xls)) * Edp * Id
+                + ((self.Xqp - self.Xqpp) / (self.Xqp - self.Xls)) * Si2q * Id
+                - (self.Xqpp - self.Xdpp) * Id * Iq
+                - self.Dm * (w - self.ws)
+            )
+        )  # (6)
+        dEfd = ((1.0 / self.TE) * ((-(self.KE + self.Ax * np.exp(self.Bx * Efd))) * Efd + VR))  # (7)
+        dRF = ((1.0 / self.TF) * (-RF + (self.KF / self.TF) * Efd))  # (8)
+        dVR = (
+            (1.0 / self.TA)
+            * (-VR + self.KA * RF - ((self.KA * self.KF) / self.TF) * Efd + self.KA * (self.Vref - V[: self.m]))
+        )  # (9)
+
+        # Limitation of valve position Psv with limiter start
+        # if PSV[0] >= self.psv_max or t >= t_switch:
+        #     _temp_dPSV_g1 = (1.0 / self.TSV[1]) * (
+        #         -PSV[1] + self.PSV0[1] - (1.0 / self.RD[1]) * (w[1] / self.ws - 1)
+        #     ) - dPSV[1]
+        #     _temp_dPSV_g2 = (1.0 / self.TSV[2]) * (
+        #         -PSV[2] + self.PSV0[2] - (1.0 / self.RD[2]) * (w[2] / self.ws - 1)
+        #     ) - dPSV[2]
+        #     eqs.append(np.array([dPSV[0], _temp_dPSV_g1, _temp_dPSV_g2]))
+        # else:
+        dPSV = ((1.0 / self.TSV) * (-PSV + self.PSV0 - (1.0 / self.RD) * (w / self.ws - 1)))
+        # Limitation of valve position Psv with limiter end
+
+        dTM = ((1.0 / self.TCH) * (-TM + PSV))  # (10)
+
+        me[0 : self.m] = dEqp
+        me[self.m : 2 * self.m] = dSi1d
+        me[2 * self.m : 3 * self.m] = dEdp
+        me[3 * self.m : 4 * self.m] = dSi2q
+        me[4 * self.m : 5 * self.m] = dDelta
+        me[5 * self.m : 6 * self.m] = dw
+        me[6 * self.m : 7 * self.m] = dEfd
+        me[7 * self.m : 8 * self.m] = dRF
+        me[8 * self.m : 9 * self.m] = dVR
+        me[9 * self.m : 10 * self.m] = dTM
+        me[10 * self.m : 11 * self.m] = dPSV
+
         return me
 
 
-    def get_switching_info(self, u, t, du=None):
-        r"""
-        Provides information about the state function of the problem. When the state function changes its sign,
-        typically an event occurs. So the check for an event should be done in the way that the state function
-        is checked for a sign change. If this is the case, the intermediate value theorem states a root in this
-        step.
+    # def get_switching_info(self, u, t, du=None):
+    #     r"""
+    #     Provides information about the state function of the problem. When the state function changes its sign,
+    #     typically an event occurs. So the check for an event should be done in the way that the state function
+    #     is checked for a sign change. If this is the case, the intermediate value theorem states a root in this
+    #     step.
 
-        The state function for this problem is given by
+    #     The state function for this problem is given by
 
-        .. math::
-           h(P_{SV,1}(t)) = P_{SV,1}(t) - P_{SV,1, max}
+    #     .. math::
+    #        h(P_{SV,1}(t)) = P_{SV,1}(t) - P_{SV,1, max}
 
-        for :math:`P_{SV,1,max}=1.0`.
+    #     for :math:`P_{SV,1,max}=1.0`.
 
-        Parameters
-        ----------
-        u : dtype_u
-            Current values of the numerical solution at time :math:`t`.
-        t : float
-            Current time of the numerical solution.
+    #     Parameters
+    #     ----------
+    #     u : dtype_u
+    #         Current values of the numerical solution at time :math:`t`.
+    #     t : float
+    #         Current time of the numerical solution.
 
-        Returns
-        -------
-        switch_detected : bool
-            Indicates whether a discrete event is found or not.
-        m_guess : int
-            The index before the sign changes.
-        state_function : list
-            Defines the values of the state function at collocation nodes where it changes the sign.
-        """
+    #     Returns
+    #     -------
+    #     switch_detected : bool
+    #         Indicates whether a discrete event is found or not.
+    #     m_guess : int
+    #         The index before the sign changes.
+    #     state_function : list
+    #         Defines the values of the state function at collocation nodes where it changes the sign.
+    #     """
 
-        switch_detected = False
-        m_guess = -100
-        for m in range(1, len(u)):
-            h_prev_node = u[m - 1][10 * self.m] - self.psv_max
-            h_curr_node = u[m][10 * self.m] - self.psv_max
-            if h_prev_node < 0 and h_curr_node >= 0:
-                switch_detected = True
-                m_guess = m - 1
-                break
+    #     switch_detected = False
+    #     m_guess = -100
+    #     for m in range(1, len(u)):
+    #         h_prev_node = u[m - 1][10 * self.m] - self.psv_max
+    #         h_curr_node = u[m][10 * self.m] - self.psv_max
+    #         if h_prev_node < 0 and h_curr_node >= 0:
+    #             switch_detected = True
+    #             m_guess = m - 1
+    #             break
 
-        state_function = [u[m][10 * self.m] - self.psv_max for m in range(len(u))]
-        return switch_detected, m_guess, state_function
+    #     state_function = [u[m][10 * self.m] - self.psv_max for m in range(len(u))]
+    #     return switch_detected, m_guess, state_function
 
-    def count_switches(self):
-        """
-        Setter to update the number of switches if one is found.
-        """
-        self.nswitches += 1
+    # def count_switches(self):
+    #     """
+    #     Setter to update the number of switches if one is found.
+    #     """
+    #     self.nswitches += 1

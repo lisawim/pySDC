@@ -61,6 +61,7 @@ def generateDescription(
     max_restarts=None,
     tol_event=1e-10,
     alpha=1.0,
+    typeFD='backward',
 ):
     r"""
     Generate a description for the battery models for a controller run.
@@ -98,6 +99,9 @@ def generateDescription(
         Tolerance for event detection to terminate.
     alpha : float, optional
         Factor that indicates how the new step size in the Switch Estimator is reduced.
+    typeFD : str, optional
+        Type of finite difference in switch estimator. For detailed documentation, see
+        switch_estimator.py.
 
     Returns
     -------
@@ -139,9 +143,11 @@ def generateDescription(
     # convergence controllers
     convergence_controllers = {}
     if use_switch_estimator:
+        typeFD = typeFD if typeFD is not None else 'backward'
         switch_estimator_params = {
             'tol': tol_event,
             'alpha': alpha,
+            'typeFD': typeFD,
         }
         convergence_controllers.update({SwitchEstimator: switch_estimator_params})
     if use_adaptivity:
@@ -167,10 +173,13 @@ def generateDescription(
         'convergence_controllers': convergence_controllers,
     }
 
-    return description, controller_params
+    # instantiate controller
+    controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
+
+    return description, controller_params, controller
 
 
-def controllerRun(description, controller_params, t0, Tend, exact_event_time_avail=False):
+def controllerRun(description, controller_params, controller, t0, Tend, exact_event_time_avail=False):
     """
     Executes a controller run for a problem defined in the description.
 
@@ -180,6 +189,8 @@ def controllerRun(description, controller_params, t0, Tend, exact_event_time_ava
         Contains all information for a controller run.
     controller_params : dict
         Parameters needed for a controller run.
+    controller : pySDC.core.Controller
+        Controller to do the stuff.
     t0 : float
         Starting time of simulation.
     Tend : float
@@ -192,9 +203,6 @@ def controllerRun(description, controller_params, t0, Tend, exact_event_time_ava
     stats : dict
         Raw statistics from a controller run.
     """
-
-    # instantiate controller
-    controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
 
     # get initial values on finest level
     P = controller.MS[0].levels[0].prob
@@ -233,8 +241,9 @@ def main():
         'max_restarts': 50,
         'recomputed': False,
         'tol_event': 1e-10,
-        'alpha': 1.0,
+        'alpha': 0.95,
         'exact_event_time_avail': None,
+        'typeFD': 'backward',
     }
 
     all_params = {
@@ -244,8 +253,8 @@ def main():
 
     hook_class = [LogSolution, LogEventBattery, LogEmbeddedErrorEstimate, LogStepSize]
 
-    use_detection = [True]
-    use_adaptivity = [True]
+    use_detection = [True, False]
+    use_adaptivity = [True, False]
 
     for problem, sweeper in zip([battery, battery_implicit], [imex_1st_order, generic_implicit]):
         for defaults in [False, True]:
@@ -360,7 +369,7 @@ def runSimulation(problem, sweeper, all_params, use_adaptivity, use_detection, h
 
                     restol = -1 if use_A else handling_params['restol']
 
-                    description, controller_params = generateDescription(
+                    description, controller_params, controller = generateDescription(
                         dt=dt,
                         problem=problem,
                         sweeper=sweeper,
@@ -376,11 +385,13 @@ def runSimulation(problem, sweeper, all_params, use_adaptivity, use_detection, h
                         max_restarts=handling_params['max_restarts'],
                         tol_event=handling_params['tol_event'],
                         alpha=handling_params['alpha'],
+                        typeFD=handling_params['typeFD'],
                     )
 
                     stats, t_switch_exact = controllerRun(
                         description=description,
                         controller_params=controller_params,
+                        controller=controller,
                         t0=interval[0],
                         Tend=interval[-1],
                         exact_event_time_avail=handling_params['exact_event_time_avail'],

@@ -17,9 +17,11 @@ class SwitchEstimator(ConvergenceController):
         r"""
         Function sets default variables to handle with the event at the beginning. The default params are:
 
-        - control_order : controls the order of the SE's call of convergence controllers
-        - coll.nodes : defines the collocation nodes for interpolation
-        - tol_zero : inner tolerance for SE; state function has to satisfy it to terminate
+        - control_order : controls the order of the SE's call of convergence controllers.
+        - coll.nodes : defines the collocation nodes for interpolation.
+        - tol_zero : inner tolerance for SE; state function has to satisfy it to terminate.
+        - t_interp : interpolation axis with time points.
+        - state_function : List of values from state function.
 
         Parameters
         ----------
@@ -122,7 +124,9 @@ class SwitchEstimator(ConvergenceController):
 
                 # intermediate value theorem states that a root is contained in current step
                 if self.params.state_function[0] * self.params.state_function[-1] < 0 and self.status.is_zero is None:
-                    self.status.t_switch = self.get_switch(self.params.t_interp, self.params.state_function, m_guess)
+                    self.status.t_switch = self.get_switch(
+                        self.params.t_interp, self.params.state_function, m_guess, self.params.typeFD
+                    )
 
                     self.logging_during_estimation(
                         controller.hooks[0],
@@ -274,8 +278,8 @@ class SwitchEstimator(ConvergenceController):
         )
 
     @staticmethod
-    def get_switch(t_interp, state_function, m_guess):
-        """
+    def get_switch(t_interp, state_function, m_guess, choiceFD='backward'):
+        r"""
         Routine to do the interpolation and root finding stuff.
 
         Parameters
@@ -286,22 +290,39 @@ class SwitchEstimator(ConvergenceController):
             Contains values of state function at these collocation nodes.
         m_guess : float
             Index at which the difference drops below zero.
+        choiceFD : str
+            Finite difference to be used to approximate derivative of
+            state function. Can be ``'forward'``, ``'centered'``, or
+            ``'backward'``. Default is ``'backward'``
 
         Returns
         -------
         t_switch : float
            Time point of found event.
         """
-        LinearInterpolator = LinearInterpolation(t_interp, state_function)
+        LinearInterpolator = LagrangeInterpolation(t_interp, state_function)
         p = lambda t: LinearInterpolator.eval(t)
-        if state_function[0] < 0 and state_function[-1] >= 0:
-            chooseFD = 'centered'
-        else:
-            chooseFD = 'backward'
 
         def fprime(t):
-            """
-            Computes the derivative of the scalar interpolant using centered finite difference.
+            r"""
+            Computes the derivative of the scalar interpolant using finite difference.
+            Here, different finite differences can be used. The type of FD can be set by
+            setting ``typeFD`` in switch estimator parameters. There are three choices possible:
+
+            - ``typeFD='backward'`` for :math:`h=10^{-10}`:
+
+                .. math::
+                \frac{dp}{dt} \approx \frac{p(t) - p(t - h)}{h}
+
+            - ``typeFD='centered'`` for :math:`h=10^{-12}`:
+
+                .. math::
+                \frac{dp}{dt} \approx \frac{p(t + h) - p(t - h)}{2h}
+
+            - ``typeFD='forward'`` for :math:`h=10^{-10}`:
+
+                .. math::
+                \frac{dp}{dt} \approx \frac{p(t + h) - p(t)}{h}
 
             Parameters
             ----------
@@ -314,13 +335,17 @@ class SwitchEstimator(ConvergenceController):
                 Derivative of interpolation p at time t.
             """
 
-            if chooseFD == 'centered':
-                dt_FD = 1e-12
-                # dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)
-                dp = (2 * p(t + dt_FD) + 3 * p(t) - 6 *p(t - dt_FD) + p(t - 2 * dt_FD)) / (6 * dt_FD)
-            elif chooseFD == 'backward':
+            if choiceFD == 'forward':
                 dt_FD = 1e-10
-                dp = (p(t) - p(t - dt_FD)) / (dt_FD)
+                dp = (p(t + dt_FD) - p(t)) / (dt_FD)
+            elif choiceFD == 'centered':
+                dt_FD = 1e-12
+                dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)
+            elif choiceFD == 'backward':
+                dt_FD = 1e-12
+                # dp = (p(t) - p(t - dt_FD)) / (dt_FD)
+                # dp = (11 * p(t) - 18 * p(t - dt_FD) + 9 * p(t - 2 * dt_FD) - 2 * p(t - 3 * dt_FD)) / (6 * dt_FD)
+                dp = (25 * p(t) - 48 * p(t - dt_FD) + 36 * p(t - 2 * dt_FD) - 16 * p(t - 3 * dt_FD) + 3 * p(t - 4 * dt_FD)) / (12 * dt_FD)
             else:
                 raise NotImplementedError
             return dp
@@ -408,36 +433,45 @@ def newton(x0, p, fprime, newton_tol, newton_maxiter):
     return root
 
 
-class LinearInterpolation(object):
+class LagrangeInterpolation(object):
     def __init__(self, ti, yi):
         """Initialization routine"""
         self.ti = np.asarray(ti)
         self.yi = np.asarray(yi)
         self.n = len(ti)
 
-    def eval(self, t):
-        r"""
-        Evaluates the linear interpolant at time :math:`t`.
-        Binary search is used to find the index in which piece :math:`t` lies.
+    def get_Lagrange_polynomial(self, t, i):
+        """
+        Computes the basis of the i-th Lagrange polynomial.
 
         Parameters
         ----------
         t : float
-            Time where the interpolant is evaluated.
+            Time where the polynomial is computed at.
+        i : int
+            Index of the Lagrange polynomial
+
+        Returns
+        -------
+        product : float
+            The product of the bases.
+        """
+        product = np.prod([(t - self.ti[k]) / (self.ti[i] - self.ti[k]) for k in range(self.n) if k != i])
+        return product
+
+    def eval(self, t):
+        """
+        Evaluates the Lagrange interpolation at time t.
+
+        Parameters
+        ----------
+        t : float
+            Time where interpolation is computed.
 
         Returns
         -------
         p : float
-            Value of the interpolant at time :math:`t`.
+            Value of interpolant at time t.
         """
-
-        ind = np.searchsorted(self.ti, t)
-        if ind == 0:
-            p = self.yi[0]
-        elif ind == len(self.ti):
-            p = self.yi[-1]
-        else:
-            p = self.yi[ind - 1] + (self.yi[ind] - self.yi[ind - 1]) / (self.ti[ind] - self.ti[ind - 1]) * (
-                t - self.ti[ind - 1]
-            )
+        p = np.sum([self.yi[i] * self.get_Lagrange_polynomial(t, i) for i in range(self.n)])
         return p

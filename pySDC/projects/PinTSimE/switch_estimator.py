@@ -38,16 +38,8 @@ class SwitchEstimator(ConvergenceController):
             The updated params dictionary.
         """
 
-        # for RK4 sweeper, sweep.coll.nodes now consists of values of ButcherTableau
-        # for this reason, collocation nodes will be generated here
-        coll = CollBase(
-            num_nodes=description['sweeper_params']['num_nodes'],
-            quad_type=description['sweeper_params']['quad_type'],
-        )
-
         defaults = {
             'control_order': 0,
-            'nodes': coll.nodes,
             'tol_zero': 1e-13,
             't_interp': [],
             'state_function': [],
@@ -96,7 +88,8 @@ class SwitchEstimator(ConvergenceController):
             self.status.switch_detected, m_guess, self.params.state_function = L.prob.get_switching_info(L.u, L.time)
 
             if self.status.switch_detected:
-                self.params.t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
+                # self.params.t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
+                self.params.t_interp = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]
                 self.params.t_interp, self.params.state_function = self.adapt_interpolation_info(
                     L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function
                 )
@@ -381,11 +374,15 @@ class SwitchEstimator(ConvergenceController):
         state_function : list
             Adapted y-values for interpolation containing values of state function.
         """
-
+        # TODO: more reasonable statement
         if not left_is_node:
             t_interp.insert(0, t)
         else:
             del state_function[0]
+            if t_interp[-1] == t_interp[-2]:
+                del t_interp[-1]
+            elif t_interp[0] == t_interp[1]:
+                del t_interp[0]
 
         return t_interp, state_function
 

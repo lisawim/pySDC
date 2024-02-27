@@ -375,7 +375,7 @@ def testDetectionODE(tol, num_nodes, quad_type):
 @pytest.mark.parametrize('dt', np.logspace(-2.5, -1.5, num=4))
 @pytest.mark.parametrize('tol', [10 ** (-m) for m in range(9, 13)])
 @pytest.mark.parametrize('num_nodes', [3, 4, 5])
-def testDetectionDAE(dt, tol, num_nodes):
+def testDetectionDAE(dt, tol, num_nodes=1):
     r"""
     In this test, the switch estimator is applied to a DAE dummy problem of ``DiscontinuousTestDAE``,
     where the dynamics of the differential equation is replaced by its exact dynamics to see if
@@ -396,12 +396,13 @@ def testDetectionDAE(dt, tol, num_nodes):
     """
 
     from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE.sweepers.Runge_Kutta_DAE import EDIRK4DAE
     from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
     from pySDC.helpers.stats_helper import get_sorted
     from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
     from pySDC.implementations.hooks.log_solution import LogSolution
     from pySDC.implementations.hooks.log_restarts import LogRestarts
-    from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
+    from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable
     from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE
 
     problem = DiscontinuousTestDAE
@@ -415,13 +416,13 @@ def testDetectionDAE(dt, tol, num_nodes):
 
     _, _, _, _, useA, useSE, exact_event_time_avail, _ = getParamsRun()
 
-    restol=1e-13
+    restol = 1e-13
     maxiter = 60
     typeFD = 'backward'
     max_restarts = 20
     alpha = 0.94
 
-    hook_class = [LogSolution, LogRestarts, LogEventDiscontinuousTestDAE, error_hook]
+    hook_class = [LogSolution, LogRestarts, LogEventDiscontinuousTestDAE, LogGlobalErrorPostStepDifferentialVariable]
 
     description, controller_params, controller = generateDescription(
         dt=dt,
@@ -464,5 +465,5 @@ def testDetectionDAE(dt, tol, num_nodes):
         assert h[-1] > -1e-10, f"State function has large negative value -> SE does switch too early!"
     assert np.isclose(abs(h[-1]), 0.0, atol=1e-11), f'State function is not close to zero; value is {h[-1]}'
 
-    e_global = np.array(get_sorted(stats, type='error_post_step', sortby='time', recomputed=False))
+    e_global = np.array(get_sorted(stats, type='e_global_differential_post_step', sortby='time', recomputed=False))
     assert np.isclose(e_global[-1, 1], 0.0, atol=1e-11), f"Error at end time is too large! Expected {1e-11}, got {e_global[-1, 1]}"

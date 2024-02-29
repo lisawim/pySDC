@@ -27,14 +27,15 @@ class RungeKuttaDAE(RungeKutta):
         P = L.prob
 
         du_init = self.du_init if self.du_init is not None else P.du_exact(L.time)
-        print(du_init, self.coll.nodes)
+        print(L.time, 'Predict u:', L.u[0])
+        print(L.time, 'Predict f:', du_init)
         L.f[0] = P.dtype_f(du_init)
         for m in range(1, self.coll.num_nodes + 1):
             L.u[m] = P.dtype_u(init=P.init, val=0.0)
             L.f[m] = P.dtype_f(init=P.init, val=0.0)
-        print(f'predict at time {L.time}:')
-        print(L.f)
-        print()
+        # print(f'predict at time {L.time}:')
+        # print(L.f)
+        # print()
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True
@@ -60,7 +61,7 @@ class RungeKuttaDAE(RungeKutta):
             # new instance of dtype_u, initialize values with 0
             me.append(P.dtype_u(P.init, val=0.0))
             for j in range(1, self.coll.num_nodes + 1):
-                me[-1] += L.dt * self.coll.Qmat[m, j] * L.f[j]
+                me[-1] += L.dt * self.coll.Qmat[m, j] * L.f[j][:]
 
         return me
 
@@ -82,7 +83,7 @@ class RungeKuttaDAE(RungeKutta):
         for m in range(0, M):
             u_approx = P.dtype_u(L.u[0])
             for j in range(1, m + 1):
-                u_approx += L.dt * self.QI[m + 1, j] * L.f[j]
+                u_approx += L.dt * self.QI[m + 1, j] * L.f[j][:]
 
             def implSystem(unknowns):
                 """
@@ -99,15 +100,18 @@ class RungeKuttaDAE(RungeKutta):
                 sys : dtype_f
                     System to be solved.
                 """
-                unknowns_mesh = P.dtype_f(unknowns)
+                unknowns_mesh = P.dtype_f(P.init)
+                unknowns_mesh[:] = unknowns
 
-                local_u_approx = P.dtype_f(u_approx)
+                local_u_approx = P.dtype_f(P.init)
+                local_u_approx[:] = u_approx
 
                 # defines the "implicit" factor, note that for explicit RK the diagonal element is zero
-                local_u_approx += L.dt * self.QI[m + 1, m + 1] * unknowns_mesh
+                local_u_approx[:] += L.dt * self.QI[m + 1, m + 1] * unknowns_mesh[:]
                 sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[m + 1])
                 return sys
-
+            print(L.time, 'Initial guess:', L.f[m])
+            print()
             # implicit solve with prefactor stemming from the diagonal of Qd, use previous stage as initial guess
             du_new = P.solve_system(implSystem, L.f[m], L.time + L.dt * self.coll.nodes[m + 1])
 
@@ -116,12 +120,15 @@ class RungeKuttaDAE(RungeKutta):
         # Update numerical solution
         integral = self.integrate()
         for m in range(M):
-            L.u[m + 1] = L.u[0] + integral[m]
+            L.u[m + 1][:] = L.u[0][:] + integral[m][:]
+        # print(L.u)
+        # print('u after integration:', L.u[1])
         # print('After solve:')
-        # print(L.f)
+        print(L.f)
         # print('Last node:')
         # print(L.f[-1])
-        self.du_init = L.f[-1]
+        self.du_init = P.dtype_f(L.f[-2])#L.f[-1][:]  # with current implementation: something extremely weird happens on last node in f
+        # there we use L.f[-2] instead of L.f[-1]
 
         # indicate presence of new values at this level
         L.status.updated = True
@@ -135,13 +142,13 @@ class EDIRK4(RungeKutta):
     [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (216).
     """
 
-    nodes = np.array([0.0, 3.0 / 2.0, 7.0 / 5.0, 1.0])
-    weights = np.array([13.0, 84.0, -125.0, 70.0]) / 42.0
-    matrix = np.zeros((4, 4))
-    matrix[0, 0] = 0
-    matrix[1, :2] = [3.0 / 4.0, 3.0 / 4.0]
-    matrix[2, :3] = [447.0 / 675.0, -357.0 / 675.0, 855.0 / 675.0]
-    matrix[3, :] = [13.0 / 42.0, 84.0 / 42.0, -125.0 / 42.0, 70.0 / 42.0]
+    # nodes = np.array([0.0, 3.0 / 2.0, 7.0 / 5.0, 1.0])
+    # weights = np.array([13.0, 84.0, -125.0, 70.0]) / 42.0
+    # matrix = np.zeros((4, 4))
+    # matrix[0, 0] = 0
+    # matrix[1, :2] = [3.0 / 4.0, 3.0 / 4.0]
+    # matrix[2, :3] = [447.0 / 675.0, -357.0 / 675.0, 855.0 / 675.0]
+    # matrix[3, :] = [13.0 / 42.0, 84.0 / 42.0, -125.0 / 42.0, 70.0 / 42.0]
     # nodes = np.array([0, 1 / 2, 1])#np.array([0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0])
     # weights = np.array([1/6, 4/6, 1/6])#np.array([1.0 / 8.0, 3.0 / 8.0, 3.0 / 8.0, 1.0 / 8.0])
     # matrix = np.zeros((3, 3))#np.zeros((4, 4))
@@ -149,13 +156,14 @@ class EDIRK4(RungeKutta):
     # matrix[1, :2] = [1/4, 1/4]#[1.0 / 6.0, 1.0 / 6.0]
     # matrix[2, :3] = [1/6, 4/6, 1/6]#[1.0 / 12.0, 1.0 / 2.0, 1.0 / 12.0]
     # matrix[3, :] = [1.0 / 8.0, 3.0 / 8.0, 3.0 / 8.0, 1.0 / 8.0]
-    # nodes = np.array([0.5, 2.0 / 3.0, 0.5, 1.0])
-    # weights = np.array([3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5])
-    # matrix = np.zeros((4, 4))
-    # matrix[0, 0] = 0.5
-    # matrix[1, :2] = [1.0 / 6.0, 0.5]
-    # matrix[2, :3] = [-0.5, 0.5, 0.5]
-    # matrix[3, :] = [3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5]
+    # works good but stuff above does not work..
+    nodes = np.array([0.5, 2.0 / 3.0, 0.5, 1.0])
+    weights = np.array([3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5])
+    matrix = np.zeros((4, 4))
+    matrix[0, 0] = 0.5
+    matrix[1, :2] = [1.0 / 6.0, 0.5]
+    matrix[2, :3] = [-0.5, 0.5, 0.5]
+    matrix[3, :] = [3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5]
     ButcherTableauClass = ButcherTableau
 
 

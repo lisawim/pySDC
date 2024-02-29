@@ -66,7 +66,9 @@ class ptype_dae(ptype):
             method='hybr',
             tol=self.newton_tol,
         )
+        # print(t, 'exact:', self.du_exact(t))
         me[:] = opt.x.reshape(me.shape)
+        # print('me after solve:', me[:])
         self.work_counters['newton'].niter += opt.nfev
         return me
 

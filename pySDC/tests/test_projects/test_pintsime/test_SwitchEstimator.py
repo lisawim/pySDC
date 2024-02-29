@@ -406,9 +406,9 @@ def testDetectionDAE(dt, tol, num_nodes):
     from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE
 
     problem = DiscontinuousTestDAE
-    problem_params = dict({'newton_tol': 1e-15})#dict()
-    t0 = 3.0#4.6
-    Tend = 4.6#4.6#5.0#4.62
+    problem_params = dict({'newton_tol': 1e-14})#dict()
+    t0 = 4.6#4.6
+    Tend = 5.0#4.6#5.0#4.62
 
     sweeper = BackwardEulerDAE#EDIRK4DAE#fully_implicit_DAE
     QI = 'LU'
@@ -421,6 +421,7 @@ def testDetectionDAE(dt, tol, num_nodes):
     typeFD = 'backward'
     max_restarts = 300
     alpha = 0.95#0.96#0.94
+    # useSE=False
 
     hook_class = [LogSolution, LogRestarts, LogEventDiscontinuousTestDAE, LogGlobalErrorPostStepDifferentialVariable]
 
@@ -466,8 +467,8 @@ def testDetectionDAE(dt, tol, num_nodes):
     # if h[-1] < 0:
         # assert h[-1] > -1e-10, f"State function has large negative value -> SE does switch too early!"
     # assert np.isclose(abs(h[-1]), 0.0, atol=1e-11), f'State function is not close to zero; value is {h[-1]}'
-    # print(h[-1])
+    print(h[-1])
     # e_global = np.array(get_sorted(stats, type='e_global_differential_post_step', sortby='time', recomputed=False))
     # assert np.isclose(e_global[-1, 1], 0.0, atol=1e-11), f"Error at end time is too large! Expected {1e-11}, got {e_global[-1, 1]}"
     # print(e_global[-1, 1])
-testDetectionDAE(0.1, 1e-10, 1)
+testDetectionDAE(0.01, 1e-10, 1)

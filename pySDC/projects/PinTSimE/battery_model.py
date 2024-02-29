@@ -433,6 +433,7 @@ def getUnknownLabels(prob_cls_name):
         'piline': ['vC1', 'vC2', 'iLp'],
         'buck_converter': ['vC1', 'vC2', 'iLp'],
         'DiscontinuousTestDAE': ['y', 'z'],
+        'simple_dae_1': ['u1', 'u2', 'z'],
     }
 
     unknowns_labels = {
@@ -443,6 +444,7 @@ def getUnknownLabels(prob_cls_name):
         'piline': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'DiscontinuousTestDAE': [r'$y$', r'$z$'],
+        'simple_dae_1': [r'$u_1$', r'$u_2$', r'$z$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]

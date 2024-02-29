@@ -210,6 +210,12 @@ class simple_dae_1(ptype_dae):
         me.alg[0] = -np.exp(t) / (2 - t)
         return me
 
+    def du_exact(self, t):
+        me = self.dtype_u(self.init)
+        me.diff[:2] = (np.exp(t), np.exp(t))
+        me.alg[0] = (np.exp(t) * (t - 3)) / ((2 - t) ** 2)
+        return me
+
 
 class problematic_f(ptype_dae):
     r"""

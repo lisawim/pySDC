@@ -93,7 +93,7 @@ class SwitchEstimator(ConvergenceController):
                 self.params.t_interp, self.params.state_function = self.adapt_interpolation_info(
                     L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function
                 )
-
+                # print(L.time, self.params.t_interp, self.params.state_function)
                 # when the state function is already close to zero the event is already resolved well
                 if (
                     abs(self.params.state_function[-1]) <= self.params.tol_zero
@@ -120,7 +120,7 @@ class SwitchEstimator(ConvergenceController):
                     self.status.t_switch = self.get_switch(
                         self.params.t_interp, self.params.state_function, m_guess, self.params.typeFD
                     )
-
+                    # print('Get switch:', self.status.t_switch)
                     self.logging_during_estimation(
                         controller.hooks[0],
                         S.status.slot,
@@ -335,7 +335,7 @@ class SwitchEstimator(ConvergenceController):
                 dt_FD = 1e-12
                 dp = (p(t + dt_FD) - p(t - dt_FD)) / (2 * dt_FD)
             elif choiceFD == 'backward':
-                dt_FD = 1e-12
+                dt_FD = 1e-10
                 # dp = (p(t) - p(t - dt_FD)) / (dt_FD)
                 # dp = (11 * p(t) - 18 * p(t - dt_FD) + 9 * p(t - 2 * dt_FD) - 2 * p(t - 3 * dt_FD)) / (6 * dt_FD)
                 dp = (25 * p(t) - 48 * p(t - dt_FD) + 36 * p(t - 2 * dt_FD) - 16 * p(t - 3 * dt_FD) + 3 * p(t - 4 * dt_FD)) / (12 * dt_FD)
@@ -374,16 +374,32 @@ class SwitchEstimator(ConvergenceController):
         state_function : list
             Adapted y-values for interpolation containing values of state function.
         """
+
         # TODO: more reasonable statement
         if not left_is_node:
             t_interp.insert(0, t)
         else:
-            del state_function[0]
             if t_interp[-1] == t_interp[-2]:
                 del t_interp[-1]
-            elif t_interp[0] == t_interp[1]:
+                del state_function[-1]
+            
+            if t_interp[0] == t_interp[1] and state_function[0] == state_function[1]:
+                del state_function[0]
                 del t_interp[0]
+            elif state_function[0] == state_function[1]:
+                del state_function[0]
 
+        li = []
+        for i in range(len(t_interp)):
+            li.append([t_interp[i], i])
+
+        li.sort()
+        sort_index = []
+        for x in li:
+            sort_index.append(x[1])
+
+        t_interp = [t_interp[ind] for ind in sort_index]
+        state_function = [state_function[ind] for ind in sort_index]
         return t_interp, state_function
 
 

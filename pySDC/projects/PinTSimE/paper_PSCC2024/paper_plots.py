@@ -5,6 +5,7 @@ import dill
 from pySDC.core.Errors import ParameterError
 
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE.sweepers.Runge_Kutta_DAE import EDIRK4DAE, TrapezoidalRuleDAE
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
 from pySDC.projects.DAE.problems.WSCC9BusSystem import WSCC9BusSystem
 
@@ -14,8 +15,7 @@ from pySDC.helpers.stats_helper import get_sorted
 import pySDC.helpers.plot_helper as plt_helper
 
 from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE, LogEventWSCC9
-from pySDC.projects.DAE.misc.HookClass_DAE import error_hook
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable
 from pySDC.implementations.hooks.log_restarts import LogRestarts
 
 
@@ -46,14 +46,14 @@ def make_plots_for_test_DAE():  # pragma: no cover
 
     nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class_name)
 
-    sweeper = fully_implicit_DAE
+    sweeper_classes = [fully_implicit_DAE]
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
-    maxiter = 45
+    maxiter = 60
     tol_hybr = 1e-6
     restol = 1e-13
 
-    hook_class = [error_hook, LogEventDiscontinuousTestDAE, LogRestarts]
+    hook_class = [LogGlobalErrorPostStepDifferentialVariable, LogEventDiscontinuousTestDAE, LogRestarts]
 
     problem_params = dict()
     problem_params['newton_tol'] = tol_hybr
@@ -64,8 +64,8 @@ def make_plots_for_test_DAE():  # pragma: no cover
 
     alpha_fix = alphas[0]#alphas[4]
 
-    t0 = 3.0
-    Tend = 5.5#5.4
+    t0 = 3.5
+    Tend = 5.0
 
     dt_fix = dt_list[-2]
 
@@ -77,86 +77,214 @@ def make_plots_for_test_DAE():  # pragma: no cover
     results_event_error = {}
     results_event_error_restarts = {}
 
-    for M in nnodes:
-        results_error_over_time[M], results_error_norm[M] = {}, {}
-        results_state_function[M], results_event_error[M] = {}, {}
-        results_event_error_restarts[M] = {}
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
+    for sweeper in sweeper_classes:
+        sweeper_cls_name = sweeper.__name__
+        results_error_over_time[sweeper_cls_name][M], results_error_norm[sweeper_cls_name][M] = {}, {}
+        results_state_function[sweeper_cls_name][M], results_event_error[sweeper_cls_name][M] = {}, {}
+        results_event_error_restarts[sweeper_cls_name][M] = {}
 
-        for dt in dt_list:
-            results_error_over_time[M][dt], results_error_norm[M][dt] = {}, {}
-            results_state_function[M][dt], results_event_error[M][dt] = {}, {}
-            results_event_error_restarts[M][dt] = {}
+        for M in nnodes:
+            results_error_over_time[sweeper_cls_name][M], results_error_norm[sweeper_cls_name][M] = {}, {}
+            results_state_function[sweeper_cls_name][M], results_event_error[sweeper_cls_name][M] = {}, {}
+            results_event_error_restarts[sweeper_cls_name][M] = {}
 
-            for use_SE in use_detection:
-                results_error_over_time[M][dt][use_SE], results_error_norm[M][dt][use_SE] = {}, {}
-                results_state_function[M][dt][use_SE], results_event_error[M][dt][use_SE] = {}, {}
-                results_event_error_restarts[M][dt][use_SE] = {}
+            for dt in dt_list:
+                results_error_over_time[sweeper_cls_name][M][dt], results_error_norm[sweeper_cls_name][M][dt] = {}, {}
+                results_state_function[sweeper_cls_name][M][dt], results_event_error[sweeper_cls_name][M][dt] = {}, {}
+                results_event_error_restarts[sweeper_cls_name][M][dt] = {}
 
-                for alpha in alphas:
-                    results_error_over_time[M][dt][use_SE][alpha], results_error_norm[M][dt][use_SE][alpha] = {}, {}
-                    results_state_function[M][dt][use_SE][alpha], results_event_error[M][dt][use_SE][alpha] = {}, {}
-                    results_event_error_restarts[M][dt][use_SE][alpha] = {}
+                for use_SE in use_detection:
+                    results_error_over_time[sweeper_cls_name][M][dt][use_SE], results_error_norm[sweeper_cls_name][M][dt][use_SE] = {}, {}
+                    results_state_function[sweeper_cls_name][M][dt][use_SE], results_event_error[sweeper_cls_name][M][dt][use_SE] = {}, {}
+                    results_event_error_restarts[sweeper_cls_name][M][dt][use_SE] = {}
 
-                    description, controller_params, controller = generateDescription(
-                        dt=dt,
-                        problem=problem_class,
-                        sweeper=sweeper,
-                        num_nodes=M,
-                        quad_type=quad_type,
-                        QI=QI,
-                        hook_class=hook_class,
-                        use_adaptivity=False,
-                        use_switch_estimator=use_SE,
-                        problem_params=problem_params,
-                        restol=restol,
-                        maxiter=maxiter,
-                        max_restarts=max_restarts,
-                        tol_event=epsilon_SE,
-                        alpha=alpha,
-                        typeFD=typeFD,
-                    )
+                    for alpha in alphas:
+                        results_error_over_time[sweeper_cls_name][M][dt][use_SE][alpha], results_error_norm[sweeper_cls_name][M][dt][use_SE][alpha] = {}, {}
+                        results_state_function[sweeper_cls_name][M][dt][use_SE][alpha], results_event_error[sweeper_cls_name][M][dt][use_SE][alpha] = {}, {}
+                        results_event_error_restarts[M][dt][use_SE][alpha] = {}[sweeper_cls_name]
 
-                    stats, t_switch_exact = controllerRun(
-                        description, controller_params, controller, t0, Tend, exact_event_time_avail=True
-                    )
+                        description, controller_params, controller = generateDescription(
+                            dt=dt,
+                            problem=problem_class,
+                            sweeper=sweeper,
+                            num_nodes=M,
+                            quad_type=quad_type,
+                            QI=QI,
+                            hook_class=hook_class,
+                            use_adaptivity=False,
+                            use_switch_estimator=use_SE,
+                            problem_params=problem_params,
+                            restol=restol,
+                            maxiter=maxiter,
+                            max_restarts=max_restarts,
+                            tol_event=epsilon_SE,
+                            alpha=alpha,
+                            typeFD=typeFD,
+                        )
 
-                    err_val = get_sorted(stats, type='error_post_step', sortby='time', recomputed=recomputed)
-                    results_error_over_time[M][dt][use_SE][alpha] = err_val
+                        stats, t_switch_exact = controllerRun(
+                            description, controller_params, controller, t0, Tend, exact_event_time_avail=True
+                        )
 
-                    err_norm = max([item[1] for item in err_val])
-                    results_error_norm[M][dt][use_SE][alpha] = err_norm
+                        err_val = get_sorted(stats, type='e_global_differential_post_step', sortby='time', recomputed=recomputed)
+                        results_error_over_time[sweeper_cls_name][M][dt][use_SE][alpha] = err_val
 
-                    h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
-                    h_abs = abs([item[1] for item in h_val][-1])
-                    results_state_function[M][dt][use_SE][alpha]['h_abs'] = h_abs
+                        err_norm = max([item[1] for item in err_val])
+                        results_error_norm[sweeper_cls_name][M][dt][use_SE][alpha] = err_norm
 
-                    if use_SE:
-                        switches = get_sorted(stats, type='switch', sortby='time', recomputed=recomputed)
-                        print(M, dt, alpha, switches)
-                        t_switch = [item[1] for item in switches][-1]
-                        results_event_error[M][dt][use_SE][alpha] = abs(t_switch_exact - t_switch)
+                        h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
+                        h_abs = abs([item[1] for item in h_val][-1])
+                        results_state_function[sweeper_cls_name][M][dt][use_SE][alpha]['h_abs'] = h_abs
+                        print(M, dt, use_SE, alpha)
+                        if use_SE:
+                            switches = get_sorted(stats, type='switch', sortby='time', recomputed=recomputed)
 
-                        restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
-                        sum_restarts = sum([item[1] for item in restarts])
-                        results_state_function[M][dt][use_SE][alpha]['restarts'] = sum_restarts
+                            t_switch = [item[1] for item in switches][-1]
+                            results_event_error[sweeper_cls_name][M][dt][use_SE][alpha] = abs(t_switch_exact - t_switch)
 
-                        switches_all = get_sorted(stats, type='switch_all', sortby='time', recomputed=None)
-                        t_switches_all = [item[1] for item in switches_all]
-                        event_error_all = [abs(t_switch_exact - t_switch) for t_switch in t_switches_all]
-                        results_event_error_restarts[M][dt][use_SE][alpha]['event_error_all'] = event_error_all
-                        h_val_all = get_sorted(stats, type='h_all', sortby='time', recomputed=None)
-                        results_event_error_restarts[M][dt][use_SE][alpha]['h_max_event'] = [item[1] for item in h_val_all]
+                            restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
+                            sum_restarts = sum([item[1] for item in restarts])
+                            results_state_function[sweeper_cls_name][M][dt][use_SE][alpha]['restarts'] = sum_restarts
+
+                            switches_all = get_sorted(stats, type='switch_all', sortby='time', recomputed=None)
+                            t_switches_all = [item[1] for item in switches_all]
+                            event_error_all = [abs(t_switch_exact - t_switch) for t_switch in t_switches_all]
+                            results_event_error_restarts[sweeper_cls_name][M][dt][use_SE][alpha]['event_error_all'] = event_error_all
+                            h_val_all = get_sorted(stats, type='h_all', sortby='time', recomputed=None)
+                            results_event_error_restarts[sweeper_cls_name][M][dt][use_SE][alpha]['h_max_event'] = [item[1] for item in h_val_all]
 
     plot_functions_over_time(
         results_error_over_time, prob_class_name, r'Global error $|y(t) - y_{ex}(t)|$', 'upper left', dt_fix, alpha_fix
     )
     plot_error_norm(results_error_norm, prob_class_name, alpha_fix)
     plot_state_function_detection(
-        results_state_function, prob_class_name, r'Absolute value of $h$ $|h(y(T))|$', 'upper left', alpha_fix
+        results_state_function, prob_class_name, r'Absolute value of $h$ $|h(y(T))|$', 'lower left', alpha_fix
     )
     plot_event_time_error(results_event_error, prob_class_name, alpha_fix)
     plot_event_time_error_before_restarts(results_event_error_restarts, prob_class_name, dt_fix, alpha_fix)
     plot_compare_alpha(results_state_function, results_event_error, prob_class_name)
+
+
+def make_plots_for_test_DAE_numerical_comparison():
+    """
+    Generates the plots for the discontinuous test DAE where SDC is compared with RK methods. Here, SDC is compared with
+
+        - EDIRK4: DIRK with of order 4,
+        - Trapezoidal rule: famous trapezoidal rule often used in engineering.
+
+    This function contains all important parameters for the comparison.
+    """
+
+    Path("data").mkdir(parents=True, exist_ok=True)
+
+    problem_class = DiscontinuousTestDAE
+    prob_class_name = DiscontinuousTestDAE.__name__
+
+    nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class_name)
+
+    sweeper_classes = [fully_implicit_DAE, EDIRK4DAE, TrapezoidalRuleDAE]
+    quad_type = 'RADAU-RIGHT'
+    QI = 'LU'
+
+    hook_class = [LogGlobalErrorPostStepDifferentialVariable, LogEventDiscontinuousTestDAE, LogRestarts]
+
+    max_restarts = 200
+    epsilon_SE = 1e-10
+    typeFD = 'backward'
+
+    alpha_fix = alphas[0]#alphas[4]
+
+    t0 = 3.5
+    Tend = 5.0
+
+    dt_fix = dt_list#[-2]
+
+    recomputed = False
+
+    results_error_over_time = {}
+    results_error_norm = {}
+    results_state_function = {}
+    results_event_error = {}
+
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
+    for sweeper in sweeper_classes:
+        sweeper_cls_name = sweeper.__name__
+        results_error_over_time[sweeper_cls_name], results_error_norm[sweeper_cls_name] = {}, {}
+        results_state_function[sweeper_cls_name], results_event_error[sweeper_cls_name] = {}, {}
+
+        for M in nnodes:
+            results_error_over_time[sweeper_cls_name][M], results_error_norm[sweeper_cls_name][M] = {}, {}
+            results_state_function[sweeper_cls_name][M], results_event_error[sweeper_cls_name][M] = {}, {}
+
+            for dt in dt_list:
+                results_error_over_time[sweeper_cls_name][M][dt], results_error_norm[sweeper_cls_name][M][dt] = {}, {}
+                results_state_function[sweeper_cls_name][M][dt], results_event_error[sweeper_cls_name][M][dt] = {}, {}
+
+                for use_SE in use_detection:
+                    results_error_over_time[sweeper_cls_name][M][dt][use_SE], results_error_norm[sweeper_cls_name][M][dt][use_SE] = {}, {}
+                    results_state_function[sweeper_cls_name][M][dt][use_SE], results_event_error[sweeper_cls_name][M][dt][use_SE] = {}, {}
+
+                    for alpha in alphas:
+                        results_error_over_time[sweeper_cls_name][M][dt][use_SE][alpha], results_error_norm[sweeper_cls_name][M][dt][use_SE][alpha] = {}, {}
+                        results_state_function[sweeper_cls_name][M][dt][use_SE][alpha], results_event_error[sweeper_cls_name][M][dt][use_SE][alpha] = {}, {}
+
+                        maxiter = 60 if sweeper_cls_name == 'fully_implicit_DAE' else 1
+                        tol_hybr = 1e-6 if sweeper_cls_name == 'fully_implicit_DAE' else 1e-12
+                        restol = 1e-13 if sweeper_cls_name == 'fully_implicit_DAE' else -1
+
+                        problem_params = dict()
+                        problem_params['newton_tol'] = tol_hybr
+
+                        description, controller_params, controller = generateDescription(
+                            dt=dt,
+                            problem=problem_class,
+                            sweeper=sweeper,
+                            num_nodes=M,
+                            quad_type=quad_type,
+                            QI=QI,
+                            hook_class=hook_class,
+                            use_adaptivity=False,
+                            use_switch_estimator=use_SE,
+                            problem_params=problem_params,
+                            restol=restol,
+                            maxiter=maxiter,
+                            max_restarts=max_restarts,
+                            tol_event=epsilon_SE,
+                            alpha=alpha,
+                            typeFD=typeFD,
+                        )
+
+                        stats, t_switch_exact = controllerRun(
+                            description, controller_params, controller, t0, Tend, exact_event_time_avail=True
+                        )
+
+                        err_val = get_sorted(stats, type='e_global_differential_post_step', sortby='time', recomputed=recomputed)
+                        results_error_over_time[sweeper_cls_name][M][dt][use_SE][alpha] = err_val
+
+                        err_norm = max([item[1] for item in err_val])
+                        results_error_norm[sweeper_cls_name][M][dt][use_SE][alpha] = err_norm
+
+                        h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
+                        h_abs = abs([item[1] for item in h_val][-1])
+                        results_state_function[sweeper_cls_name][M][dt][use_SE][alpha]['h_abs'] = h_abs
+                        print(sweeper_cls_name, M, dt, use_SE, alpha)
+                        if use_SE:
+                            switches = get_sorted(stats, type='switch', sortby='time', recomputed=recomputed)
+                            t_switches = [item[1] for item in switches]
+
+                            if len(t_switches) >= 1:
+                                t_switch = t_switches[-1]
+                                results_event_error[sweeper_cls_name][M][dt][use_SE][alpha] = abs(t_switch_exact - t_switch)
+                            else:
+                                results_event_error[sweeper_cls_name][M][dt][use_SE][alpha] = 1.0
+
+                            restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
+                            sum_restarts = sum([item[1] for item in restarts])
+                            results_state_function[sweeper_cls_name][M][dt][use_SE][alpha]['restarts'] = sum_restarts
+
+    
+    plot_comparison_event_time_state_function(results_state_function, results_event_error, prob_class_name)
 
 
 def make_plots_for_WSCC9_test_case(cwd='./'):  # pragma: no cover
@@ -183,7 +311,7 @@ def make_plots_for_WSCC9_test_case(cwd='./'):  # pragma: no cover
 
     nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class_name)
 
-    sweeper = fully_implicit_DAE
+    sweeper_cls_name = [fully_implicit_DAE]
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
     maxiter = 50
@@ -210,66 +338,71 @@ def make_plots_for_WSCC9_test_case(cwd='./'):  # pragma: no cover
 
     results_state_function_over_time = {}
     results_state_function_detection = {}
-    for M in nnodes:
-        results_state_function_over_time[M], results_state_function_detection[M] = {}, {}
+    for sweeper in sweeper_cls_name:
+        sweeper_cls_name = sweeper.__name__
+        results_state_function_over_time[sweeper_cls_name] = {}
+        results_state_function_detection[sweeper_cls_name] = {}
 
-        for dt in dt_list:
-            results_state_function_over_time[M][dt], results_state_function_detection[M][dt] = {}, {}
+        for M in nnodes:
+            results_state_function_over_time[sweeper_cls_name][M], results_state_function_detection[sweeper_cls_name][M] = {}, {}
 
-            for use_SE in use_detection:
-                results_state_function_over_time[M][dt][use_SE], results_state_function_detection[M][dt][use_SE] = (
-                        {},
-                        {},
-                    )
+            for dt in dt_list:
+                results_state_function_over_time[sweeper_cls_name][M][dt], results_state_function_detection[sweeper_cls_name][M][dt] = {}, {}
 
-                for alpha in alphas:
-                    results_state_function_over_time[M][dt][use_SE][alpha], results_state_function_detection[M][dt][use_SE][alpha] = (
-                        {},
-                        {},
-                    )
+                for use_SE in use_detection:
+                    results_state_function_over_time[sweeper_cls_name][M][dt][use_SE], results_state_function_detection[sweeper_cls_name][M][dt][use_SE] = (
+                            {},
+                            {},
+                        )
 
-                    description, controller_params = generateDescription(
-                        dt,
-                        problem_class,
-                        sweeper,
-                        M,
-                        quad_type,
-                        QI,
-                        hook_class,
-                        False,
-                        use_SE,
-                        problem_params,
-                        restol,
-                        maxiter,
-                        max_restarts,
-                        epsilon_SE,
-                        alpha,
-                    )
+                    for alpha in alphas:
+                        results_state_function_over_time[sweeper_cls_name][M][dt][use_SE][alpha], results_state_function_detection[sweeper_cls_name][M][dt][use_SE][alpha] = (
+                            {},
+                            {},
+                        )
 
-                    # ---- either solution is computed or it is loaded from .dat file already created ----
-                    path = Path('data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE))
-                    if path.is_file():
-                        f = open(cwd + 'data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE), 'rb')
-                        stats = dill.load(f)
-                        f.close()
-                    else:
-                        stats, _ = controllerRun(description, controller_params, t0, Tend)
+                        description, controller_params = generateDescription(
+                            dt,
+                            problem_class,
+                            sweeper,
+                            M,
+                            quad_type,
+                            QI,
+                            hook_class,
+                            False,
+                            use_SE,
+                            problem_params,
+                            restol,
+                            maxiter,
+                            max_restarts,
+                            epsilon_SE,
+                            alpha,
+                        )
 
-                        fname = 'data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE)
-                        f = open(fname, 'wb')
-                        dill.dump(stats, f)
-                        f.close()
+                        # ---- either solution is computed or it is loaded from .dat file already created ----
+                        path = Path('data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE))
+                        if path.is_file():
+                            f = open(cwd + 'data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE), 'rb')
+                            stats = dill.load(f)
+                            f.close()
+                        else:
+                            stats, _ = controllerRun(description, controller_params, t0, Tend)
 
-                    h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
-                    results_state_function_over_time[M][dt][use_SE][alpha] = h_val
+                            fname = 'data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE)
+                            f = open(fname, 'wb')
+                            dill.dump(stats, f)
+                            f.close()
 
-                    h_abs_end = abs([me[1] for me in h_val][-1])
-                    results_state_function_detection[M][dt][use_SE][alpha]['h_abs'] = h_abs_end
+                        h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
+                        results_state_function_over_time[sweeper_cls_name][M][dt][use_SE][alpha] = h_val
 
-                    if use_SE:
-                        restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
-                        sum_restarts = sum([me[1] for me in restarts])
-                        results_state_function_detection[M][dt][use_SE][alpha]['restarts'] = sum_restarts
+                        h_abs_end = abs([me[1] for me in h_val][-1])
+                        results_state_function_detection[sweeper_cls_name][M][dt][use_SE][alpha]['h_abs'] = h_abs_end
+
+                        if use_SE:
+                            restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
+                            sum_restarts = sum([me[1] for me in restarts])
+                            results_state_function_detection[sweeper_cls_name][M][dt][use_SE][alpha]['restarts'] = sum_restarts
 
     plot_functions_over_time(
         results_state_function_over_time,
@@ -305,12 +438,12 @@ def get_dict_keys(prob_class):
         List of factor alpha.
     """
 
-    nnodes = [3, 4, 5]
+    nnodes = [5]#[3, 4, 5]
     use_detection = [False, True]
 
     if prob_class == 'DiscontinuousTestDAE':
-        dt_list = [1 / (2**m) for m in range(2, 9)]
-        alphas = np.arange(0.9, 1.01, 0.01)
+        dt_list = np.logspace(-3.0, 0.0, num=8)#[1 / (2**m) for m in range(2, 9)]
+        alphas = [0.96] #np.arange(0.9, 1.02, 0.02)
     elif prob_class == 'WSCC9BusSystem':
         dt_list = [1 / (2**m) for m in range(5, 11)]
         alphas = [0.95]
@@ -321,24 +454,37 @@ def get_dict_keys(prob_class):
     
 
 
-def plot_styling_stuff(prob_class):  # pragma: no cover
+def plot_styling_stuff(prob_class, color_type='M'):  # pragma: no cover
     """
     Implements all the stuff needed for making the plots more pretty.
     """
 
-    colors = {
-        2: 'limegreen',
-        3: 'firebrick',
-        4: 'deepskyblue',
-        5: 'purple',
-    }
+    if color_type == 'M':
+        colors = {
+            2: 'limegreen',
+            3: 'tomato',
+            4: 'deepskyblue',
+            5: 'orchid',
+        }
 
-    markers = {
-        2: 's',
-        3: 'o',
-        4: '*',
-        5: 'd',
-    }
+        markers = {
+            2: 'X',#'s',
+            3: 'X',#'o',
+            4: 'X',#'*',
+            5: 'X',#'d',
+        }
+    elif color_type == 'sweeper':
+        colors = {
+            'fully_implicit_DAE': 'deepskyblue',
+            'EDIRK4DAE': 'forestgreen',
+            'TrapezoidalRuleDAE': 'darkorange',
+        }
+
+        markers = {
+            'fully_implicit_DAE': 'o',
+            'EDIRK4DAE': 'o',
+            'TrapezoidalRuleDAE': 'o',
+        }
 
     if prob_class == 'DiscontinuousTestDAE':
         xytext = {
@@ -390,15 +536,15 @@ def plot_functions_over_time(
     dt_list = [dt_fix] if dt_fix is not None else dt_list
     alphas = [alpha_fix] if alpha_fix is not None else alphas
     for dt in dt_list:
-        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
         for M in nnodes:
             for use_SE in use_detection:
                 for alpha in alphas:
-                    err_val = results_function_over_time[M][dt][use_SE][alpha]
+                    err_val = results_function_over_time['fully_implicit_DAE'][M][dt][use_SE][alpha]
                     t, err = [item[0] for item in err_val], [abs(item[1]) for item in err_val]
 
                     linestyle_detection = 'solid' if not use_SE else 'dashdot'
-                    (line,) = ax.plot(t, err, color=colors[M], linestyle=linestyle_detection)
+                    (line,) = ax.plot(t, err, color=colors[M], linestyle=linestyle_detection, linewidth=0.9)
 
                     if not use_SE:
                         line.set_label(r'$M={}$'.format(M))
@@ -414,6 +560,7 @@ def plot_functions_over_time(
         ax.grid(visible=True)
         ax.legend(frameon=True, fontsize=12, loc=loc_legend)
         ax.minorticks_off()
+        ax.set_facecolor('#D3D3D3')
 
         if prob_class == 'DiscontinuousTestDAE':
             file_name = 'data/test_DAE_error_over_time_dt{}.png'.format(dt)
@@ -446,12 +593,13 @@ def plot_error_norm(results_error_norm, prob_class, alpha_fix=None):  # pragma: 
     nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class)
 
     alphas = [alpha_fix] if alpha_fix is not None else alphas
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
     for M in nnodes:
         for use_SE in use_detection:
             for alpha in alphas:
-                err_norm_dt = [results_error_norm[M][k][use_SE][alpha] for k in dt_list]
+                err_norm_dt = [results_error_norm['fully_implicit_DAE'][M][k][use_SE][alpha] for k in dt_list]
 
                 linestyle_detection = 'solid' if not use_SE else 'dashdot'
                 (line,) = ax.loglog(
@@ -459,6 +607,9 @@ def plot_error_norm(results_error_norm, prob_class, alpha_fix=None):  # pragma: 
                     err_norm_dt,
                     color=colors[M],
                     linestyle=linestyle_detection,
+                    linewidth=0.9,
+                    markersize=15,
+                    markeredgecolor='k',
                     marker=markers[M],
                 )
 
@@ -477,6 +628,7 @@ def plot_error_norm(results_error_norm, prob_class, alpha_fix=None):  # pragma: 
     ax.grid(visible=True)
     ax.minorticks_off()
     ax.legend(frameon=True, fontsize=12, loc='lower right')
+    ax.set_facecolor('#D3D3D3')
 
     fig.savefig('data/test_DAE_error_norms.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
@@ -506,12 +658,13 @@ def plot_state_function_detection(results_state_function, prob_class, y_label, l
     nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class)
 
     alphas = [alpha_fix] if alpha_fix is not None else alphas
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
     for M in nnodes:
         for use_SE in use_detection:
             for alpha in alphas:
-                h_abs = [results_state_function[M][k][use_SE][alpha]['h_abs'] for k in dt_list]
+                h_abs = [results_state_function['fully_implicit_DAE'][M][k][use_SE][alpha]['h_abs'] for k in dt_list]
 
                 linestyle_detection = 'solid' if not use_SE else 'dashdot'
                 (line,) = ax.loglog(
@@ -519,6 +672,9 @@ def plot_state_function_detection(results_state_function, prob_class, y_label, l
                     h_abs,
                     color=colors[M],
                     linestyle=linestyle_detection,
+                    linewidth=0.9,
+                    markersize=15,
+                    markeredgecolor='k',
                     marker=markers[M],
                 )
 
@@ -526,7 +682,7 @@ def plot_state_function_detection(results_state_function, prob_class, y_label, l
                     line.set_label(r'$M={}$'.format(M))
 
                 if use_SE:
-                    sum_restarts = [results_state_function[M][k][use_SE][alpha]['restarts'] for k in dt_list]
+                    sum_restarts = [results_state_function['fully_implicit_DAE'][M][k][use_SE][alpha]['restarts'] for k in dt_list]
                     for m in range(len(dt_list)):
                         ax.annotate(
                             sum_restarts[m],
@@ -549,6 +705,7 @@ def plot_state_function_detection(results_state_function, prob_class, y_label, l
     ax.grid(visible=True)
     ax.minorticks_off()
     ax.legend(frameon=True, fontsize=12, loc=loc_legend)
+    ax.set_facecolor('#D3D3D3')
 
     if prob_class == 'DiscontinuousTestDAE':
         file_name = 'data/test_DAE_state_function.png'
@@ -579,12 +736,13 @@ def plot_event_time_error(results_event_error, prob_class, alpha_fix=None):  # p
     colors, markers, _ = plot_styling_stuff(prob_class)
 
     nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class)
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
     for M in nnodes:
         for use_SE in [True]:
             for alpha in alphas:
-                event_error = [results_event_error[M][k][use_SE][alpha] for k in dt_list]
+                event_error = [results_event_error['fully_implicit_DAE'][M][k][use_SE][alpha] for k in dt_list]
 
                 linestyle_detection = 'solid' if not use_SE else 'dashdot'
                 ax.loglog(
@@ -593,6 +751,8 @@ def plot_event_time_error(results_event_error, prob_class, alpha_fix=None):  # p
                     color=colors[M],
                     linestyle=linestyle_detection,
                     marker=markers[M],
+                    markersize=15,
+                    markeredgecolor='k',
                     label=r'$M={}$'.format(M),
                 )
 
@@ -605,6 +765,7 @@ def plot_event_time_error(results_event_error, prob_class, alpha_fix=None):  # p
     ax.grid(visible=True)
     ax.minorticks_off()
     ax.legend(frameon=True, fontsize=12, loc='lower right')
+    ax.set_facecolor('#D3D3D3')
 
     fig.savefig('data/test_DAE_event_time_error.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
@@ -631,16 +792,17 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, prob_cla
 
     nnodes, dt_list, use_detection, alphas = get_dict_keys(prob_class)
 
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
     dt_list = [dt_fix] if dt_fix is not None else dt_list
     alphas = [alpha_fix] if alpha_fix is not None else alphas
     for dt in dt_list:
-        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
         h_ax = ax.twinx()
         for M in nnodes:
             for use_SE in use_detection:
                 for alpha in alphas:
                     if use_SE:
-                        event_error_all = results_event_error_restarts[M][dt][use_SE][alpha]['event_error_all']
+                        event_error_all = results_event_error_restarts['fully_implicit_DAE'][M][dt][use_SE][alpha]['event_error_all']
 
                         (line,) = ax.semilogy(
                             np.arange(1, len(event_error_all) + 1),
@@ -652,15 +814,17 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, prob_cla
 
                         line.set_label(r'$M={}$'.format(M))
 
-                        h_max_event = results_event_error_restarts[M][dt][use_SE][alpha]['h_max_event']
+                        h_max_event = results_event_error_restarts['fully_implicit_DAE'][M][dt][use_SE][alpha]['h_max_event']
                         h_ax.semilogy(
                             np.arange(1, len(h_max_event) + 1),
                             h_max_event,
                             color=colors[M],
                             linestyle='dashdot',
-                            marker=markers[M],
-                            markersize=5,
-                            alpha=0.4,
+                            linewidth=0.9,
+                            marker='o',
+                            markeredgecolor='k',
+                            markersize=7,
+                            alpha=0.5,
                         )
 
                         if M == nnodes[-1]:  # dummy plot for more pretty legend
@@ -672,9 +836,11 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, prob_cla
                                 1e2,
                                 color='black',
                                 linestyle='dashdot',
-                                marker=markers[M],
-                                markersize=5,
-                                alpha=0.4,
+                                linewidth=0.9,
+                                marker='o',
+                                markeredgecolor='k',
+                                markersize=7,
+                                alpha=0.5,
                                 label=r'$||h(t)||_\infty$',
                             )
 
@@ -691,7 +857,8 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, prob_cla
         ax.set_ylabel(r'Event time error $|t^*_{ex} - t^*_{SE}|$', fontsize=16)
         ax.grid(visible=True)
         ax.minorticks_off()
-        ax.legend(frameon=True, fontsize=12, loc='upper right')
+        ax.legend(frameon=True, fontsize=12, loc='lower left')
+        ax.set_facecolor('#D3D3D3')
 
         fig.savefig('data/test_DAE_event_time_error_restarts_dt{}.png'.format(dt), dpi=300, bbox_inches='tight')
         plt_helper.plt.close(fig)
@@ -721,15 +888,16 @@ def plot_compare_alpha(results_state_function, results_event_error, prob_class, 
 
     nnodes, dt_list, _, alphas = get_dict_keys(prob_class)
 
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
     dt_list = [dt_fix] if dt_fix is not None else dt_list
     alphas = [alpha_fix] if alpha_fix is not None else alphas
 
     for dt in dt_list:
-        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
         h_ax = ax.twinx()
         for M in nnodes:
             for use_SE in [True]:
-                event_error_alpha = [results_event_error[M][dt][use_SE][alpha] for alpha in alphas]
+                event_error_alpha = [results_event_error['fully_implicit_DAE'][M][dt][use_SE][alpha] for alpha in alphas]
 
                 (line,) = ax.plot(
                     alphas,
@@ -741,7 +909,7 @@ def plot_compare_alpha(results_state_function, results_event_error, prob_class, 
 
                 line.set_label(r'$M={}$'.format(M))
                 print(alphas)
-                state_function_alpha = [results_state_function[M][dt][use_SE][alpha]['h_abs'] for alpha in alphas]
+                state_function_alpha = [results_state_function['fully_implicit_DAE'][M][dt][use_SE][alpha]['h_abs'] for alpha in alphas]
                 print(state_function_alpha)
                 h_ax.plot(
                     alphas,
@@ -749,8 +917,9 @@ def plot_compare_alpha(results_state_function, results_event_error, prob_class, 
                     color=colors[M],
                     linestyle='dashdot',
                     marker=markers[M],
-                    markersize=5,
-                    alpha=0.4,
+                    markeredgecolor='k',
+                    markersize=15,
+                    alpha=0.6,
                 )
 
                 if M == nnodes[-1]:  # dummy plot for more pretty legend
@@ -763,8 +932,9 @@ def plot_compare_alpha(results_state_function, results_event_error, prob_class, 
                         color='black',
                         linestyle='dashdot',
                         marker=markers[M],
-                        markersize=5,
-                        alpha=0.4,
+                        markeredgecolor='k',
+                        markersize=15,
+                        alpha=0.6,
                         label=r'$||h(t)||_\infty$',
                     )
 
@@ -782,11 +952,122 @@ def plot_compare_alpha(results_state_function, results_event_error, prob_class, 
         ax.grid(visible=True)
         ax.minorticks_off()
         ax.legend(frameon=True, fontsize=12, loc='upper right')
+        ax.set_facecolor('#D3D3D3')
 
         fig.savefig('data/test_DAE_compare_alphas_dt{}.png'.format(dt), dpi=300, bbox_inches='tight')
         plt_helper.plt.close(fig)
 
 
+def plot_comparison_event_time_state_function(results_state_function, results_event_error, prob_class, alpha_fix=None):
+    """
+    Plots the event time error and the state function for different sweeper. Note
+    that this function can be embedded into the other functions.
+
+    Parameters
+    ----------
+    results_state_function : dict
+        Contains absolute values of state function for different M, different step sizes
+        and event detection or not.
+    results_event_error : dict
+        Contains all events for each considered number of coll. nodes, step size and
+        event detection and not.
+    prob_class : str
+        Indicates of which problem class results are plotted (used to define the file name).
+    """
+
+    colors, markers, _ = plot_styling_stuff(prob_class, color_type='sweeper')
+
+    nnodes, dt_list, _, alphas = get_dict_keys(prob_class)
+
+    dt_list = [dt_list] if isinstance(dt_list, float) else dt_list
+    alphas = [alpha_fix] if alpha_fix is not None else alphas
+
+    for alpha in alphas:
+        for M in nnodes:
+            fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 6))
+            h_ax = ax.twinx()
+            for sweeper_cls_name in ['fully_implicit_DAE', 'EDIRK4DAE', 'TrapezoidalRuleDAE']:
+                if sweeper_cls_name == 'fully_implicit_DAE':
+                    sweeper_label = 'SDC'
+                elif sweeper_cls_name == 'EDIRK4DAE':
+                    sweeper_label = 'EDIRK4'
+                elif sweeper_cls_name == 'TrapezoidalRuleDAE':
+                    sweeper_label = 'Trapezoidal rule'
+                else:
+                    raise NotImplementedError
+                for use_SE in [True]:
+                    sweeper_event_error = [results_event_error[sweeper_cls_name][M][dt][use_SE][alpha] for dt in dt_list]
+
+                    (line,) = ax.loglog(
+                        dt_list,
+                        sweeper_event_error,
+                        color=colors[sweeper_cls_name],
+                        linestyle='solid',
+                        # marker=markers[M],
+                    )
+
+                    line.set_label(f'{sweeper_label}')
+                    print(dt_list, sweeper_event_error)
+                    for m in range(len(sweeper_event_error)):
+                        if sweeper_event_error[m] == 1.0:
+                            ax.annotate(
+                                'X',
+                                (dt_list[m], sweeper_event_error[m]),
+                                xytext=(-13.0, 10),
+                                textcoords="offset points",
+                                color=colors[sweeper_cls_name],
+                                fontsize=10,
+                            )
+
+                    sweeper_state_function = [results_state_function[sweeper_cls_name][M][dt][use_SE][alpha]['h_abs'] for dt in dt_list]
+                    print(sweeper_state_function)
+                    h_ax.loglog(
+                        dt_list,
+                        sweeper_state_function,
+                        color=colors[sweeper_cls_name],
+                        linestyle='dashdot',
+                        marker=markers[sweeper_cls_name],
+                        markeredgecolor='k',
+                        markersize=15,
+                        alpha=0.6,
+                    )
+
+                    if sweeper_cls_name == 'TrapezoidalRuleDAE':  # dummy plot for more pretty legend
+                        ax.plot(
+                            1, sweeper_event_error[0], color='black', linestyle='solid', label=r'$|t^*_{ex} - t^*_{SE}|$'
+                        )
+                        ax.plot(
+                            1,
+                            1e2,
+                            color='black',
+                            linestyle='dashdot',
+                            marker=markers[sweeper_cls_name],
+                            markeredgecolor='k',
+                            markersize=15,
+                            alpha=0.6,
+                            label=r'$|h(y(T))|$',
+                        )
+            h_ax.tick_params(labelsize=16)
+            h_ax.set_ylim(1e-15, 1e1)
+            h_ax.set_yscale('log', base=10)
+            h_ax.set_ylabel(r'Absolute value of h $|h(y(T))|$', fontsize=16)
+            h_ax.minorticks_off()
+    
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.set_ylim(1e-15, 1e1)
+            ax.set_yscale('log', base=10)
+            ax.set_xlabel(r'Step size $\Delta t$', fontsize=16)
+            ax.set_ylabel(r'Event time error $|t^*_{ex} - t^*_{SE}|$', fontsize=16)
+            ax.grid(visible=True)
+            ax.minorticks_off()
+            ax.legend(frameon=True, fontsize=12, loc='upper left')
+            ax.set_facecolor('#D3D3D3')
+    
+            fig.savefig(f'data/test_DAE_comparison_event_time_state_function_M={M}_alpha={alpha}.png', dpi=300, bbox_inches='tight')
+            plt_helper.plt.close(fig)
+
+
 if __name__ == "__main__":
-    make_plots_for_test_DAE()
+    # make_plots_for_test_DAE()
+    make_plots_for_test_DAE_numerical_comparison()
     # make_plots_for_WSCC9_test_case()

@@ -27,11 +27,14 @@ class RungeKuttaDAE(RungeKutta):
         P = L.prob
 
         du_init = self.du_init if self.du_init is not None else P.du_exact(L.time)
+        print(du_init, self.coll.nodes)
         L.f[0] = P.dtype_f(du_init)
         for m in range(1, self.coll.num_nodes + 1):
             L.u[m] = P.dtype_u(init=P.init, val=0.0)
             L.f[m] = P.dtype_f(init=P.init, val=0.0)
-
+        print(f'predict at time {L.time}:')
+        print(L.f)
+        print()
         # indicate that this level is now ready for sweeps
         L.status.unlocked = True
         L.status.updated = True
@@ -102,11 +105,11 @@ class RungeKuttaDAE(RungeKutta):
 
                 # defines the "implicit" factor, note that for explicit RK the diagonal element is zero
                 local_u_approx += L.dt * self.QI[m + 1, m + 1] * unknowns_mesh
-                sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[m])
+                sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[m + 1])
                 return sys
 
             # implicit solve with prefactor stemming from the diagonal of Qd, use previous stage as initial guess
-            du_new = P.solve_system(implSystem, L.f[m], L.time + L.dt * self.coll.nodes[m])
+            du_new = P.solve_system(implSystem, L.f[m], L.time + L.dt * self.coll.nodes[m + 1])
 
             L.f[m + 1][:] = du_new
 
@@ -114,28 +117,16 @@ class RungeKuttaDAE(RungeKutta):
         integral = self.integrate()
         for m in range(M):
             L.u[m + 1] = L.u[0] + integral[m]
-
+        # print('After solve:')
+        # print(L.f)
+        # print('Last node:')
+        # print(L.f[-1])
         self.du_init = L.f[-1]
 
         # indicate presence of new values at this level
         L.status.updated = True
 
         return None
-
-
-class MillerDIRK(RungeKutta):
-    """
-    Miller's DIRK method of order three with three stages. Taken from
-    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (217).
-    """
-
-    nodes = np.array([1.0, 1.0 / 3.0, 1.0])
-    weights = np.array([0.0, 3.0, 1.0]) / 4.0
-    matrix = np.zeros((3, 3))
-    matrix[0, 0] = 1.0
-    matrix[1, :2] = [-1.0 / 12.0, 5.0 / 12.0]
-    matrix[2, :3] = [0.0, 3.0 / 4.0, 1.0 / 4.0]
-    ButcherTableauClass = ButcherTableau
 
 
 class EDIRK4(RungeKutta):
@@ -151,6 +142,34 @@ class EDIRK4(RungeKutta):
     matrix[1, :2] = [3.0 / 4.0, 3.0 / 4.0]
     matrix[2, :3] = [447.0 / 675.0, -357.0 / 675.0, 855.0 / 675.0]
     matrix[3, :] = [13.0 / 42.0, 84.0 / 42.0, -125.0 / 42.0, 70.0 / 42.0]
+    # nodes = np.array([0, 1 / 2, 1])#np.array([0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0])
+    # weights = np.array([1/6, 4/6, 1/6])#np.array([1.0 / 8.0, 3.0 / 8.0, 3.0 / 8.0, 1.0 / 8.0])
+    # matrix = np.zeros((3, 3))#np.zeros((4, 4))
+    # matrix[0, 0] = 0
+    # matrix[1, :2] = [1/4, 1/4]#[1.0 / 6.0, 1.0 / 6.0]
+    # matrix[2, :3] = [1/6, 4/6, 1/6]#[1.0 / 12.0, 1.0 / 2.0, 1.0 / 12.0]
+    # matrix[3, :] = [1.0 / 8.0, 3.0 / 8.0, 3.0 / 8.0, 1.0 / 8.0]
+    # nodes = np.array([0.5, 2.0 / 3.0, 0.5, 1.0])
+    # weights = np.array([3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5])
+    # matrix = np.zeros((4, 4))
+    # matrix[0, 0] = 0.5
+    # matrix[1, :2] = [1.0 / 6.0, 0.5]
+    # matrix[2, :3] = [-0.5, 0.5, 0.5]
+    # matrix[3, :] = [3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5]
+    ButcherTableauClass = ButcherTableau
+
+
+class TrapezoidalRule(RungeKutta):
+    """
+    Famous trapezoidal rule of second order. Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), third one in eq. (213).
+    """
+
+    nodes = np.array([0.0, 1.0])
+    weights = np.array([1.0 / 2.0, 1.0 / 2.0])
+    matrix = np.zeros((2, 2))
+    matrix[0, 0] = 0.0
+    matrix[1, :] = [1.0 / 2.0, 1.0 / 2.0]
     ButcherTableauClass = ButcherTableau
 
 
@@ -158,7 +177,7 @@ class BackwardEulerDAE(RungeKuttaDAE, BackwardEuler):
     pass
 
 
-class MillerDIRKDAE(RungeKuttaDAE, MillerDIRK):
+class TrapezoidalRuleDAE(RungeKuttaDAE, TrapezoidalRule):
     pass
 
 

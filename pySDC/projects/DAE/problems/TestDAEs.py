@@ -452,8 +452,6 @@ class LinearTestODEMinion(ptype):
         f : dtype_f
             The right-hand side of f (contains four components).
         """
-        c = 1e4
-        u1, u2, u3, u4 = u[0], u[1], u[2], u[3]
 
         f = self.dtype_f(self.init)
         b = np.array([0, (1 + 1e4) * np.exp(t), 0, -1 / self.eps * np.exp(t)])

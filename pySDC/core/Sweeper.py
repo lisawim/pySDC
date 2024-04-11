@@ -362,6 +362,14 @@ class sweeper(object):
             elif self.params.initial_guess == 'random':
                 L.u[m] = P.dtype_u(init=P.init, val=self.rng.rand(1)[0])
                 L.f[m] = P.dtype_f(init=P.init, val=self.rng.rand(1)[0])
+            elif self.params.initial_guess == 'IE':
+                QI = self.get_Qdelta_implicit(self.coll, qd_type='IE')
+                L.u[m] = P.solve_system(P.dtype_u(P.init, val=0.0), QI[m, m], L.u[m - 1], L.time + L.dt * self.coll.nodes[m - 1])
+                L.f[m] = P.eval_f(L.u[m], L.time + L.dt * self.coll.nodes[m - 1])
+            elif self.params.initial_guess == 'EE':
+                QI = self.get_Qdelta_implicit(self.coll, qd_type='EE')
+                L.u[m] = L.u[m - 1] + QI[m, m] * P.eval_f(L.u[m - 1], L.time + L.dt * self.coll.nodes[m - 1])
+                L.f[m] = P.eval_f(L.u[m], L.time + L.dt * self.coll.nodes[m - 1])
             else:
                 raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
 

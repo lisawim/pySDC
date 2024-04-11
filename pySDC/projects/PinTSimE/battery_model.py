@@ -53,6 +53,7 @@ def generateDescription(
     num_nodes,
     quad_type,
     QI,
+    initial_guess,
     hook_class,
     use_adaptivity,
     use_switch_estimator,
@@ -123,7 +124,7 @@ def generateDescription(
         'quad_type': quad_type,
         'num_nodes': num_nodes,
         'QI': QI,
-        'initial_guess': 'spread',
+        'initial_guess': initial_guess,
     }
 
     # initialize step parameters
@@ -158,9 +159,6 @@ def generateDescription(
             'crash_after_max_restarts': False,
         }
         convergence_controllers.update({BasicRestartingNonMPI: restarting_params})
-    if e_tol_conv > 0:
-        print('e_tol_conv')
-        convergence_controllers.update({CheckConvergenceError: {}})
 
     # fill description dictionary for easy step instantiation
     description = {
@@ -210,7 +208,7 @@ def controllerRun(description, controller_params, t0, Tend, exact_event_time_ava
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    return stats, t_switch_exact
+    return uend, stats, t_switch_exact
 
 
 def main():
@@ -431,8 +429,9 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAE': ['y', 'z'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': ['y', 'z'],
         'LinearTestDAE' : ['ud', 'ua'],
+        'EmbeddedLinearTestDAE' : ['ud', 'ua'],
         'LinearTestDAEMinion': ['u1', 'u2', 'u3', 'u4'],
-        'LinearTestODEMinion': ['u1', 'u2', 'u3', 'u4'],
+        'EmbeddedLinearTestDAEMinion': ['u1', 'u2', 'u3', 'u4'],
         'LinearTestDAEReduced' : ['ud', 'ua'],
         'problematic_f': ['y1', 'y2'],
         'VanDerPolDAE': ['y', 'z'],
@@ -523,8 +522,9 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestDAE': [r'$y$', r'$z$'],
         'DiscontinuousTestDAEWithAlgebraicStateFunction': [r'$y$', r'$z$'],
         'LinearTestDAE' : [r'$u_d$', r'$u_a$'],
+        'EmbeddedLinearTestDAE' : [r'$u_d$', r'$u_a$'],
         'LinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
-        'LinearTestODEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
+        'EmbeddedLinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
         'LinearTestDAEReduced' : [r'$u_d$', r'$u_a$'],
         'problematic_f': [r'$y_1$', r'$y_2$'],
         'VanDerPolDAE': [r'$y$', r'$z$'],
@@ -672,7 +672,7 @@ def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_det
     plt_helper.plt.close(fig)
 
 
-def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, recomputed, t_switch_exact):
+def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, recomputed, t_switch_exact, uend_ref):
     r"""
     TODO: Update docu!
     Extracts statistics and store it in a dictionary. In this routine, from ``stats`` different data are extracted
@@ -717,6 +717,8 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
         Indicates if values after successfully steps are used or not.
     t_switch_exact : float
         Exact event time of the problem.
+    uend_ref : np.1darray, optional
+        Reference solution at specified end time.
 
     Returns
     -------
@@ -736,7 +738,6 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
         if type(u_val[0][1]) == DAEMesh:
             n_diff = len(u_val[0][1].diff)
             res[label] = np.array([item[1].diff[i] for item in u_val]) if i < len(u_val[0][1].diff) else np.array([item[1].alg[i - n_diff] for item in u_val])
-            # print(label, res[label])
         else:
             res[label] = np.array([item[1][i] for item in u_val])
 
@@ -758,7 +759,16 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
         res['e_global_post_iter_du'] = [get_sorted(stats, iter=k, type='e_global_post_iter_du', sortby='time') for k in range(1, maxiter + 1)]
         res['e_global_algebraic_post_iter_du'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter_du', sortby='time') for k in range(1, maxiter + 1)]
     else:
-        res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+        if uend_ref is not None:
+            # only error at end time is computed here!
+            uend = np.array([item[1] for item in u_val])[-1, :]
+            print('ref:', uend_ref[:-1] - uend[:-1])
+            res['e_global'] = abs(uend_ref[:-1] - uend[:-1])
+            res['e_global_algebraic'] = abs(uend_ref[-1] - uend[-1])
+        else:
+            print('uend_ref', uend_ref)
+            res['e_global'] = np.array(get_sorted(stats, type='e_global', sortby='time', recomputed=recomputed))#abs(np.array(get_sorted(stats, type='e_global', sortby='time', recomputed=recomputed))[-1, :-1])
+            res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic', sortby='time', recomputed=recomputed))#abs(np.array(get_sorted(stats, type='e_global_algebraic', sortby='time', recomputed=recomputed))[-1, -1])
         res['e_global_post_iter'] = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, maxiter + 1)]
         res['e_global_algebraic_post_iter'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, maxiter + 1)]
 

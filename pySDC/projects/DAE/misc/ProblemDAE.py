@@ -194,6 +194,19 @@ class ptype_dae(ptype):
         me.alg[:] = sol[np.size(me.diff) :].reshape(me.alg.shape)
         return me
     
+    def du_exact(self, t):
+        r"""
+        Interface for derivative of exact solution. Note that in
+        DAE case, this function might needed when for SDC a provisional
+        solution is computed via a low-order method.
+
+        Parameters
+        ----------
+        t : float
+            Time of the derivative of exact solution 
+        """
+        raise NotImplementedError("ERROR: problem has to implement du_exact(self, t)!")
+    
     def callback_linear(self):
         self.niter_linear += 1
 

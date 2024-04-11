@@ -107,8 +107,6 @@ class fully_implicit_DAE(generic_implicit):
                 """
 
                 params_mesh = P.dtype_f(params)
-                # params_mesh = P.dtype_f(P.init)
-                # params_mesh[:] = params
 
                 # build parameters to pass to implicit function
                 local_u_approx = P.dtype_f(u_approx)
@@ -168,7 +166,7 @@ class fully_implicit_DAE(generic_implicit):
         #     print(f'Minimized spectral radius for lamb_diff={P.lamb_diff}, lamb_alg={P.lamb_alg}:', rho_A(d.x))
         #     self.QI[1:, 1:] = np.diag(d.x)
         # set initial guess for gradient to zero
-        L.f[0] = P.dtype_f(init=P.init, val=0.0)
+        L.f[0] = P.dtype_f(init=P.init, val=0.0) if self.params.initial_guess == 'IE' else P.du_exact(L.time)
         for m in range(1, self.coll.num_nodes + 1):
             # copy u[0] to all collocation nodes and set f (the gradient) to zero
             if self.params.initial_guess == 'spread':
@@ -181,6 +179,26 @@ class fully_implicit_DAE(generic_implicit):
             elif self.params.initial_guess == 'random':
                 L.u[m] = P.dtype_u(init=P.init, val=np.random.rand(1)[0])
                 L.f[m] = P.dtype_f(init=P.init, val=np.random.rand(1)[0])
+            elif self.params.initial_guess == 'IE':
+                QI = self.get_Qdelta_implicit(self.coll, qd_type='IE')
+                u_approx = L.f[m - 1]
+                dtau = self.coll.nodes[m] - self.coll.nodes[m - 1]
+
+                def implSystem(unknowns):
+                    r"""
+                    System to be solved for computing a provisional solution. Here, implicit Euler for DAEs is used.
+                    """
+                    unknowns_mesh = P.dtype_f(unknowns)
+                    local_u_approx = P.dtype_f(u_approx)
+                    local_u_approx *= (-1)
+                    local_u_approx += unknowns_mesh
+                    local_u_approx /= dtau
+                    sys = P.eval_f(local_u_approx, unknowns_mesh, L.time + L.dt * self.coll.nodes[m])
+                    return sys
+
+
+                L.f[m] = P.solve_system(implSystem, L.f[m - 1], L.time + L.dt * self.coll.nodes[m])
+                L.u[m] = P.dtype_u(P.init, val=0.0)
             else:
                 raise ParameterError(f'initial_guess option {self.params.initial_guess} not implemented')
         print(L.time)

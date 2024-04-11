@@ -44,12 +44,6 @@ class error_hook(hooks):
     Hook class to log the global error in the differential variable after each step.
     """
 
-    def __init__(self):
-        """
-        Initialization routine for the custom hook
-        """
-        super(error_hook, self).__init__()
-
     def post_step(self, step, level_number):
         """
         Default routine called after each step
@@ -206,7 +200,7 @@ class LogGlobalErrorPostIterDiffODE(hooks):
         L.sweep.compute_end_point()
 
         upde = P.u_exact(step.time + step.dt)
-        e_global = abs(upde[:3] - L.uend[:3])
+        e_global = abs(upde[:-1] - L.uend[:-1])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -216,6 +210,87 @@ class LogGlobalErrorPostIterDiffODE(hooks):
             sweep=L.status.sweep,
             type='e_global_post_iter',
             value=e_global,
+        )
+
+
+class LogGlobalErrorPostStepDiffODE(hooks):
+    """
+    Logs the global error in the differential variable and its derivative after each iteration.
+    Note that this hook is only for ``LinearTestODEMinion``!
+    """
+    def post_step(self, step, level_number):
+        super().post_step(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global = abs(upde[:-1] - L.uend[:-1])
+        # print('Hook:', L.uend)
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='e_global',
+            value=e_global,
+        )
+
+
+class LogGlobalErrorPostIterAlgODE(hooks):
+    """
+    Logs the global error in the differential variable and its derivative after each iteration.
+    Note that this hook is only for ``LinearTestODEMinion``!
+    """
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global = abs(upde[:-1] - L.uend[:-1])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='e_global_algebraic_post_iter',
+            value=e_global,
+        )
+
+
+class LogGlobalErrorPostStepAlgODE(hooks):
+    """
+    Logs the global error in the differential variable and its derivative after each iteration.
+    Note that this hook is only for ``LinearTestODEMinion``!
+    """
+    def post_step(self, step, level_number):
+        super().post_step(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_algebraic = abs(upde[-1] - L.uend[-1])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='e_global_algebraic',
+            value=e_global_algebraic,
         )
 
 
@@ -260,7 +335,7 @@ class LogGlobalErrorPostIterAlgODE(hooks):
         L.sweep.compute_end_point()
 
         upde = P.u_exact(step.time + step.dt)
-        e_global_algebraic = abs(upde[3] - L.uend[3])
+        e_global_algebraic = abs(upde[-1] - L.uend[-1])
 
         # du_ref = P.du_exact(step.time + step.dt)
         # e_global_algebraic_du = abs(du_ref.alg - L.f[-1].alg)

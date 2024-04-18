@@ -435,7 +435,9 @@ def getUnknownLabels(prob_cls_name):
         'LinearTestDAEReduced' : ['ud', 'ua'],
         'problematic_f': ['y1', 'y2'],
         'VanDerPolDAE': ['y', 'z'],
-        'VanDerPolODE': ['y', 'z'],
+        'VanDerPol': ['y', 'z'],
+        'StiffPendulum': ['q1', 'q2', 'v1', 'v2'],
+        'CosineProblem': ['u'],
         'WSCC9BusSystem': [
             'Eqp0',
             'Eqp1',
@@ -528,7 +530,9 @@ def getUnknownLabels(prob_cls_name):
         'LinearTestDAEReduced' : [r'$u_d$', r'$u_a$'],
         'problematic_f': [r'$y_1$', r'$y_2$'],
         'VanDerPolDAE': [r'$y$', r'$z$'],
-        'VanDerPolODE': [r'$y$', r'$z$'],
+        'VanDerPol': [r'$y$', r'$z$'],
+        'StiffPendulum': [r'$q_1$', r'$q_2$', r'$v_1$', r'$v_2$'],
+        'CosineProblem': [r'$u$'],
         'WSCC9BusSystem': [
             r"$E^'_{q,0}$",
             r"$E^'_{q,1}$",
@@ -767,7 +771,8 @@ def getDataDict(stats, prob_cls_name, maxiter, use_adaptivity, use_detection, re
             res['e_global_algebraic'] = abs(uend_ref[-1] - uend[-1])
         else:
             print('uend_ref', uend_ref)
-            res['e_global'] = np.array(get_sorted(stats, type='e_global', sortby='time', recomputed=recomputed))#abs(np.array(get_sorted(stats, type='e_global', sortby='time', recomputed=recomputed))[-1, :-1])
+            res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+            # res['e_global'] = np.array(get_sorted(stats, type='e_global', sortby='time', recomputed=recomputed))#abs(np.array(get_sorted(stats, type='e_global', sortby='time', recomputed=recomputed))[-1, :-1])
             res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic', sortby='time', recomputed=recomputed))#abs(np.array(get_sorted(stats, type='e_global_algebraic', sortby='time', recomputed=recomputed))[-1, -1])
         res['e_global_post_iter'] = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, maxiter + 1)]
         res['e_global_algebraic_post_iter'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, maxiter + 1)]

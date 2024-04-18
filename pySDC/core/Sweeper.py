@@ -364,7 +364,7 @@ class sweeper(object):
                 L.f[m] = P.dtype_f(init=P.init, val=self.rng.rand(1)[0])
             elif self.params.initial_guess == 'IE':
                 QI = self.get_Qdelta_implicit(self.coll, qd_type='IE')
-                L.u[m] = P.solve_system(P.dtype_u(P.init, val=0.0), QI[m, m], L.u[m - 1], L.time + L.dt * self.coll.nodes[m - 1])
+                L.u[m] = P.solve_system(L.u[m - 1], L.dt * QI[m, m], L.u[m - 1], L.time + L.dt * self.coll.nodes[m - 1])#P.solve_system(P.dtype_u(P.init, val=0.0), QI[m, m], L.u[m - 1], L.time + L.dt * self.coll.nodes[m - 1])
                 L.f[m] = P.eval_f(L.u[m], L.time + L.dt * self.coll.nodes[m - 1])
             elif self.params.initial_guess == 'EE':
                 QI = self.get_Qdelta_implicit(self.coll, qd_type='EE')

@@ -421,6 +421,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': ['u'],
         'piline': ['vC1', 'vC2', 'iLp'],
         'buck_converter': ['vC1', 'vC2', 'iLp'],
+        'CosineProblem': ['u'],
     }
 
     unknowns_labels = {
@@ -430,6 +431,7 @@ def getUnknownLabels(prob_cls_name):
         'DiscontinuousTestODE': [r'$u$'],
         'piline': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
+        'CosineProblem': [r'$u$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -454,7 +456,7 @@ def plotStylingStuff():  # pragma: no cover
     return colors
 
 
-def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma: no cover
+def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_detection):  # pragma: no cover
     r"""
     Plots the numerical solution for one simulation run.
 
@@ -492,7 +494,7 @@ def plotSolution(u_num, prob_cls_name, use_adaptivity, use_detection):  # pragma
     ax.set_xlabel(r'$t$', fontsize=16)
     ax.set_ylabel(r'$u(t)$', fontsize=16)
 
-    fig.savefig('data/{}_model_solution.png'.format(prob_cls_name), dpi=300, bbox_inches='tight')
+    fig.savefig('data/{prob_cls_name}_model_solution_{sweeper_cls_name}.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 
@@ -561,6 +563,7 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
 
     # global error
     res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+    res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
 
     # event time(s) found by event detection
     if use_detection:
@@ -593,6 +596,7 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
 
     # sum over all iterations
     res['sum_niters'] = np.sum(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
+    res['mean_niters'] = np.mean(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
     return res
 
 

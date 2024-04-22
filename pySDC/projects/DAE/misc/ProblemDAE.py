@@ -36,6 +36,10 @@ class ptype_dae(ptype):
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
+        self.file_name = '/home/lisa/Buw/Programme/Python/Libraries/pySDC/pySDC/projects/DAE/run/data/pysdc.txt'
+        file = open(self.file_name, 'w')
+        file.close()
+
     def solve_system(self, impl_sys, u0, t):
         r"""
         Solver for nonlinear implicit system (defined in sweeper).
@@ -58,14 +62,20 @@ class ptype_dae(ptype):
 
         def implSysFlatten(unknowns, **kwargs):
             sys = impl_sys(unknowns.reshape(me.shape).view(type(u0)), **kwargs)
+            file = open(self.file_name, 'a')
+            # file.write(f'Sys at time {round(t, 5)}: {sys}\n')
+            file.close()
             return sys.flatten()
 
         opt = root(
             implSysFlatten,
-            u0,
+            u0.copy(),
             method='hybr',
             tol=self.newton_tol,
         )
+        file = open(self.file_name, 'a')
+        file.write(f'Solution at time {round(t, 5)}: {opt.x}\n')
+        file.close()
         me[:] = opt.x.reshape(me.shape)
         self.work_counters['newton'].niter += opt.nfev
         return me

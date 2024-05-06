@@ -1,16 +1,12 @@
 import numpy as np
 from pathlib import Path
-import dill
 
-from pySDC.helpers.stats_helper import get_sorted
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAEMinion, EmbeddedLinearTestDAE, VanDerPol, StiffPendulum, CosineProblem
+from pySDC.implementations.problem_classes.singularPerturbed import CosineProblem
 
 import pySDC.helpers.plot_helper as plt_helper
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun, getDataDict, plotSolution
-from pySDC.projects.DAE.run.DAE_study import getDataDictKeys, NestedListIntoSingleList, plotStylingStuff
 
 from pySDC.implementations.hooks.log_solution import LogSolution, LogSolutionAfterIteration
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostIter, LogGlobalErrorPostStep
@@ -47,7 +43,7 @@ def main():
         'exact_event_time_avail': None,
     }
 
-    epsilons = [10 ** (-k) for k in range(1, 13)]#np.logspace(-12.0, 0.0, 100)
+    epsilons = [1e-1, 1e-4, 1e-7, 1e-10]#[10 ** (-k) for k in range(1, 13)]#np.logspace(-12.0, 0.0, 100)
     eps_fix = epsilons#[eps for eps in epsilons if eps <= 1e-10]#epsilons
 
     problems = [CosineProblem]
@@ -277,6 +273,161 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
                                             )
 
     return u_num
+
+
+def plotStylingStuff(color_type, linestyle_type='QI'):
+    """
+    Returns plot stuff such as colors, line styles for making plots more pretty.
+
+    Parameters
+    ----------
+    color_type : str
+        Can be 'M' or 'QI'.
+    linestyle_type : str, optional
+        Can be 'M', 'QI' or 'newton_tol'.
+    """
+
+    if color_type == 'M':
+        keys = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+        colors = {
+            2: 'limegreen',
+            3: 'firebrick',
+            4: 'deepskyblue',
+            5: 'purple',
+            6: 'olivedrab',
+            7: 'darkorange',
+            8: 'dodgerblue',
+            9: 'deeppink',
+            10: 'turquoise',
+            11: 'darkblue',
+            12: 'mediumorchid',
+            13: 'lightcoral',
+        }
+    elif color_type == 'QI':
+        keys = ['IE', 'LU', 'MIN', 'MIN-A', 'MIN3', 'MIN-SR-S', 'MIN-SR-NS', 'IEpar', 'Qpar', 'PIC']
+        colors = {
+            'IE': 'limegreen',  #'lightcoral',
+            'LU': 'firebrick',  # 'olivedrab',
+            'MIN': 'deepskyblue',  # 'turquoise',
+            'MIN-A': 'limegreen',
+            'MIN3': 'mediumorchid',
+            'MIN-SR-S': 'olivedrab',  # 'darkorange',
+            'MIN-SR-NS': 'dodgerblue',
+            'IEpar': 'purple',  # 'firebrick',
+            'Qpar': 'darkblue',
+            'PIC': 'deeppink',
+        }
+    elif color_type == 'sweeper':
+        keys = ['fully_implicit_DAE', 'SemiExplicitDAE', 'SemiExplicitDAEReduced', 'generic_implicit']
+        colors = {
+            'fully_implicit_DAE': 'firebrick',
+            'SemiExplicitDAE': 'deepskyblue',
+            'SemiExplicitDAEReduced': 'olivedrab',
+            'generic_implicit': 'purple',
+        }
+    else:
+        # raise ParameterError(f"No color type for {color_type} implemented!")
+        keys = np.arange(0, 13, 1)
+        colors = {
+            0: 'turquoise',
+            1: 'deepskyblue',
+            2: 'purple',
+            3: 'firebrick',
+            4: 'limegreen',
+            5: 'orange',
+            6: 'plum',
+            7: 'salmon',
+            8: 'forestgreen',
+            9: 'midnightblue',
+            10: 'gold',
+            11: 'silver',
+            12: 'black',
+        }
+
+    if linestyle_type == 'M' or linestyle_type == 'QI':
+        linestyles = {key:val for key, val in zip(keys, ['solid', 'dashed', 'dashdot', 'dotted', 'solid', 'dashed', 'dashdot', 'dotted', 'solid', 'dashed'])}
+    elif linestyle_type == 'newton_tol':
+        linestyles = {
+            0: 'solid',
+            1: 'dotted',
+            2: 'dashed',
+            3: 'dashdot',
+            4: (0, (1, 10)),
+            5: (0, (1, 1)),
+            6: (5, (10, 3)),
+            7: (0, (5, 10)),
+            8: (0, (5, 1)),
+            9: (0, (3, 10, 1, 10)),
+            10: 'solid',
+            11: 'dashed',
+            12: 'dotted',
+            13: 'dashdot',
+        }
+    else:
+        raise ParameterError(f"No linestyle type for {linestyle_type} implemented!")
+
+    markers = {key:val for key, val in zip(keys, ['s', 'o', '*', 'd', 'h', '8', '^', 'v', 'p', 'D', '>', '<'])}
+
+    xytext = {key:val for key, val in zip(keys, [(-13, -13), (-13.0, 15), (-13.0, -10), (-13.0, -22), (-13.0, 42), (-13.0, -40), (-13.0, 50), (-13.0, -52), (-13, 20)])}
+
+    return colors, linestyles, markers, xytext
+
+def getDataDictKeys(u_num):
+    r"""
+    Returns the keys of all sub dictionaries of the ``u_num`` dict.
+
+    Parameters
+    ----------
+    u_num : dict
+        Contains the numerical solution as well as some other statistics for different parameters.
+
+    Returns
+    -------
+    sweeper_keys : list
+        Keys with used sweepers.
+    QI_keys : list
+        Keys with used preconditioners.
+    dt_keys : list
+        Keys with all step sizes.
+    M_keys : list
+        Keys of used number of collocation nodes.
+    use_SE_keys : list
+        Keys with bool's if SE is used or not.
+    use_A_keys : list
+        Keys with bool's if A is used or not.
+    newton_tolerances : list
+        Keys with used inner tolerances.
+    tol_event : :list
+        Keys with used tolerances to find the event using SE.
+    alpha : list
+       Keys of used factors :math:`\alpha` for the SE.
+    """
+
+    sweeper_keys = list(u_num.keys())
+    QI_keys = list(u_num[sweeper_keys[0]].keys())
+    dt_keys = list(u_num[sweeper_keys[0]][QI_keys[0]].keys())
+    M_keys = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]].keys())
+    use_SE_keys = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]][M_keys[0]].keys())
+    use_A_keys = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]].keys())
+    newton_tolerances = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]].keys())
+    tol_event = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]].keys())
+    alpha = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]].keys())
+    lamb_diff_keys = list(u_num[sweeper_keys[0]][QI_keys[0]][dt_keys[0]][M_keys[0]][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]].keys())
+
+    return sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha, lamb_diff_keys
+
+
+def NestedListIntoSingleList(res):
+    tmp_list = [item for item in res]
+    err_iter = []
+    for item in tmp_list:
+        err_dt = [me[1] for me in item]
+        if len(err_dt) > 0:
+            err_iter.append([me[1] for me in item])
+        # else:
+        #     err_iter.append(err_iter[-1])
+    err_iter = [item[0] for item in err_iter]
+    return err_iter
 
 
 def plotErrors(u_num, prob_cls_name, quad_type):

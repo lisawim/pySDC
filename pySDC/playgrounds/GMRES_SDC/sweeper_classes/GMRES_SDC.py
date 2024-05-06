@@ -4,7 +4,6 @@ from scipy.sparse.linalg import gmres
 import scipy.sparse.linalg as spla
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.playgrounds.GMRES_SDC.helpers.Jacobian import Jacobian
 
 
 def non_f(eps, t):

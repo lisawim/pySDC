@@ -425,6 +425,12 @@ def getUnknownLabels(prob_cls_name):
         'piline': ['vC1', 'vC2', 'iLp'],
         'buck_converter': ['vC1', 'vC2', 'iLp'],
         'CosineProblem': ['u'],
+        'ProtheroRobinson': ['u'],
+        'VanDerPol': ['y', 'z'],
+        'vanderpol': ['y', 'z'],
+        'EmbeddedLinearTestDAE': ['y', 'z'],
+        'EmbeddedLinearTestDAEMinion': ['u1', 'u2', 'u3', 'z'],
+        'LinearTestDAE': ['y', 'z'],
     }
 
     unknowns_labels = {
@@ -435,6 +441,12 @@ def getUnknownLabels(prob_cls_name):
         'piline': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'CosineProblem': [r'$u$'],
+        'ProtheroRobinson': [r'$u$'],
+        'VanDerPol': [r'$y$', r'$z$'],
+        'vanderpol': [r'$y$', r'$z$'],
+        'EmbeddedLinearTestDAE': [r'$y$', r'$z$'],
+        'EmbeddedLinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$z$'],
+        'LinearTestDAE': [r'$y$', r'$z$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -501,7 +513,7 @@ def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_det
     plt_helper.plt.close(fig)
 
 
-def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed, t_switch_exact):
+def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed, t_switch_exact, maxiter):
     r"""
     Extracts statistics and store it in a dictionary. In this routine, from ``stats`` different data are extracted
     such as
@@ -552,6 +564,8 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
         Dictionary with extracted data separated with reasonable keys.
     """
 
+    from pySDC.projects.DAE.misc.DAEMesh import DAEMesh
+
     res = {}
     unknowns, unknowns_labels = getUnknownLabels(prob_cls_name)
 
@@ -559,14 +573,25 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
     u_val = get_sorted(stats, type='u', sortby='time', recomputed=recomputed)
     res['t'] = np.array([item[0] for item in u_val])
     for i, label in enumerate(unknowns):
-        res[label] = np.array([item[1][i] for item in u_val])
+        if type(u_val[0][1]) == DAEMesh:
+            n_diff = len(u_val[0][1].diff)
+            res[label] = np.array([item[1].diff[i] for item in u_val]) if i < len(u_val[0][1].diff) else np.array([item[1].alg[i - n_diff] for item in u_val])
+        else:
+            res[label] = np.array([item[1][i] for item in u_val])
+        # res[label] = np.array([item[1][i] for item in u_val])
 
     res['unknowns'] = unknowns
     res['unknowns_labels'] = unknowns_labels
 
+    # residual
+    res['residual'] = np.array(get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed))
+
     # global error
     res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
     res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
+
+    res['e_global_post_iter'] = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, maxiter + 1)]
+    res['e_global_algebraic_post_iter'] = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, maxiter + 1)]
 
     # event time(s) found by event detection
     if use_detection:
@@ -596,6 +621,9 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
     # sum over restarts
     if use_adaptivity or use_detection:
         res['sum_restarts'] = np.sum(np.array(get_sorted(stats, type='restart', recomputed=None, sortby='time'))[:, 1])
+
+    # work
+    res['newton'] = np.array(get_sorted(stats, type='work_newton', sortby='time', recomputed=recomputed))
 
     # sum over all iterations
     res['sum_niters'] = np.sum(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])

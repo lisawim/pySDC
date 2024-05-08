@@ -3,9 +3,9 @@ import numpy as np
 
 from pySDC.core.Step import step
 
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinion
+from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAE
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.sweepers.SemiExplicitDAE import SemiExplicitDAE
+from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE as SemiExplicitDAE
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 # from pySDC.projects.DAE.run.DAE_study import plotStylingStuff
 
@@ -18,7 +18,7 @@ def generateDescription(dt, M, QI, sweeper, quad_type):
 
     problem_params = {
         'newton_tol': 1e-9,
-        'method': 'gmres',
+        # 'method': 'gmres',
     }
 
     # initialize sweeper parameters
@@ -31,7 +31,7 @@ def generateDescription(dt, M, QI, sweeper, quad_type):
 
     # fill description dictionary for easy step instantiation
     description = {
-        'problem_class': LinearTestDAEMinion,
+        'problem_class': EmbeddedLinearTestDAE,
         'problem_params': problem_params,
         'sweeper_class': sweeper,
         'sweeper_params': sweeper_params,

@@ -174,7 +174,7 @@ class EmbeddedLinearTestDAEMinion(ptype):
             def eval_rhs(t, u):
                 return self.eval_f(u, t)
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau', max_step=1e-6)
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau', max_step=1e-7)
         else:
             me[:] = (np.cos(t), np.exp(t), np.sin(t), -np.cos(t))
         return me
@@ -337,7 +337,7 @@ class EmbeddedLinearTestDAE(ptype):
             def eval_rhs(t, u):
                 return self.eval_f(u, t)
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', max_step=1e-5)
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')#, max_step=1e-5)
         else:
             me[:] = (np.exp(2 * t), np.exp(2 * t))
         return me
@@ -374,8 +374,9 @@ class VanDerPol(ptype):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
+    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=200, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
         """Initialization routine"""
+        print(eps)
         super().__init__(init=(nvars, None, np.dtype('float64')))
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
         self.work_counters['newton'] = WorkCounter()
@@ -401,8 +402,8 @@ class VanDerPol(ptype):
         y, z = u[0], u[1]
         f = self.dtype_f(self.init)
         f[:] = (
-            -z,
-            1 / self.eps * (y - ((z ** 3) / 3 - z)),
+            z,
+            (z - (y ** 2) * z - y) / self.eps,
         )
         self.work_counters['rhs']()
         return f
@@ -436,7 +437,7 @@ class VanDerPol(ptype):
         res = 99
         while n < self.newton_maxiter:
             # # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = np.array([y - factor * (-z) - rhs[0], z - factor * (1 / self.eps * (y - ((z ** 3) / 3 - z))) - rhs[1]])
+            g = np.array([y - factor * z - rhs[0], z - factor * ((z - (y ** 2) * z - y) / self.eps) - rhs[1]])
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -445,7 +446,7 @@ class VanDerPol(ptype):
                 break
 
             # assemble dg
-            dg = np.array([[1, -factor * (-1)], [- 1 / self.eps * factor, 1 + 1 / self.eps * factor * (z ** 2 - 1)]])
+            dg = np.array([[1, -factor], [factor * (2 * y * z + 1) / self.eps, 1 + factor * (y**2 - 1) / self.eps]])
             # newton update: u1 = u0 - g/dg
             u -= np.linalg.solve(dg, g)
 
@@ -496,9 +497,9 @@ class VanDerPol(ptype):
             def eval_rhs(t, u):
                 return self.eval_f(u, t)
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', max_step=1e-5)
         else:
-            me[:] = (2.0, 0)
+            me[:] = (2.0, 0.0)  # (2.0, -0.6666654321121172)
         return me
 
 

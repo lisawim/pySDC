@@ -39,7 +39,7 @@ class LogGlobalErrorPostStepDifferentialVariable(hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='e_global_differential_post_step',
+            type='e_global_post_step',
             value=e_global_differential,
         )
 
@@ -78,5 +78,57 @@ class LogGlobalErrorPostStepAlgebraicVariable(hooks):
             iter=step.status.iter,
             sweep=L.status.sweep,
             type='e_global_algebraic_post_step',
+            value=e_global_algebraic,
+        )
+
+
+class LogGlobalErrorPostIterDiff(hooks):
+    """
+    Logs the global error in the differential variable and its derivative after each iteration.
+    """
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global = abs(upde.diff - L.uend.diff)
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='e_global_post_iter',
+            value=e_global,
+        )
+
+
+class LogGlobalErrorPostIterAlg(hooks):
+    """
+    Logs the global error in the algebraic variable and its derivative after each iteration.
+    """
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_algebraic = abs(upde.alg - L.uend.alg)
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='e_global_algebraic_post_iter',
             value=e_global_algebraic,
         )

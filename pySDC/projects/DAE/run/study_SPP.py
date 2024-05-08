@@ -2,7 +2,12 @@ import numpy as np
 from pathlib import Path
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import CosineProblem
+from pySDC.implementations.problem_classes.singularPerturbed import CosineProblem, VanDerPol, EmbeddedLinearTestDAE
+from pySDC.implementations.problem_classes.odeScalar import ProtheroRobinson
+
+from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE
 
 import pySDC.helpers.plot_helper as plt_helper
 
@@ -12,6 +17,19 @@ from pySDC.implementations.hooks.log_solution import LogSolution, LogSolutionAft
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostIter, LogGlobalErrorPostStep
 from pySDC.implementations.hooks.default_hook import DefaultHooks
 from pySDC.implementations.hooks.log_work import LogWork
+from pySDC.projects.DAE.misc.hooksEpsEmbedding import (
+    LogGlobalErrorPostStep,
+    LogGlobalErrorPostStepPerturbation,
+    LogGlobalErrorPostIter,
+    LogGlobalErrorPostIterPerturbation,
+)
+
+from pySDC.projects.DAE.misc.HookClass_DAE import (
+    LogGlobalErrorPostStepDifferentialVariable,
+    LogGlobalErrorPostStepAlgebraicVariable,
+    LogGlobalErrorPostIterDiff,
+    LogGlobalErrorPostIterAlg,
+)
 
 
 def main():
@@ -30,11 +48,10 @@ def main():
     }
 
     # defines parameters for event detection, restol, and max. number of iterations
-    maxiter = 250
+    maxiter = 100#250
     handling_params = {
-        'restol': 1e-9,
+        'restol': 1e-12,#1e-10,
         'maxiter': maxiter,
-        'e_tol': -1,
         'compute_one_step': True,
         'max_restarts': 50,
         'recomputed': False,
@@ -43,10 +60,10 @@ def main():
         'exact_event_time_avail': None,
     }
 
-    epsilons = [1e-1, 1e-4, 1e-7, 1e-10]#[10 ** (-k) for k in range(1, 13)]#np.logspace(-12.0, 0.0, 100)
+    epsilons = [10 ** (-k) for k in range(1, 11, 1)]#np.logspace(-12.0, 0.0, 100)
     eps_fix = epsilons#[eps for eps in epsilons if eps <= 1e-10]#epsilons
 
-    problems = [CosineProblem]
+    problems = [EmbeddedLinearTestDAE]
     prob_cls_name = problems[0].__name__
     sweeper = [generic_implicit]
 
@@ -60,16 +77,24 @@ def main():
     handling_params.update({'compute_ref': False})
 
     problem_params = {
-        'newton_tol': 1e-9,
+        'newton_tol': 1e-12,
     }
 
     hook_class = [
         DefaultHooks,
         LogSolution,
-        LogSolutionAfterIteration,
+        # LogSolutionAfterIteration,
         LogWork,
-        LogGlobalErrorPostStep,
+        # LogGlobalErrorPostStep,
+        # LogGlobalErrorPostIter,
+        # LogGlobalErrorPostStep,
+        # LogGlobalErrorPostStepPerturbation,
+        # LogGlobalErrorPostStepDifferentialVariable,
+        # LogGlobalErrorPostStepAlgebraicVariable,
+        # LogGlobalErrorPostIterDiff,
+        # LogGlobalErrorPostIterAlg,
         LogGlobalErrorPostIter,
+        LogGlobalErrorPostIterPerturbation,
     ]
     all_params = {
         'sweeper_params': sweeper_params,
@@ -81,7 +106,7 @@ def main():
     use_adaptivity = [False]
 
     t0 = 0.0
-    dt_list = np.logspace(-2.0, 1.0, num=6)#[0.1]#[10 ** (-m) for m in range(1, 5)]
+    dt_list = [1.0]#[10 ** (-k) for k in range(0, 4, 1)]#np.logspace(-4.0, -0.0, num=30)
     t1 = 0.5
 
     u_num = runSimulationStudy(
@@ -93,7 +118,7 @@ def main():
         hook_class=hook_class,
         interval=(t0, t1),  # note that the interval will be ignored if compute_one_step=True!
         dt_list=dt_list,
-        nnodes=[3],
+        nnodes=[4],
         epsilons=epsilons,
     )
 
@@ -105,6 +130,8 @@ def main():
 
     # plotErrorsM(u_num, prob_cls_name, quad_type, initial_guess)
 
+    plotErrorInEachIterationEps(u_num, prob_cls_name)
+
     # plotResidual(u_num, prob_cls_name, quad_type)
 
     # plotResidualM(u_num, prob_cls_name, quad_type, initial_guess)
@@ -115,7 +142,9 @@ def main():
 
     # plotQuantitiesAlongIterations(u_num, prob_cls_name, eps_fix, maxiter)
 
-    plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix, initial_guess)
+    # plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix, initial_guess)
+
+    # plotOrderAfterEachIteration(u_num, prob_cls_name)
 
     # plotCosts(u_num, prob_cls_name, initial_guess)
 
@@ -173,7 +202,6 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
     preconditioners = [QI] if isinstance(QI, str) else QI
 
     maxiter = all_params['handling_params']['maxiter']
-    e_tol = all_params['handling_params']['e_tol']
 
     compute_one_step = all_params['handling_params']['compute_one_step']
 
@@ -197,6 +225,7 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
             u_num[sweeper_cls_name][QI] = {}
             print(f"Preconditioner: {QI}")
             for dt in dt_list:
+                print(f"Current time step size: {dt}")
                 u_num[sweeper_cls_name][QI][dt] = {}
 
                 Tend = t0 + dt if compute_one_step else interval[-1]
@@ -233,7 +262,7 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
 
                                             problem_params.update({'newton_tol': newton_tol})
 
-                                            description, controller_params = generateDescription(
+                                            description, controller_params, controller = generateDescription(
                                                 dt=dt,
                                                 problem=problem,
                                                 sweeper=sweeper,
@@ -254,13 +283,14 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
                                             stats, t_switch_exact = controllerRun(
                                                 description=description,
                                                 controller_params=controller_params,
+                                                controller=controller,
                                                 t0=t0,
                                                 Tend=Tend,
                                                 exact_event_time_avail=handling_params['exact_event_time_avail'],
                                             )
 
                                             u_num[sweeper_cls_name][QI][dt][M][use_SE][use_A][newton_tol][tol_event][alpha][eps] = getDataDict(
-                                                stats, prob_cls_name, use_A, use_SE, handling_params['recomputed'], t_switch_exact
+                                                stats, prob_cls_name, use_A, use_SE, handling_params['recomputed'], t_switch_exact, maxiter
                                             )
 
                                             plot_labels = None
@@ -552,6 +582,73 @@ def plotErrorsM(u_num, prob_cls_name, quad_type, initial_guess):
             plt_helper.plt.close(fig)
 
 
+def plotErrorInEachIterationEps(u_num, prob_cls_name):
+    """
+    Plots the error in each iteration by taking the maximum value of the error in each iteration.
+    For a semi-explicit problem the error in the differential and in the algebraic variable is plotted.
+
+    Considered keys: Only sweeper, QI, M have to be lists! All other keys are not considered!
+
+    Parameters
+    ----------
+    u_num : dict
+        Contains the numerical solution as well as some other statistics for different parameters.
+    prob_cls_name : str
+        Name of the problem class.
+    """
+
+    colors, linestyles, markers, _ = plotStylingStuff(color_type='eps')
+
+    sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha, eps_keys = getDataDictKeys(u_num)
+
+    QI_keys = QI_keys if len(QI_keys) > 1 else [QI_keys[0]]
+    M_keys = M_keys if len(M_keys) > 1 else [M_keys[0]]
+
+    type_err = ['e_global_post_iter', 'e_global_algebraic_post_iter']
+    for dt in dt_keys:
+        for QI in QI_keys:
+            for M in M_keys:
+                fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 5))
+
+                for e, eps in enumerate(eps_keys):
+                    for ind, label in enumerate(type_err):
+                        if ind == 0:
+                            ylabel = r'Error norm $||e_{diff}||_\infty$'
+                        else:
+                            ylabel = r'Error norm $||e_{alg}||_\infty$'
+
+                        res = u_num[sweeper_keys[0]][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][eps][label]
+                        tmp_list = [item for item in res]
+                        err_iter = []
+                        for item in tmp_list:
+                            err_dt = [me[1] for me in item]
+                            if len(err_dt) > 0:
+                                err_iter.append(max([me[1] for me in item]))
+                            else:
+                                err_iter.append(err_iter[-1])
+                        # print(err_iter)
+                        ax[ind].semilogy(
+                            np.arange(1, len(err_iter) + 1),
+                            err_iter,
+                            color=colors[e],
+                            linestyle=linestyles[e],
+                            linewidth=1.5,
+                            label=rf'$\varepsilon$={eps}',
+                        )
+
+                        ax[ind].tick_params(axis='both', which='major', labelsize=16)
+                        ax[ind].set_ylim(1e-16, 1e+4)
+                        ax[ind].set_yscale('log', base=10)
+                        ax[ind].set_xlabel(r'Iteration', fontsize=16)
+                        ax[ind].set_ylabel(ylabel, fontsize=16)
+                        ax[ind].grid(visible=True)
+                        ax[ind].legend(frameon=False, fontsize=10, loc='upper right', ncol=3)  # , ncol=int(0.5*len(QI_keys)))
+                        ax[ind].minorticks_off()
+
+                fig.savefig(f"data/{prob_cls_name}/eps_embedding/plotErrorOverIterations_M={M}_QI={QI}_dt_{dt}.png", dpi=300, bbox_inches='tight')
+                plt_helper.plt.close(fig)
+
+
 def plotResidual(u_num, prob_cls_name, quad_type):
     colors, linestyles, markers, _ = plotStylingStuff(color_type='QI')
 
@@ -646,7 +743,7 @@ def plotResidualDt(u_num, prob_cls_name, quad_type, initial_guess):
 
             for i, dt in enumerate(dt_keys):
                 residual = [u_num[sweeper_keys[0]][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][eps]['residual'][:, 1] for eps in eps_keys]
-
+                print(residual)
                 ax.loglog(
                     eps_keys,
                     residual,
@@ -661,7 +758,7 @@ def plotResidualDt(u_num, prob_cls_name, quad_type, initial_guess):
             ax.set_ylabel(r'Residual norm', fontsize=16)
             ax.set_xlabel(r'Parameter $\varepsilon$', fontsize=16)
             ax.tick_params(axis='both', which='major', labelsize=16)
-            ax.set_ylim(1e-10, 1e-5)
+            ax.set_ylim(1e-15, 1e-5)
             ax.set_xscale('log', base=10)
             ax.set_yscale('log', base=10)
             ax.grid(visible=True)
@@ -698,13 +795,13 @@ def plotResidualEps(u_num, prob_cls_name, quad_type, initial_guess):
                 )
 
             ax.set_ylabel(r'Residual norm', fontsize=16)
-            ax.set_xlabel(r'Parameter $\varepsilon$', fontsize=16)
+            ax.set_xlabel(r'Time step size $\Delta t$', fontsize=16)
             ax.tick_params(axis='both', which='major', labelsize=16)
-            ax.set_ylim(1e-12, 1e-3)
+            ax.set_ylim(1e-14, 1e-6)
             ax.set_xscale('log', base=10)
             ax.set_yscale('log', base=10)
             ax.grid(visible=True)
-            ax.legend(frameon=False, fontsize=12, loc='upper left' , ncol=2)
+            ax.legend(frameon=False, fontsize=12, loc='upper left' , ncol=3)
             ax.minorticks_off()
             fig.savefig(f"data/{prob_cls_name}/eps_embedding/plotResidualDiffEpsDt_{quad_type}_QI={QI}_M={M}_initial_guess={initial_guess}.png", dpi=300, bbox_inches='tight')
             plt_helper.plt.close(fig)
@@ -829,15 +926,15 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
 
     eps_list = eps_fix if eps_fix is not None else eps_keys
 
-    type_err = ['e_global'] if prob_cls_name == 'CosineProblem' else ['e_global', 'e_global_algebraic']
+    type_err = ['e_global'] if prob_cls_name == 'CosineProblem' or prob_cls_name == 'ProtheroRobinson' else ['e_global', 'e_global_algebraic']
     for sweeper_cls_name in sweeper_keys:
         for QI in QI_keys:
 
             for M in M_keys:
-                if prob_cls_name == 'CosineProblem':
+                if prob_cls_name == 'CosineProblem' or prob_cls_name == 'ProtheroRobinson':
                     fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 7.5))
                 else:
-                    fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 5))
+                    fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 7.5))
 
                 for eps_i, eps_item in enumerate(eps_list):
 
@@ -851,27 +948,30 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                         p_nonstiff = 2 * M - 1
                         p_stiff = M - 1
 
-                        order_ref_nonstiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_nonstiff for m in range(len(dt_keys))]
-                        order_ref_stiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_stiff for m in range(len(dt_keys))]
-                        ax_wrapper = ax if prob_cls_name == 'CosineProblem' else ax[ind]
+                        # order_ref_nonstiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_nonstiff for m in range(len(dt_keys))]
+                        order_ref_nonstiff = [(dt) ** p_nonstiff for dt in dt_keys]
+                        # order_ref_stiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_stiff for m in range(len(dt_keys))]
+                        ax_wrapper = ax if prob_cls_name == 'CosineProblem' or prob_cls_name == 'ProtheroRobinson' else ax[ind]
 
                         if eps_i == 0:
                             ax_wrapper.loglog(
                                 dt_keys,
                                 order_ref_nonstiff,
-                                color='grey',
-                                linestyle='solid',
+                                color='gray',
+                                linestyle='--',
                                 linewidth=0.9,
-                                label=f'Non-stiff ref. order $p={p_nonstiff}$',
+                                # label=f'Non-stiff ref. order $p={p_nonstiff}$',
+                                label=f'Ref. order $p={p_nonstiff}$',
                             )
-                            ax_wrapper.loglog(
-                                dt_keys,
-                                order_ref_stiff,
-                                color='grey',
-                                linestyle='dashdot',
-                                linewidth=0.9,
-                                label=f'Stiff ref. order $p={p_stiff}$',
-                            )
+                        # elif eps_i == 2:
+                        #     ax_wrapper.loglog(
+                        #         dt_keys,
+                        #         order_ref_stiff,
+                        #         color='grey',
+                        #         linestyle='dashdot',
+                        #         linewidth=0.9,
+                        #         label=f'Stiff ref. order $p={p_stiff}$',
+                        #     )
 
                         ax_wrapper.loglog(
                             dt_keys,
@@ -910,19 +1010,104 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                             ylabel = r'Error norm $||e_{alg}||_\infty$'
 
                         ax_wrapper.tick_params(axis='both', which='major', labelsize=16)
-                        ax_wrapper.set_ylim(1e-15, 1e1)#(1e-16, 1e-1)
+                        ax_wrapper.set_ylim(1e-15, 1e-2)#(1e-16, 1e-1)
                         ax_wrapper.set_xscale('log', base=10)
                         ax_wrapper.set_yscale('log', base=10)
                         ax_wrapper.set_xlabel(r'$\Delta t$', fontsize=16)
                         ax_wrapper.set_ylabel(ylabel, fontsize=16)
-                        ax_wrapper.grid(visible=True)
-                        if prob_cls_name == 'CosineProblem':
-                            ax.legend(frameon=False, fontsize=10, loc='upper left', ncol=2)
+                        # ax_wrapper.grid(visible=True)
+                        if prob_cls_name == 'CosineProblem' or prob_cls_name == 'ProtheroRobinson':
+                            ax.legend(frameon=False, fontsize=10, loc='upper left', ncol=3)
                         else:
-                            ax[0].legend(frameon=False, fontsize=10, loc='upper left', ncol=2)
+                            ax[0].legend(frameon=False, fontsize=10, loc='upper left', ncol=3)
                         ax_wrapper.minorticks_off()
 
                 fig.savefig(f"data/{prob_cls_name}/eps_embedding/plot_order_accuracy_{sweeper_cls_name}_{QI}_M={M}_initial_guess={initial_guess}.png", dpi=300, bbox_inches='tight')
+                plt_helper.plt.close(fig)
+
+
+def plotOrderAfterEachIteration(u_num, prob_cls_name, eps_fix=None):
+    """
+    Plots the order after each iteration for the differential variable and the algebraic variable.
+    It is recommended to set restol to -1, s.t. maxiter iterations will be performed. Moreover,
+    we know that SDC can reach a maximum order of 2*M - 1 for 'RADAU-RIGHT' nodes, maxiter can be
+    set to 2 * M - 1.
+
+    Note that only for non-stiff systems the reached order of accuracy can be expected! For stiff
+    systems it also cannot be expected that the order is increased by one after one iteration!
+
+    Considered keys: Only sweeper, dt, M have to be lists! All other keys are not considered!
+
+    Parameters
+    ----------
+    u_num : dict
+        Contains the numerical solution as well as some other statistics for different parameters.
+    prob_cls_name : str
+        Name of the problem class.
+    """
+
+    colors, linestyles, _, _ = plotStylingStuff(color_type='QI')
+
+    sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha, eps_keys = getDataDictKeys(u_num)
+
+    QI_keys = QI_keys if len(QI_keys) > 1 else [QI_keys[0]]
+    M_keys = M_keys if len(M_keys) > 1 else [M_keys[0]]
+
+    eps_list = eps_fix if eps_fix is not None else eps_keys
+
+    type_err = ['e_global_post_iter', 'e_global_algebraic_post_iter']
+    for QI in QI_keys:
+
+        for M in M_keys:
+
+            for eps_i, eps_item in enumerate(eps_list):
+                fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 7.5))
+
+                for ind, label in enumerate(type_err):
+                    if label == 'e_global_post_iter':
+                        ylabel = r'Error norm $||\mathbf{u}_d - \mathbf{u}_d^k||_\infty$'
+                    elif label == 'e_global_algebraic_post_iter':
+                        ylabel = r'Error norm $||\mathbf{u}_a - \mathbf{u}_a^k||_\infty$'
+
+                    res = [
+                        u_num[sweeper_keys[0]][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][eps_item][label]
+                        for dt in dt_keys
+                    ]
+
+                    k = 0
+                    matrixIterAgainstDt = np.zeros((len(res[0]), len(dt_keys)))
+                    for item in res:
+                        err_iter = np.zeros(len(item))
+                        # matrix that stores max. err in columns over all iterations for one dt, i.e., each row contains error for iteration k over all dt
+                        for i, subitem in enumerate(item):
+                            t, err = zip(*subitem)
+                            err_iter[i] = max(err) # err_iter.append(max(err))
+
+                        matrixIterAgainstDt[:, k] = err_iter
+                        k += 1
+
+                    for p in range(1, matrixIterAgainstDt.shape[0] + 1):
+                        print(f"p={p}")
+                        # order_ref = [matrixIterAgainstDt[p - 1, 0] * (dt / dt_keys[0]) ** p for dt in dt_keys]
+                        order_ref = [(0.1 * dt) ** p for dt in dt_keys]
+                        ax[ind].loglog(dt_keys, matrixIterAgainstDt[p - 1, :], '-*', label=f'Iteration {p}')
+                        # ax[ind].loglog(dt_keys, order_ref, color='gray', '--')  # , label=f'Order {p} ref.')
+                        ax[ind].loglog(dt_keys, order_ref, linestyle='--', color='gray')
+                        if p == 2 * M - 1:
+                            break
+                        
+                    ax[ind].tick_params(axis='both', which='major', labelsize=16)
+                    ax[ind].set_ylim(1e-14, 1e1)
+                    ax[ind].set_xscale('log', base=10)
+                    ax[ind].set_yscale('log', base=10)
+                    ax[ind].set_xlabel(r'$\Delta t$', fontsize=16)
+                    ax[ind].set_ylabel(ylabel, fontsize=16)
+                    # ax[ind].grid(visible=True)
+                    if ind == 0:
+                        ax[ind].legend(frameon=False, fontsize=10, loc='upper left')
+                    ax[ind].minorticks_off()
+
+                fig.savefig(f"data/{prob_cls_name}/eps_embedding/plotOrderIterations_{QI}_M={M}_eps={eps_item}.png", dpi=300, bbox_inches='tight')
                 plt_helper.plt.close(fig)
 
 
@@ -1057,8 +1242,6 @@ def plotCostsDt(u_num, prob_cls_name, initial_guess):
 def plotCostsEps(u_num, prob_cls_name, initial_guess):
     r"""
     Plots the number of Newton iterations to solve implicit system at each node and number of SDC iterations.
-
-
     """
     colors, _, markers, _ = plotStylingStuff(color_type='eps')
 
@@ -1070,7 +1253,8 @@ def plotCostsEps(u_num, prob_cls_name, initial_guess):
     for M in M_keys:    
 
         for QI in QI_keys:
-            fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 7.5))
+            # fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 7.5))
+            fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 8.5))
 
             for e, eps in enumerate(eps_keys):
                 nfev_root_solver = [
@@ -1079,21 +1263,22 @@ def plotCostsEps(u_num, prob_cls_name, initial_guess):
                 ]
                 nfev_root_sum = [sum(item) for item in nfev_root_solver]
                 # nfev_root_sum = np.sum(nfev_root_solver)
-                ax[0].semilogx(
-                    dt_keys,
-                    nfev_root_sum,
-                    color=colors[e],
-                    # linestyle=linestyles[M],
-                    marker=markers[e],
-                    linewidth=0.8,
-                    label=rf'$\varepsilon=${eps}',
-                )
+                # ax[0].semilogx(
+                #     dt_keys,
+                #     nfev_root_sum,
+                #     color=colors[e],
+                #     # linestyle=linestyles[M],
+                #     marker=markers[e],
+                #     linewidth=0.8,
+                #     label=rf'$\varepsilon=${eps}',
+                # )
 
                 sum_niters = [
                     u_num[sweeper_keys[0]][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][eps]['sum_niters']
                     for dt in dt_keys
                 ]
-                ax[1].semilogx(
+                # ax[1].semilogx(
+                ax.semilogx(
                     dt_keys,
                     sum_niters,
                     color=colors[e],
@@ -1103,17 +1288,23 @@ def plotCostsEps(u_num, prob_cls_name, initial_guess):
                     label=rf'$\varepsilon=${eps}',
                 )
 
-            ax[0].set_ylabel(f"Number of Newton iterations", fontsize=16)
-            ax[1].set_ylabel(f"Number of SDC iterations", fontsize=16)
-            ax[0].legend(frameon=False, fontsize=12, loc='upper right' , ncol=2)
-            for ind in [0, 1]:
-                ax[ind].set_xlabel(r'$\Delta t$', fontsize=16)
-                ax[ind].tick_params(axis='both', which='major', labelsize=16)
-                # ax[ind].set_ylim(1e-15, 1e3)
-                ax[ind].set_xscale('log', base=10)
-                ax[ind].grid(visible=True)
-                ax[ind].minorticks_off()
-            
+            # ax[0].set_ylabel(f"Number of Newton iterations", fontsize=16)
+            ax.set_ylabel(f"Number of SDC iterations", fontsize=16)
+            ax.legend(frameon=False, fontsize=10, loc='upper right' , ncol=3)
+            # for ind in [0, 1]:
+                # ax[ind].set_xlabel(r'$\Delta t$', fontsize=16)
+                # ax[ind].tick_params(axis='both', which='major', labelsize=16)
+                # # ax[ind].set_ylim(1e-15, 1e3)
+                # ax[ind].set_xscale('log', base=10)
+                # ax[ind].grid(visible=True)
+                # ax[ind].minorticks_off()
+            ax.set_xlabel(r'$\Delta t$', fontsize=16)
+            ax.tick_params(axis='both', which='major', labelsize=16)
+            ax.set_ylim(1, 130)
+            ax.set_xscale('log', base=10)
+            ax.grid(visible=True)
+            ax.minorticks_off()
+
             fig.savefig(f"data/{prob_cls_name}/eps_embedding/plotCostsEpsDt_QI={QI}_M={M}_initial_guess={initial_guess}.png", dpi=300, bbox_inches='tight')
             plt_helper.plt.close(fig)
 

@@ -59,6 +59,7 @@ markers = [
     'cupy: tests for cupy on GPUs',
     'libpressio: tests using the libpressio library',
     'monodomain: tests the monodomain project, which requires previous compilation of c++ code',
+    'pytorch: tests for PyTorch related things in pySDC'
     ]
 timeout = 300
 
@@ -94,7 +95,7 @@ skip-string-normalization = true
 exclude = '''playgrounds/'''
 
 [tool.coverage.run]
-omit = ['*/pySDC/tests/*', '*/data/*', '*/pySDC/playgrounds/*', '*/pySDC/projects/deprecated/*']
+omit = ['*/pySDC/tests/*', '*/data/*', '*/pySDC/playgrounds/*', '*/pySDC/projects/deprecated/*', '*/pySDC/projects/*/tests/*']
 relative_files = true
 concurrency = ['multiprocessing']
 source = ['pySDC']

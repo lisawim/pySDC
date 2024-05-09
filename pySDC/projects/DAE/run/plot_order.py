@@ -1,13 +1,27 @@
 import numpy as np
 from pathlib import Path
+import cProfile
 
 from pySDC.core.Errors import ParameterError
 
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.sweepers.RungeKuttaDAE import BackwardEulerDAE, TrapezoidalRuleDAE
+from pySDC.projects.DAE.sweepers.RungeKuttaDAE import (
+    BackwardEulerDAE,
+    TrapezoidalRuleDAE,
+    KurdiEDIRK45_2DAE,
+    EDIRK4DAE,
+    DIRK43_2DAE,
+    # semi-implicit variants
+    SemiImplicitBackwardEulerDAE,
+    SemiImplicitTrapezoidalRuleDAE,
+    SemiImplicitKurdiEDIRK45_2DAE,
+    SemiImplicitEDIRK4DAE,
+    SemiImplicitDIRK43_2DAE,
+)
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
+from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1, problematic_f
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE
 
 import pySDC.helpers.plot_helper as plt_helper
 
@@ -20,6 +34,7 @@ from pySDC.projects.DAE.misc.HookClass_DAE import (
 )
 from pySDC.implementations.hooks.default_hook import DefaultHooks
 from pySDC.implementations.hooks.log_work import LogWork
+from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 
 
 def main():
@@ -33,14 +48,14 @@ def main():
     sweeper_params = {
         'num_nodes': M_fix,
         'quad_type': quad_type,
-        'QI': ['IE'],  # ['IE', 'LU', 'IEpar', 'MIN', 'MIN-SR-S'],
+        'QI': ['IE'],
         'initial_guess': 'spread',
     }
 
     # defines parameters for event detection, restol, and max. number of iterations
     handling_params = {
-        'restol': -1,#1e-13,
-        'maxiter': 1,#50,
+        'restol': -1,
+        'maxiter': 1,
         'compute_one_step': False,#True,
         'max_restarts': 50,
         'recomputed': False,
@@ -49,19 +64,23 @@ def main():
         'exact_event_time_avail': None,
     }
 
-    problem = simple_dae_1#DiscontinuousTestDAE
+    problem = LinearTestDAE
     prob_cls_name = problem.__name__
-    sweeper = [TrapezoidalRuleDAE]
+    sweeper = [SemiImplicitBackwardEulerDAE]
 
     problem_params = {
-        'newton_tol': 1e-14,
+        'newton_tol': 1e-15,
     }
+
+    prob = problem(**problem_params)
+    isSemiExplicit = True if prob.dtype_u.__name__ == 'DAEMesh' else False
 
     hook_class = [
         DefaultHooks,
         LogSolution,
-        LogSolutionAfterIteration,
-        LogWork,
+        # LogGlobalErrorPostStep,
+        # LogSolutionAfterIteration,
+        # LogWork,
         LogGlobalErrorPostStepDifferentialVariable,
         LogGlobalErrorPostStepAlgebraicVariable,
     ]
@@ -83,10 +102,9 @@ def main():
         'problematic_f': 2,
     }
 
-    t0 = 0.0#1.0
-    dt_fix = 1.0
-    dt_list = np.logspace(-2.0, 0.0, num=12)
-    t1 = 1.0#2.0  # note that the interval will be ignored if compute_one_step=True!
+    t0 = 0.0
+    dt_list = np.logspace(-2.0, -0.5, num=20)
+    t1 = 3.0  # note that the interval will be ignored if compute_one_step=True!
 
     u_num = runSimulationStudy(
         problem=problem,
@@ -97,10 +115,10 @@ def main():
         hook_class=hook_class,
         interval=(t0, t1),
         dt_list=dt_list,
-        nnodes=[2],
+        nnodes=[3],
     )
 
-    plot_accuracy_order(u_num, prob_cls_name, quad_type, index)
+    plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit)
 
 def runSimulationStudy(problem, sweeper, all_params, use_adaptivity, use_detection, hook_class, interval, dt_list, nnodes):
     r"""
@@ -404,7 +422,7 @@ def getDataDictKeys(u_num):
 
     return sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha
 
-def plot_accuracy_order(u_num, prob_cls_name, quad_type, index):
+def plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit):
     """
     Plots the order of accuracy for both differential and algebraic variable.
 
@@ -430,14 +448,17 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index):
 
     sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha = getDataDictKeys(u_num)
 
-    type_err = ['e_global', 'e_global_algebraic']
+    type_err = ['e_global', 'e_global_algebraic'] if isSemiExplicit else ['e_global']
     for sweeper_cls_name in sweeper_keys:
         for QI in QI_keys:
-            fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 5))
+            if isSemiExplicit:
+                fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 5))
+            else:
+                fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 8.5))
 
-            for ind, label in enumerate(type_err):            
+            for ind, label in enumerate(type_err):
+                ax_wrapper = ax[ind] if isSemiExplicit else ax         
                 for M in M_keys:
-                    # if label == 'e_global':
                     res = [
                         u_num[sweeper_cls_name][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][label][:, 1]
                         for dt in dt_keys
@@ -467,10 +488,10 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index):
                     # else:
                     #     raise NotImplementedError(f"Reference order for index {index[prob_cls_name]} and quadrature type {quad_type} not implemented!")
                     # p = 2 * M - 1
-                    p = 2
+                    p = 1
                     order_ref = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p for m in range(len(dt_keys))]
-                    print(norms)
-                    ax[ind].loglog(
+
+                    ax_wrapper.loglog(
                         dt_keys,
                         norms,
                         color=colors[M],
@@ -480,7 +501,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index):
                         label=f'$M={M}$',
                     )
 
-                    ax[ind].loglog(dt_keys, order_ref, color='k', linestyle=linestyles[M], label=f'Ref. order $p={p}$')
+                    ax_wrapper.loglog(dt_keys, order_ref, color='k', linestyle=linestyles[M], label=f'Ref. order $p={p}$')
 
                     mean_niters = [
                         u_num[sweeper_cls_name][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]]['mean_niters']
@@ -494,7 +515,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index):
                     }
 
                     for m in range(len(dt_keys)):
-                        ax[ind].annotate(
+                        ax_wrapper.annotate(
                             int(mean_niters[m]),
                             (dt_keys[m], norms[m]),
                             xytext=xytext_order[M],
@@ -503,20 +524,24 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index):
                             fontsize=12,
                         )
 
-                if ind == 0:
-                    ylabel = r'Error norm $||e_{diff}||_\infty$'
-                else:
-                    ylabel = r'Error norm $||e_{alg}||_\infty$'
 
-                ax[ind].tick_params(axis='both', which='major', labelsize=16)
-                ax[ind].set_ylim(1e-16, 1e5)#(1e-16, 1e-1)
-                ax[ind].set_xscale('log', base=10)
-                ax[ind].set_yscale('log', base=10)
-                ax[ind].set_xlabel(r'$\Delta t$', fontsize=16)
-                ax[ind].set_ylabel(ylabel, fontsize=16)
-                ax[ind].grid(visible=True)
-                ax[ind].legend(frameon=False, fontsize=12, loc='upper left')
-                ax[ind].minorticks_off()
+                if isSemiExplicit:
+                    if ind == 0:
+                        ylabel = r'Error norm $||e_{diff}||_\infty$'
+                    else:
+                        ylabel = r'Error norm $||e_{alg}||_\infty$'
+                else:
+                    ylabel = r'Error norm $||e||_\infty$'
+
+                ax_wrapper.tick_params(axis='both', which='major', labelsize=16)
+                ax_wrapper.set_ylim(1e-5, 1e5)
+                ax_wrapper.set_xscale('log', base=10)
+                ax_wrapper.set_yscale('log', base=10)
+                ax_wrapper.set_xlabel(r'$\Delta t$', fontsize=16)
+                ax_wrapper.set_ylabel(ylabel, fontsize=16)
+                ax_wrapper.grid(visible=True)
+                ax_wrapper.legend(frameon=False, fontsize=12, loc='upper left')
+                ax_wrapper.minorticks_off()
 
             fig.savefig(f"data/{prob_cls_name}/plot_order_accuracy_{sweeper_cls_name}_{QI}.png", dpi=300, bbox_inches='tight')
             plt_helper.plt.close(fig)

@@ -567,6 +567,56 @@ class Cash_Karp(RungeKutta):
         return 5
 
 
+class KurdiEDIRK45_2(RungeKutta):
+    """
+    Stiffly-accurate fourth-order EDIRK with five stages.
+    Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (218).
+    """
+
+    nodes = np.array([0.0, 4.0 / 3.0, 1.0, 1.0 / 2.0, 1.0])
+    weights = np.array([1.0 / 6.0, 0.0, -26.0 / 54.0, 2.0 / 3.0, 35.0 / 54.0])
+    matrix = np.zeros((5, 5))
+    matrix[0, 0] = 0.0
+    matrix[1, :2] = [2.0 / 3.0, 2.0 / 3.0]
+    matrix[2, :3] = [3.0 / 8.0, -3.0 / 8.0, 1.0]
+    matrix[3, :4] = [35.0 / 160.0, -3.0 / 160.0, 0.0, 48.0 / 160.0]
+    matrix[4, :] = [1.0 / 6.0, 0.0, -26.0 / 54.0, 2.0 / 3.0, 35.0 / 54.0]
+    ButcherTableauClass = ButcherTableau
+
+
+class EDIRK4(RungeKutta):
+    """
+    Stiffly accurate, fourth-order EDIRK with four stages. Taken from
+    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (216).
+    """
+
+    nodes = np.array([0.0, 3.0 / 2.0, 7.0 / 5.0, 1.0])
+    weights = np.array([13.0, 84.0, -125.0, 70.0]) / 42.0
+    matrix = np.zeros((4, 4))
+    matrix[0, 0] = 0
+    matrix[1, :2] = [3.0 / 4.0, 3.0 / 4.0]
+    matrix[2, :3] = [447.0 / 675.0, -357.0 / 675.0, 855.0 / 675.0]
+    matrix[3, :] = [13.0 / 42.0, 84.0 / 42.0, -125.0 / 42.0, 70.0 / 42.0]
+    ButcherTableauClass = ButcherTableau
+
+
+class DIRK43_2(RungeKutta):
+    """
+    L-stable Diagonally Implicit RK method with four stages of order 3.
+    Taken from https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods
+    """
+
+    nodes = np.array([0.5, 2.0 / 3.0, 0.5, 1.0])
+    weights = np.array([3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5])
+    matrix = np.zeros((4, 4))
+    matrix[0, 0] = 0.5
+    matrix[1, :2] = [1.0 / 6.0, 0.5]
+    matrix[2, :3] = [-0.5, 0.5, 0.5]
+    matrix[3, :] = [3.0 / 2.0, -3.0 / 2.0, 0.5, 0.5]
+    ButcherTableauClass = ButcherTableau
+
+
 class DIRK43(RungeKutta):
     """
     Embedded A-stable diagonally implicit RK pair of order 3 and 4.

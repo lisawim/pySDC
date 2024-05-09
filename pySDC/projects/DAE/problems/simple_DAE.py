@@ -312,3 +312,21 @@ class problematic_f(ptype_dae):
         me = self.dtype_u(self.init)
         me[:] = (np.sin(t), 0)
         return me
+
+    def du_exact(self, t):
+        """
+        Routine for the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            The time of the reference solution.
+
+        Returns
+        -------
+        me : dtype_u
+            The reference solution as mesh object containing two components.
+        """
+        me = self.dtype_u(self.init)
+        me[:] = (np.cos(t), 0)
+        return me

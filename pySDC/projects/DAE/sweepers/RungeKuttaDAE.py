@@ -3,7 +3,6 @@ np.set_printoptions(precision=30)
 
 from pySDC.implementations.sweeper_classes.Runge_Kutta import (
     RungeKutta,
-    ButcherTableau,
     BackwardEuler,
     CrankNicholson,
     KurdiEDIRK45_2,
@@ -34,30 +33,6 @@ class RungeKuttaDAE(RungeKutta):
 
         lvl.status.unlocked = True
         lvl.status.updated = True
-
-    def integrate(self):
-        """
-        Integrates the right-hand side.
-
-        Returns
-        -------
-        me : list of dtype_u
-            Containing the integral as values.
-        """
-
-        # get current level and problem
-        lvl = self.level
-        prob = lvl.prob
-
-        me = []
-        # integrate RHS over all collocation nodes
-        for m in range(1, self.coll.num_nodes + 1):
-            # new instance of dtype_u, initialize values with 0
-            me.append(prob.dtype_u(prob.init, val=0.0))
-            for j in range(1, m + 1):
-                me[-1][:] += lvl.dt * self.coll.Qmat[m, j] * lvl.f[j][:]
-
-        return me
 
     def update_nodes(self):
         r"""
@@ -127,7 +102,7 @@ class RungeKuttaDAE(RungeKutta):
         return None
 
 
-class SemiImplicitRungeKuttaDAE(RungeKuttaDAE):
+class SemiImplicitRungeKuttaDAE(RungeKutta):
     def integrate(self):
         r"""
         Returns the solution by integrating its gradient (fundamental theorem of calculus) at each collocation node.
@@ -154,11 +129,14 @@ class SemiImplicitRungeKuttaDAE(RungeKuttaDAE):
         return me
 
     def update_nodes(self):
-        r"""
-        Updates the values of solution ``u`` and their gradient stored in ``f``.
+        """
+        Update the u- and f-values at the collocation nodes
+
+        Returns:
+            None
         """
 
-        # get current level and problem description
+        # get current level and problem
         lvl = self.level
         prob = lvl.prob
 
@@ -166,69 +144,35 @@ class SemiImplicitRungeKuttaDAE(RungeKuttaDAE):
         assert lvl.status.unlocked
         assert lvl.status.sweep <= 1, "RK schemes are direct solvers. Please perform only 1 iteration!"
 
+        # get number of collocation nodes for easier access
         M = self.coll.num_nodes
-        for m in range(M):
-            u_approx = prob.dtype_u(lvl.u[0])
+
+        for m in range(0, M):
+            # build rhs, consisting of the known values from above and new values from previous nodes (at k+1)
+            rhs = prob.dtype_u(prob.init, val=0.0)
+            rhs.diff[:] = lvl.u[0].diff[:]
             for j in range(1, m + 1):
-                u_approx.diff[:] += lvl.dt * self.QI[m + 1, j] * lvl.f[j].diff[:]
-            
-            def F(du):
-                """
-                Build implicit system to solve in order to find the unknowns.
+                rhs.diff[:] += lvl.dt * self.QI[m + 1, j] * lvl.f[j].diff[:]
 
-                Parameters
-                ----------
-                unknowns : dtype_u
-                    Unknowns of the system.
+            # implicit solve with prefactor stemming from the diagonal of Qd, use previous stage as initial guess
+            # if self.coll.implicit:
+            #     lvl.u[m + 1][:] = prob.solve_system(
+            #         rhs, lvl.dt * self.QI[m + 1, m + 1], lvl.u[m], lvl.time + lvl.dt * self.coll.nodes[m + 1]
+            #     )
+            # else:
+            #     lvl.u[m + 1][:] = rhs[:]
+            lvl.u[m + 1][:] = prob.solve_system(
+                rhs, lvl.dt * self.QI[m + 1, m + 1], lvl.u[m], lvl.time + lvl.dt * self.coll.nodes[m + 1]
+            )
 
-                Returns
-                -------
-                sys :
-                    System to be solved as implicit function.
-                """
-
-                du_mesh = prob.dtype_f(du)
-
-                local_u_approx = prob.dtype_u(u_approx)
-
-                local_u_approx.diff[:] += lvl.dt * self.QI[m + 1, m + 1] * du_mesh.diff[:]
-                local_u_approx.alg[:] = du_mesh.alg[:]
-
-                sys = prob.eval_f(local_u_approx, du_mesh, lvl.time + lvl.dt * self.coll.nodes[m + 1])
-                return sys
-            
-            u0 = prob.dtype_u(prob.init)
-            u0.diff[:], u0.alg[:] = lvl.f[m].diff[:], lvl.u[m].alg[:]
-            u_new = prob.solve_system(F, u0[:], lvl.time + lvl.dt * self.coll.nodes[m + 1])
-
-            lvl.f[m + 1].diff[:] = u_new.diff[:]
-            lvl.u[m + 1].alg[:] = u_new.alg[:]
-
-        # Update solution approximation - update only value at last node
-        lvl.u[-1][:].diff[:] = lvl.u[0].diff[:]
-        for j in range(1, M + 1):
-            lvl.u[-1].diff[:] += lvl.dt * self.coll.Qmat[-1, j] * lvl.f[j].diff[:]
+            # update function values (we don't usually need to evaluate the RHS at the solution of the step)
+            if m < M - self.coll.num_solution_stages or self.params.eval_rhs_at_right_boundary:
+                lvl.f[m + 1] = prob.eval_f(lvl.u[m + 1], lvl.time + lvl.dt * self.coll.nodes[m + 1])
 
         # indicate presence of new values at this level
         lvl.status.updated = True
 
         return None
-            
-        
-
-
-class TrapezoidalRule(RungeKutta):
-    """
-    Famous trapezoidal rule of second order. Taken from
-    [here](https://ntrs.nasa.gov/citations/20160005923), third one in eq. (213).
-    """
-
-    nodes = np.array([0.0, 1.0])
-    weights = np.array([1.0 / 2.0, 1.0 / 2.0])
-    matrix = np.zeros((2, 2))
-    matrix[0, 0] = 0.0
-    matrix[1, :] = [1.0 / 2.0, 1.0 / 2.0]
-    ButcherTableauClass = ButcherTableau
 
 
 class BackwardEulerDAE(RungeKuttaDAE, BackwardEuler):
@@ -258,31 +202,10 @@ class EDIRK4DAE(RungeKuttaDAE, EDIRK4):
 class DIRK43_2DAE(RungeKuttaDAE, DIRK43_2):
     pass
 
-# semi-implicit RK variants
-
-class SemiImplicitBackwardEulerDAE(SemiImplicitRungeKuttaDAE, BackwardEuler):
-    pass
-
 
 class SemiImplicitTrapezoidalRuleDAE(SemiImplicitRungeKuttaDAE, CrankNicholson):
     pass
 
 
-class SemiImplicitKurdiEDIRK45_2DAE(SemiImplicitRungeKuttaDAE, KurdiEDIRK45_2):
-    """
-    For fully-implicit DAEs of index 2 the order of the
-    scheme is only two (observation).
-    """
-    pass
-
-
 class SemiImplicitEDIRK4DAE(SemiImplicitRungeKuttaDAE, EDIRK4):
-    """
-    For fully-implicit DAEs of index 2 the order of the
-    scheme is only two (observation).
-    """
-    pass
-
-
-class SemiImplicitDIRK43_2DAE(SemiImplicitRungeKuttaDAE, DIRK43_2):
     pass

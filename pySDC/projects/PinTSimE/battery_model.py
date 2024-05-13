@@ -426,6 +426,9 @@ def getUnknownLabels(prob_cls_name):
         'buck_converter': ['vC1', 'vC2', 'iLp'],
         'DiscontinuousTestDAE': ['y', 'z'],
         'LinearTestDAE': ['y', 'z'],
+        'EmbeddedLinearTestDAE': ['y', 'z'],
+        'DiscontinuousTestDAE': ['y', 'z'],
+        'EmbeddedDiscontinuousTestDAE': ['y', 'z'],
         'problematic_f': ['y', 'z'],
         'simple_dae_1': ['u1', 'u2', 'z'],
     }
@@ -439,6 +442,9 @@ def getUnknownLabels(prob_cls_name):
         'buck_converter': [r'$v_{C_1}$', r'$v_{C_2}$', r'$i_{L_\pi}$'],
         'DiscontinuousTestDAE': [r'$y$', r'$z$'],
         'LinearTestDAE': [r'$y$', r'$z$'],
+        'EmbeddedLinearTestDAE': [r'$y$', r'$z$'],
+        'DiscontinuousTestDAE': [r'$y$', r'$z$'],
+        'EmbeddedDiscontinuousTestDAE': [r'$y$', r'$z$'],
         'problematic_f': [r'$y$', r'$z$'],
         'simple_dae_1': [r'$u_1$', r'$u_2$', r'$z$'],
     }
@@ -581,7 +587,7 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
         res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
     else:
         res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
-    # res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))
+        res['e_global_algebraic'] = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time', recomputed=recomputed))
 
     # event time(s) found by event detection
     if use_detection:

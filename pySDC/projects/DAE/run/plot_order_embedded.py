@@ -1,36 +1,27 @@
 import numpy as np
 from pathlib import Path
-import cProfile
 
 from pySDC.core.Errors import ParameterError
 
-from pySDC.helpers.stats_helper import get_sorted
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.sweepers.RungeKuttaDAE import (
-    BackwardEulerDAE,
-    TrapezoidalRuleDAE,
-    KurdiEDIRK45_2DAE,
-    EDIRK4DAE,
-    DIRK43_2DAE,
-    SemiImplicitTrapezoidalRuleDAE,
-    SemiImplicitEDIRK4DAE,
+from pySDC.implementations.sweeper_classes.Runge_Kutta import (
+    BackwardEuler,
+    CrankNicholson,
+    DIRK43_2,
 )
-from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE, DiscontinousTestDAEIntegralFormulation
-from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1, problematic_f
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE
-
-import pySDC.helpers.plot_helper as plt_helper
+from pySDC.implementations.problem_classes.singularPerturbed import (
+    EmbeddedLinearTestDAE,
+    EmbeddedDiscontinuousTestDAE,
+)
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun, getDataDict, plotSolution
 
-from pySDC.implementations.hooks.log_solution import LogSolution, LogSolutionAfterIteration
-from pySDC.projects.DAE.misc.HookClass_DAE import (
-    LogGlobalErrorPostStepDifferentialVariable,
-    LogGlobalErrorPostStepAlgebraicVariable,
+import pySDC.helpers.plot_helper as plt_helper
+
+from pySDC.implementations.hooks.log_solution import LogSolution
+from pySDC.projects.DAE.misc.hooksEpsEmbedding import (
+    LogGlobalErrorPostStep,
+    LogGlobalErrorPostStepPerturbation,
 )
-from pySDC.implementations.hooks.default_hook import DefaultHooks
-from pySDC.implementations.hooks.log_work import LogWork
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 
 
 def main():
@@ -60,25 +51,19 @@ def main():
         'exact_event_time_avail': None,
     }
 
-    problem = DiscontinousTestDAEIntegralFormulation
+    problem = EmbeddedDiscontinuousTestDAE
     prob_cls_name = problem.__name__
-    sweeper = [SemiImplicitEDIRK4DAE]
+    sweeper = [DIRK43_2]
 
     problem_params = {
+        'eps': 1e-12,
         'newton_tol': 1e-15,
     }
 
-    prob = problem(**problem_params)
-    isSemiExplicit = True if prob.dtype_u.__name__ == 'DAEMesh' else False
-
     hook_class = [
-        DefaultHooks,
         LogSolution,
         LogGlobalErrorPostStep,
-        # LogSolutionAfterIteration,
-        # LogWork,
-        # LogGlobalErrorPostStepDifferentialVariable,
-        # LogGlobalErrorPostStepAlgebraicVariable,
+        LogGlobalErrorPostStepPerturbation,
     ]
 
     all_params = {
@@ -90,17 +75,9 @@ def main():
     use_detection = [False]
     use_adaptivity = [False]
 
-    index = {
-        'LinearTestDAE': 1,
-        'LinearTestDAEMinion': 1,
-        'DiscontinuousTestDAE': 1,
-        'simple_dae_1': 2,
-        'problematic_f': 2,
-    }
-
     t0 = 1.0
-    dt_list = np.logspace(-3.0, -1.0, num=35)#np.logspace(-1.5, 0.0, num=12)
-    t1 = 3.0  # note that the interval will be ignored if compute_one_step=True!
+    dt_list = np.logspace(-1.5, 0.0, num=12)
+    t1 = 4.0  # note that the interval will be ignored if compute_one_step=True!
 
     u_num = runSimulationStudy(
         problem=problem,
@@ -114,7 +91,7 @@ def main():
         nnodes=[3],
     )
 
-    plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit, (t0, t1))
+    plot_accuracy_order(u_num, prob_cls_name, (t0, t1))
 
 def runSimulationStudy(problem, sweeper, all_params, use_adaptivity, use_detection, hook_class, interval, dt_list, nnodes):
     r"""
@@ -418,7 +395,7 @@ def getDataDictKeys(u_num):
 
     return sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha
 
-def plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit, interval):
+def plot_accuracy_order(u_num, prob_cls_name, interval):
     """
     Plots the order of accuracy for both differential and algebraic variable.
 
@@ -434,29 +411,23 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit, 
         Contains the numerical solution as well as some other statistics for different parameters.
     prob_cls_name : str
         Name of the problem class.
-    quad_type : str
-        Type of quadrature used for integration in SDC.
-    index : int
-        Index of DAE problem.
+    interval : tuple
+        Interval of simulation.
     """
 
     colors, linestyles, markers, xytext = plotStylingStuff(color_type='M')
 
     sweeper_keys, QI_keys, dt_keys, M_keys, use_SE_keys, use_A_keys, newton_tolerances, tol_event, alpha = getDataDictKeys(u_num)
 
-    type_err = ['e_global', 'e_global_algebraic'] if isSemiExplicit else ['e_global']
+    type_err = ['e_global', 'e_global_algebraic']
     for sweeper_cls_name in sweeper_keys:
         for QI in QI_keys:
-            if isSemiExplicit:
-                fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 5))
-                ax[0].set_title(rf"Order for $t_0=${interval[0]} to $T=${interval[-1]}")
-                ax[1].set_title(rf"Perturbed order for $t_0=${interval[0]} to $T=${interval[-1]}")
-            else:
-                fig, ax = plt_helper.plt.subplots(1, 1, figsize=(8.5, 8.5))
-                ax.set_title(rf"Order for $t_0=${interval[0]} to $T=${interval[-1]}")
+            fig, ax = plt_helper.plt.subplots(1, 2, figsize=(15.5, 5))
 
+            ax[0].set_title(rf"Order for $t_0=${interval[0]} to $T=${interval[-1]}")
+            ax[1].set_title(rf"Perturbed order for $t_0=${interval[0]} to $T=${interval[-1]}")
             for ind, label in enumerate(type_err):
-                ax_wrapper = ax[ind] if isSemiExplicit else ax         
+                ax_wrapper = ax[ind]
                 for M in M_keys:
                     res = [
                         u_num[sweeper_cls_name][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][label][:, 1]
@@ -465,7 +436,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit, 
 
                     norms = [max(val) for val in res]
 
-                    p = 1
+                    p = 3
                     order_ref = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p for m in range(len(dt_keys))]
 
                     ax_wrapper.loglog(
@@ -502,16 +473,13 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, index, isSemiExplicit, 
                         )
 
 
-                if isSemiExplicit:
                     if ind == 0:
-                        ylabel = r'Error norm $||e_{diff}||_\infty$'
+                        ylabel = r'Error norm $||e||_\infty$'
                     else:
-                        ylabel = r'Error norm $||e_{alg}||_\infty$'
-                else:
-                    ylabel = r'Error norm $||e||_\infty$'
+                        ylabel = r'Error norm $||e_{perturb}||_\infty$'
 
                 ax_wrapper.tick_params(axis='both', which='major', labelsize=16)
-                ax_wrapper.set_ylim(1e-10, 1e3)
+                ax_wrapper.set_ylim(1e-5, 1e5)
                 ax_wrapper.set_xscale('log', base=10)
                 ax_wrapper.set_yscale('log', base=10)
                 ax_wrapper.set_xlabel(r'$\Delta t$', fontsize=16)

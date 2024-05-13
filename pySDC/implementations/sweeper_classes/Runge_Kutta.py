@@ -567,24 +567,6 @@ class Cash_Karp(RungeKutta):
         return 5
 
 
-class KurdiEDIRK45_2(RungeKutta):
-    """
-    Stiffly-accurate fourth-order EDIRK with five stages.
-    Taken from
-    [here](https://ntrs.nasa.gov/citations/20160005923), second one in eq. (218).
-    """
-
-    nodes = np.array([0.0, 4.0 / 3.0, 1.0, 1.0 / 2.0, 1.0])
-    weights = np.array([1.0 / 6.0, 0.0, -26.0 / 54.0, 2.0 / 3.0, 35.0 / 54.0])
-    matrix = np.zeros((5, 5))
-    matrix[0, 0] = 0.0
-    matrix[1, :2] = [2.0 / 3.0, 2.0 / 3.0]
-    matrix[2, :3] = [3.0 / 8.0, -3.0 / 8.0, 1.0]
-    matrix[3, :4] = [35.0 / 160.0, -3.0 / 160.0, 0.0, 48.0 / 160.0]
-    matrix[4, :] = [1.0 / 6.0, 0.0, -26.0 / 54.0, 2.0 / 3.0, 35.0 / 54.0]
-    ButcherTableauClass = ButcherTableau
-
-
 class EDIRK4(RungeKutta):
     """
     Stiffly accurate, fourth-order EDIRK with four stages. Taken from

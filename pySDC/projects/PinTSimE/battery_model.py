@@ -431,6 +431,7 @@ def getUnknownLabels(prob_cls_name):
         'EmbeddedLinearTestDAE': ['y', 'z'],
         'EmbeddedLinearTestDAEMinion': ['u1', 'u2', 'u3', 'z'],
         'LinearTestDAE': ['y', 'z'],
+        'LinearTestDAEIntegralFormulation': ['y', 'z'],
     }
 
     unknowns_labels = {
@@ -447,6 +448,7 @@ def getUnknownLabels(prob_cls_name):
         'EmbeddedLinearTestDAE': [r'$y$', r'$z$'],
         'EmbeddedLinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$z$'],
         'LinearTestDAE': [r'$y$', r'$z$'],
+        'LinearTestDAEIntegralFormulation': [r'$y$', r'$z$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]

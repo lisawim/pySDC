@@ -7,7 +7,8 @@ from pySDC.implementations.problem_classes.odeScalar import ProtheroRobinson
 
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE
+from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE, LinearTestDAEIntegralFormulation
 
 import pySDC.helpers.plot_helper as plt_helper
 
@@ -60,12 +61,12 @@ def main():
         'exact_event_time_avail': None,
     }
 
-    epsilons = [10 ** (-k) for k in range(1, 11, 1)]#np.logspace(-12.0, 0.0, 100)
+    epsilons = [1.0]#[10 ** (-k) for k in range(1, 11, 1)]#np.logspace(-12.0, 0.0, 100)
     eps_fix = epsilons#[eps for eps in epsilons if eps <= 1e-10]#epsilons
 
-    problems = [EmbeddedLinearTestDAE]
+    problems = [LinearTestDAEIntegralFormulation]
     prob_cls_name = problems[0].__name__
-    sweeper = [generic_implicit]
+    sweeper = [genericImplicitEmbedded]
 
     if prob_cls_name == 'EmbeddedLinearTestDAEMinion':
         handling_params.update({'compute_ref': True})
@@ -89,12 +90,12 @@ def main():
         # LogGlobalErrorPostIter,
         # LogGlobalErrorPostStep,
         # LogGlobalErrorPostStepPerturbation,
-        # LogGlobalErrorPostStepDifferentialVariable,
-        # LogGlobalErrorPostStepAlgebraicVariable,
+        LogGlobalErrorPostStepDifferentialVariable,
+        LogGlobalErrorPostStepAlgebraicVariable,
         # LogGlobalErrorPostIterDiff,
         # LogGlobalErrorPostIterAlg,
-        LogGlobalErrorPostIter,
-        LogGlobalErrorPostIterPerturbation,
+        # LogGlobalErrorPostIter,
+        # LogGlobalErrorPostIterPerturbation,
     ]
     all_params = {
         'sweeper_params': sweeper_params,
@@ -106,7 +107,7 @@ def main():
     use_adaptivity = [False]
 
     t0 = 0.0
-    dt_list = [1.0]#[10 ** (-k) for k in range(0, 4, 1)]#np.logspace(-4.0, -0.0, num=30)
+    dt_list = np.logspace(-4.0, -0.0, num=30)#[10 ** (-k) for k in range(0, 4, 1)]
     t1 = 0.5
 
     u_num = runSimulationStudy(
@@ -130,7 +131,7 @@ def main():
 
     # plotErrorsM(u_num, prob_cls_name, quad_type, initial_guess)
 
-    plotErrorInEachIterationEps(u_num, prob_cls_name)
+    # plotErrorInEachIterationEps(u_num, prob_cls_name)
 
     # plotResidual(u_num, prob_cls_name, quad_type)
 
@@ -142,7 +143,7 @@ def main():
 
     # plotQuantitiesAlongIterations(u_num, prob_cls_name, eps_fix, maxiter)
 
-    # plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix, initial_guess)
+    plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix, initial_guess)
 
     # plotOrderAfterEachIteration(u_num, prob_cls_name)
 
@@ -256,7 +257,7 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
                                             sweeper_params = all_params['sweeper_params']
                                             handling_params = all_params['handling_params']
 
-                                            problem_params.update({'eps': eps})
+                                            # problem_params.update({'eps': eps})
 
                                             restol = -1 if use_A else handling_params['restol']
 
@@ -945,7 +946,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                         ]
 
                         norms = [max(val) for val in res]
-                        p_nonstiff = 2 * M - 1
+                        p_nonstiff = M - 1 #2 * M - 1
                         p_stiff = M - 1
 
                         # order_ref_nonstiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_nonstiff for m in range(len(dt_keys))]
@@ -1010,7 +1011,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                             ylabel = r'Error norm $||e_{alg}||_\infty$'
 
                         ax_wrapper.tick_params(axis='both', which='major', labelsize=16)
-                        ax_wrapper.set_ylim(1e-15, 1e-2)#(1e-16, 1e-1)
+                        ax_wrapper.set_ylim(1e-15, 1e1)#(1e-16, 1e-1)
                         ax_wrapper.set_xscale('log', base=10)
                         ax_wrapper.set_yscale('log', base=10)
                         ax_wrapper.set_xlabel(r'$\Delta t$', fontsize=16)

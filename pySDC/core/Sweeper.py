@@ -505,7 +505,7 @@ class sweeper(object):
                 f'residual_type = {L.params.residual_type} not implemented, choose '
                 f'full_abs, last_abs, full_rel or last_rel instead'
             )
-
+        # print(L.status.residual)
         # indicate that the residual has seen the new values
         L.status.updated = False
 

@@ -432,6 +432,17 @@ def getUnknownLabels(prob_cls_name):
         'EmbeddedLinearTestDAEMinion': ['u1', 'u2', 'u3', 'z'],
         'LinearTestDAE': ['y', 'z'],
         'LinearTestDAEIntegralFormulation': ['y', 'z'],
+        'LinearTestDAEIntegralFormulation2': ['y', 'z'],
+        'LinearTestDAEMinionIntegralFormulation': ['u1', 'u2', 'u3', 'u4'],
+        'LinearTestDAEMinionIntegralFormulation2': ['u1', 'u2', 'u3', 'u4'],
+        'DiscontinuousTestDAEIntegralFormulation': ['y', 'z'],
+        'DiscontinuousTestDAEIntegralFormulation2': ['y', 'z'],
+        'simple_dae_1IntegralFormulation': ['u1', 'u2', 'z'],
+        'simple_dae_1IntegralFormulation2': ['u1', 'u2', 'z'],
+        'LinearIndexTwoDAEIntegralFormulation': ['x1', 'x2', 'z'],
+        'LinearIndexTwoDAEIntegralFormulation2': ['x1', 'x2', 'z'],
+        'pendulum_2dIntegralFormulation': ['q1', 'q2', 'v1', 'v2', 'lamb'],
+        'pendulum_2dIntegralFormulation2': ['q1', 'q2', 'v1', 'v2', 'lamb'],
     }
 
     unknowns_labels = {
@@ -449,6 +460,17 @@ def getUnknownLabels(prob_cls_name):
         'EmbeddedLinearTestDAEMinion': [r'$u_1$', r'$u_2$', r'$u_3$', r'$z$'],
         'LinearTestDAE': [r'$y$', r'$z$'],
         'LinearTestDAEIntegralFormulation': [r'$y$', r'$z$'],
+        'LinearTestDAEIntegralFormulation2': [r'$y$', r'$z$'],
+        'LinearTestDAEMinionIntegralFormulation': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
+        'LinearTestDAEMinionIntegralFormulation2': [r'$u_1$', r'$u_2$', r'$u_3$', r'$u_4$'],
+        'DiscontinuousTestDAEIntegralFormulation': [r'$y$', r'$z$'],
+        'DiscontinuousTestDAEIntegralFormulation2': [r'$y$', r'$z$'],
+        'simple_dae_1IntegralFormulation': [r'$u_1$', r'$u_2$', r'$z$'],
+        'simple_dae_1IntegralFormulation2': [r'$u_1$', r'$u_2$', r'$z$'],
+        'LinearIndexTwoDAEIntegralFormulation': [r'$x_1$', r'$x_2$', r'$z$'],
+        'LinearIndexTwoDAEIntegralFormulation2': [r'$x_1$', r'$x_2$', r'$z$'],
+        'pendulum_2dIntegralFormulation': [r'$q_1$', r'$q_2$', r'$v_1$', r'$v_2$', r'$\lambda$'],
+        'pendulum_2dIntegralFormulation2': [r'$q_1$', r'$q_2$', r'$v_1$', r'$v_2$', r'$\lambda$'],
     }
 
     return unknowns[prob_cls_name], unknowns_labels[prob_cls_name]
@@ -511,7 +533,7 @@ def plotSolution(u_num, prob_cls_name, sweeper_cls_name, use_adaptivity, use_det
     ax.set_xlabel(r'$t$', fontsize=16)
     ax.set_ylabel(r'$u(t)$', fontsize=16)
 
-    fig.savefig('data/{prob_cls_name}_model_solution_{sweeper_cls_name}.png', dpi=300, bbox_inches='tight')
+    fig.savefig(f'data/{prob_cls_name}_model_solution_{sweeper_cls_name}.png', dpi=300, bbox_inches='tight')
     plt_helper.plt.close(fig)
 
 
@@ -580,6 +602,7 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
             res[label] = np.array([item[1].diff[i] for item in u_val]) if i < len(u_val[0][1].diff) else np.array([item[1].alg[i - n_diff] for item in u_val])
         else:
             res[label] = np.array([item[1][i] for item in u_val])
+        res['u'] = [item[1] for item in u_val]
         # res[label] = np.array([item[1][i] for item in u_val])
 
     res['unknowns'] = unknowns
@@ -587,6 +610,7 @@ def getDataDict(stats, prob_cls_name, use_adaptivity, use_detection, recomputed,
 
     # residual
     res['residual'] = np.array(get_sorted(stats, type='residual_post_step', sortby='time', recomputed=recomputed))
+    res['residual_post_iter'] = [get_sorted(stats, iter=k, type='residual_post_iteration', sortby='time') for k in range(1, maxiter + 1)]
 
     # global error
     res['e_global'] = np.array(get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed))

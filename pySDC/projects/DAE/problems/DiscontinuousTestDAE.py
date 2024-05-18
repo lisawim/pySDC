@@ -2,6 +2,7 @@ import numpy as np
 
 from pySDC.core.Problem import WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.core.Errors import ProblemError
 
 
 class DiscontinuousTestDAE(ptype_dae):
@@ -175,3 +176,192 @@ class DiscontinuousTestDAE(ptype_dae):
         Setter to update the number of switches if one is found.
         """
         self.nswitches += 1
+
+
+class DiscontinuousTestDAEIntegralFormulation(DiscontinuousTestDAE):
+    def __init__(self, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
+        """Initialization routine"""
+        super().__init__()
+        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
+        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['rhs'] = WorkCounter()
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains two components).
+        """
+
+        y, z = u.diff[0], u.alg[0]
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+        h = 2 * y - 100
+        f = self.dtype_f(self.init)
+        f.diff[0] = 0 if h >= 0 or t >= t_switch else z
+        f.alg[0] = y**2 - z**2 - 1
+        self.work_counters['rhs']()
+        return f
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver.
+
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the nonlinear system.
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (required here for the BC).
+
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
+        """
+
+        u = self.dtype_u(u0)
+
+        # start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            y, z = u.diff[0], u.alg[0]
+
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            t_switch = np.inf if self.t_switch is None else self.t_switch
+            h = 2 * y - 100
+            if h >= 0 or t >= t_switch:
+                g = np.array([y - rhs.diff[0], y**2 - z**2 - 1]).flatten()
+            else:
+                g = np.array([y - factor * z - rhs.diff[0], y**2 - z**2 - 1]).flatten()
+
+            # if g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+            if res < self.newton_tol:
+                break
+
+            # assemble dg
+            if h >= 0 or t >= t_switch:
+                dg = np.array([[1, 0], [2 * y, -2 * z]])
+            else:
+                dg = np.array([[1, -factor], [2 * y, -2 * z]])
+
+            # newton update: u1 = u0 - g/dg
+            dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))
+
+            u.diff[0] -= dx[0]
+            u.alg[0] -= dx[1]
+
+            n += 1
+            self.work_counters['newton']()
+
+        if np.isnan(res) and self.stop_at_nan:
+            print(f"Nan at time {t} for eps={self.eps}")
+            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+        elif np.isnan(res):
+            self.logger.warning('Newton got nan after %i iterations...' % n)
+
+        # if n == self.newton_maxiter:
+        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+        #     if self.stop_at_maxiter:
+        #         raise ProblemError(msg)
+        #     else:
+        #         self.logger.warning(msg)
+
+        me = self.dtype_u(self.init)
+        me[:] = u[:]
+
+        return me
+
+
+class DiscontinuousTestDAEIntegralFormulation2(DiscontinuousTestDAEIntegralFormulation):
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver.
+
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the nonlinear system.
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (required here for the BC).
+
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
+        """
+
+        u = self.dtype_u(u0)
+
+        # start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            y, z = u.diff[0], u.alg[0]
+
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            t_switch = np.inf if self.t_switch is None else self.t_switch
+            h = 2 * y - 100
+            if h >= 0 or t >= t_switch:
+                g = np.array([y - rhs.diff[0], -factor * (y**2 - z**2 - 1) - rhs.alg[0]]).flatten()
+            else:
+                g = np.array([y - factor * z - rhs.diff[0], -factor * (y**2 - z**2 - 1) - rhs.alg[0]]).flatten()
+
+            # if g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+            if res < self.newton_tol:
+                break
+
+            # assemble dg
+            if h >= 0 or t >= t_switch:
+                dg = np.array([[1, 0], [-2 * factor * y, 2 * factor * z]])
+            else:
+                dg = np.array([[1, -factor], [-2 * factor * y, 2 * factor * z]])
+
+            # newton update: u1 = u0 - g/dg
+            dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))
+
+            u.diff[0] -= dx[0]
+            u.alg[0] -= dx[1]
+
+            n += 1
+            self.work_counters['newton']()
+
+        if np.isnan(res) and self.stop_at_nan:
+            print(f"Nan at time {t} for eps={self.eps}")
+            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+        elif np.isnan(res):
+            self.logger.warning('Newton got nan after %i iterations...' % n)
+
+        # if n == self.newton_maxiter:
+        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+        #     if self.stop_at_maxiter:
+        #         raise ProblemError(msg)
+        #     else:
+        #         self.logger.warning(msg)
+
+        me = self.dtype_u(self.init)
+        me[:] = u[:]
+
+        return me

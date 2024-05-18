@@ -8,7 +8,9 @@ from pySDC.implementations.problem_classes.odeScalar import ProtheroRobinson
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
 from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE, LinearTestDAEIntegralFormulation
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAE, LinearTestDAEIntegralFormulation, LinearTestDAEMinionIntegralFormulation
+from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEIntegralFormulation
+from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1IntegralFormulation
 
 import pySDC.helpers.plot_helper as plt_helper
 
@@ -49,9 +51,9 @@ def main():
     }
 
     # defines parameters for event detection, restol, and max. number of iterations
-    maxiter = 100#250
+    maxiter = 600#250
     handling_params = {
-        'restol': 1e-12,#1e-10,
+        'restol': 1e-14,#1e-10,
         'maxiter': maxiter,
         'compute_one_step': True,
         'max_restarts': 50,
@@ -64,7 +66,7 @@ def main():
     epsilons = [1.0]#[10 ** (-k) for k in range(1, 11, 1)]#np.logspace(-12.0, 0.0, 100)
     eps_fix = epsilons#[eps for eps in epsilons if eps <= 1e-10]#epsilons
 
-    problems = [LinearTestDAEIntegralFormulation]
+    problems = [simple_dae_1IntegralFormulation]
     prob_cls_name = problems[0].__name__
     sweeper = [genericImplicitEmbedded]
 
@@ -78,9 +80,10 @@ def main():
     handling_params.update({'compute_ref': False})
 
     problem_params = {
-        'newton_tol': 1e-12,
+        'newton_tol': 1e-15,
     }
 
+    # be careful with hook classes - for error classes choose only the necessary ones!
     hook_class = [
         DefaultHooks,
         LogSolution,
@@ -92,8 +95,8 @@ def main():
         # LogGlobalErrorPostStepPerturbation,
         LogGlobalErrorPostStepDifferentialVariable,
         LogGlobalErrorPostStepAlgebraicVariable,
-        # LogGlobalErrorPostIterDiff,
-        # LogGlobalErrorPostIterAlg,
+        LogGlobalErrorPostIterDiff,
+        LogGlobalErrorPostIterAlg,
         # LogGlobalErrorPostIter,
         # LogGlobalErrorPostIterPerturbation,
     ]
@@ -107,8 +110,8 @@ def main():
     use_adaptivity = [False]
 
     t0 = 0.0
-    dt_list = np.logspace(-4.0, -0.0, num=30)#[10 ** (-k) for k in range(0, 4, 1)]
-    t1 = 0.5
+    dt_list = [1e-3]#np.logspace(-3.0, -0.5, num=30)#[10 ** (-k) for k in range(0, 4, 1)]
+    t1 = 1.5
 
     u_num = runSimulationStudy(
         problems=problems,
@@ -119,7 +122,7 @@ def main():
         hook_class=hook_class,
         interval=(t0, t1),  # note that the interval will be ignored if compute_one_step=True!
         dt_list=dt_list,
-        nnodes=[4],
+        nnodes=[3],
         epsilons=epsilons,
     )
 
@@ -262,6 +265,21 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
                                             restol = -1 if use_A else handling_params['restol']
 
                                             problem_params.update({'newton_tol': newton_tol})
+                                            print('dt:', dt)
+                                            print('problem:', problem)
+                                            print('sweeper:', sweeper)
+                                            print('M:', M)
+                                            print('quad_type:',sweeper_params['quad_type'])
+                                            print('QI:',QI)
+                                            print('hook_class:',hook_class)
+                                            print('use_A:', use_A)
+                                            print('use_SE:',use_SE)
+                                            print('problem_params:', problem_params)
+                                            print('restol:', restol)
+                                            print('maxiter:', maxiter)
+                                            print('max_restarts:', handling_params['max_restarts'])
+                                            print('tol_event:', tol_event)
+                                            print('alpha:', alpha)
 
                                             description, controller_params, controller = generateDescription(
                                                 dt=dt,
@@ -304,6 +322,48 @@ def runSimulationStudy(problems, sweeper, all_params, use_adaptivity, use_detect
                                             )
 
     return u_num
+
+
+def getOrder(prob_cls_name, errLabel, M):
+    r"""
+    Returns the expected order of accuracy for different problems.
+
+    Parameters
+    ----------
+    prob_cls_name : str
+        Name of the problem class.
+    errLabel : str
+        Indicates of differential or algebraic error is considered.
+    M : int
+        Number of collocation nodes.
+
+    Returns
+    -------
+    p : int
+        Order of accuracy.
+    """
+
+    index_one_problem = (
+        'LinearTestDAEIntegralFormulation',
+        'LinearTestDAEIntegralFormulation2',
+        'LinearTestDAEMinionIntegralFormulation',
+        'DiscontinuousTestDAEIntegralFormulation'
+    )
+    index_two_problem = (
+        'simple_dae_1IntegralFormulation'
+        'simple_dae_1IntegralFormulation2'
+    )
+
+    if prob_cls_name in index_one_problem:
+        p = 2 * M - 1
+    elif prob_cls_name in index_two_problem:
+        if errLabel == 'e_global':
+            p = 2 * M - 1
+        else:
+            p = M
+    else:
+        raise NotImplementedError(f"No order implemented for {prob_cls_name}!")
+    return p
 
 
 def plotStylingStuff(color_type, linestyle_type='QI'):
@@ -619,6 +679,7 @@ def plotErrorInEachIterationEps(u_num, prob_cls_name):
                             ylabel = r'Error norm $||e_{alg}||_\infty$'
 
                         res = u_num[sweeper_keys[0]][QI][dt][M][use_SE_keys[0]][use_A_keys[0]][newton_tolerances[0]][tol_event[0]][alpha[0]][eps][label]
+                        print(res)
                         tmp_list = [item for item in res]
                         err_iter = []
                         for item in tmp_list:
@@ -872,7 +933,7 @@ def plotQuantitiesAlongIterations(u_num, prob_cls_name, eps_fix, maxiter):
                 ax.set_xlabel(r'Iteration $k$', fontsize=16)
                 ax.tick_params(axis='both', which='major', labelsize=16)
                 ax.set_xlim(0, maxiter + 1)
-                ax.set_ylim(1e-15, 1e3)
+                ax.set_ylim(1e-17, 1e3)
                 ax.set_yscale('log', base=10)
                 ax.grid(visible=True)
                 ax.legend(frameon=False, fontsize=12, loc='upper right' , ncol=2)
@@ -946,33 +1007,22 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                         ]
 
                         norms = [max(val) for val in res]
-                        p_nonstiff = M - 1 #2 * M - 1
-                        p_stiff = M - 1
+                        p = getOrder(prob_cls_name, label, M)
 
-                        # order_ref_nonstiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_nonstiff for m in range(len(dt_keys))]
-                        order_ref_nonstiff = [(dt) ** p_nonstiff for dt in dt_keys]
-                        # order_ref_stiff = [norms[-1] * (dt_keys[m] / dt_keys[-1]) ** p_stiff for m in range(len(dt_keys))]
+                        print(norms)
+                        order_ref = [(dt) ** p for dt in dt_keys]
+
                         ax_wrapper = ax if prob_cls_name == 'CosineProblem' or prob_cls_name == 'ProtheroRobinson' else ax[ind]
 
                         if eps_i == 0:
                             ax_wrapper.loglog(
                                 dt_keys,
-                                order_ref_nonstiff,
+                                order_ref,
                                 color='gray',
                                 linestyle='--',
                                 linewidth=0.9,
-                                # label=f'Non-stiff ref. order $p={p_nonstiff}$',
-                                label=f'Ref. order $p={p_nonstiff}$',
+                                label=f'Ref. order $p={p}$',
                             )
-                        # elif eps_i == 2:
-                        #     ax_wrapper.loglog(
-                        #         dt_keys,
-                        #         order_ref_stiff,
-                        #         color='grey',
-                        #         linestyle='dashdot',
-                        #         linewidth=0.9,
-                        #         label=f'Stiff ref. order $p={p_stiff}$',
-                        #     )
 
                         ax_wrapper.loglog(
                             dt_keys,
@@ -1011,7 +1061,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                             ylabel = r'Error norm $||e_{alg}||_\infty$'
 
                         ax_wrapper.tick_params(axis='both', which='major', labelsize=16)
-                        ax_wrapper.set_ylim(1e-15, 1e1)#(1e-16, 1e-1)
+                        ax_wrapper.set_ylim(1e-16, 1e1)#(1e-16, 1e-1)
                         ax_wrapper.set_xscale('log', base=10)
                         ax_wrapper.set_yscale('log', base=10)
                         ax_wrapper.set_xlabel(r'$\Delta t$', fontsize=16)
@@ -1020,7 +1070,7 @@ def plot_accuracy_order(u_num, prob_cls_name, quad_type, eps_fix=None, initial_g
                         if prob_cls_name == 'CosineProblem' or prob_cls_name == 'ProtheroRobinson':
                             ax.legend(frameon=False, fontsize=10, loc='upper left', ncol=3)
                         else:
-                            ax[0].legend(frameon=False, fontsize=10, loc='upper left', ncol=3)
+                            ax_wrapper.legend(frameon=False, fontsize=10, loc='upper left', ncol=3)
                         ax_wrapper.minorticks_off()
 
                 fig.savefig(f"data/{prob_cls_name}/eps_embedding/plot_order_accuracy_{sweeper_cls_name}_{QI}_M={M}_initial_guess={initial_guess}.png", dpi=300, bbox_inches='tight')

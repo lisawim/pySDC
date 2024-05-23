@@ -41,6 +41,9 @@ class LinearTestDAE(ptype_dae):
         self.work_counters['rhs'] = WorkCounter()
         self.work_counters['newton'] = WorkCounter()
 
+        self.lamb_diff = -2.0
+        self.lamb_alg = 1.0
+
     def eval_f(self, u, du, t):
         r"""
         Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
@@ -64,8 +67,8 @@ class LinearTestDAE(ptype_dae):
         du_diff = du.diff
 
         f = self.dtype_f(self.init)
-        f.diff[:] = du_diff - 1.0 * u_diff - 1.0 * u_alg
-        f.alg[:] = 1.0 * u_diff - 1.0 * u_alg
+        f.diff[:] = du_diff - self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        f.alg[:] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
         return f
 
     def u_exact(self, t, **kwargs):
@@ -84,13 +87,13 @@ class LinearTestDAE(ptype_dae):
         """
 
         me = self.dtype_u(self.init)
-        me.diff[0] = np.exp(2 * t)
-        me.alg[0] = np.exp(2 * t)
+        me.diff[0] = np.exp(2 * self.lamb_diff * t)
+        me.alg[0] = self.lamb_diff / self.lamb_alg * np.exp(2 * self.lamb_diff * t)
         return me
 
 
 class LinearTestDAEIntegralFormulation(LinearTestDAE):
-    def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
+    def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False):
         """Initialization routine"""
         super().__init__()
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
@@ -117,8 +120,9 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
         u_diff, u_alg = u.diff, u.alg
 
         f = self.dtype_f(self.init)
-        f.diff[:] = u_diff + u_alg
-        f.alg[:] = u_diff - u_alg
+        f.diff[:] = self.lamb_diff * u_diff + self.lamb_alg * u_alg
+        f.alg[:] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        self.work_counters['rhs']()
         return f
 
     def solve_system(self, rhs, factor, u0, t):
@@ -148,10 +152,11 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            # # form the function g(u), such that the solution to the nonlinear problem is a root of g
-
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
             y, z = u.diff[0], u.alg[0]
-            g = np.array([y - factor * (y + z) - rhs.diff[0], -(y - z)]).flatten()
+            f = self.eval_f(u, t)
+
+            g = np.array([y - factor * f.diff[0] - rhs.diff[0], f.alg[0]]).flatten()
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -161,7 +166,7 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
 
             # assemble dg
             # dg = np.array([[1 - factor, -factor], [1, -1]])
-            dg = np.array([[1 - factor, -factor], [-1, 1]])
+            dg = np.array([[1 - self.lamb_diff * factor, -self.lamb_alg * factor], [-1, 1]])
 
             # newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g).reshape(u.shape).view(type(u))
@@ -215,14 +220,20 @@ class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
 
         u = self.dtype_u(u0)
 
+        Id = np.identity(2)
+        Id[-1, -1] = 0
+
         # start newton iteration
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            # # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
 
             y, z = u.diff[0], u.alg[0]
-            g = np.array([y - factor * (y + z) - rhs.diff[0], -factor * (y - z) - rhs.alg[0]]).flatten()
+            f = self.eval_f(u, t)
+
+            # g = np.array([y - factor * f.diff[0] - rhs.diff[0], -factor * f.alg[0] - rhs.alg[0]]).flatten()
+            g = np.array([y - factor * f.diff[0] - rhs.diff[0], -factor * f.alg[0] - rhs.alg[0]])
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -231,7 +242,7 @@ class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
                 break
 
             # assemble dg
-            dg = np.array([[1 - factor, -factor], [-factor, factor]])
+            dg = np.array([[1 - self.lamb_diff * factor, -self.lamb_alg * factor], [-self.lamb_diff * factor, self.lamb_alg * factor]])
 
             # newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g).reshape(u.shape).view(type(u))
@@ -242,10 +253,9 @@ class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
             self.work_counters['newton']()
 
         if np.isnan(res) and self.stop_at_nan:
-            print(f"Nan at time {t} for eps={self.eps}")
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
-        elif np.isnan(res):
-            self.logger.warning('Newton got nan after %i iterations...' % n)
+        # elif np.isnan(res):
+        #     self.logger.warning('Newton got nan after %i iterations...' % n)
 
         # if n == self.newton_maxiter:
         #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
@@ -314,35 +324,6 @@ class LinearTestDAEMinionIntegralFormulation(ptype_dae):
         me : dtype_u
             The solution as mesh.
         """
-
-        E = np.identity(4)
-        E[-1, -1] = 0
-
-        Ad = np.array([[1, 0, -1, 1], [0, -1e4, 0, 0], [1, 0, 0, 0]])
-        Aa = np.array([[1, 1, 0, 1]])
-
-        Nd = Ad.shape[0]
-        Na = Aa.shape[0]
-        N = Nd + Na
-
-        B = np.concatenate((Ad, np.zeros((Na, N))), axis=0)
-
-        dg_tmp = np.array(
-            [
-                [1 - factor, 0, factor, -factor],
-                [0, 1 + factor * 1e4, 0, 0],
-                [-factor, 0, 1, 0],
-                [1, 1, 0, 1],
-            ]
-        )
-
-        dg_tmp2 = E - factor * B
-        print(f'dg_tmp at time {t}: {dg_tmp}')
-        print(f'dg_tmp2 at time {t}: {dg_tmp2}')
-        print()
-
-
-        print(f"Determinant Jacobian at time {t}: {np.linalg.det(dg_tmp)}")
 
         u = self.dtype_u(u0)
 

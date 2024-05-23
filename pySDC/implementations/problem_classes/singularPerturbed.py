@@ -60,6 +60,8 @@ class EmbeddedLinearTestDAEMinion(ptype):
         self.A[1, :] = [0, -1e4, 0, 0]
         self.A[2, :] = [1, 0, 0, 0]
         self.A[3, :] = [1 / self.eps, 1 / self.eps, 0, 1 / self.eps]
+        lambdas = np.linalg.eigvals(self.A)
+        print(lambdas, f'stiffness ratio: {abs(max(lambdas.real)) / abs(min(lambdas.real))}')
 
     def eval_f(self, u, t):
         r"""
@@ -216,7 +218,7 @@ class EmbeddedLinearTestDAE(ptype):
 
     dtype_u = mesh
     dtype_f = mesh
-    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
+    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
         """Initialization routine"""
         super().__init__(init=(nvars, None, np.dtype('float64')))
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
@@ -224,9 +226,12 @@ class EmbeddedLinearTestDAE(ptype):
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
+        self.lamb_diff = -2.0
+        self.lamb_alg = 1.0
+
         self.A = np.zeros((2, 2))
-        self.A[0, :] = [1, 1]
-        self.A[1, :] = [1 / self.eps, -1 / self.eps]
+        self.A[0, :] = [self.lamb_diff, self.lamb_alg]
+        self.A[1, :] = [self.lamb_diff / self.eps, -self.lamb_alg / self.eps]
 
     def eval_f(self, u, t):
         r"""
@@ -278,7 +283,7 @@ class EmbeddedLinearTestDAE(ptype):
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            # # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
             g = u - factor * self.A.dot(u) - rhs
 
             # if g is close to 0, then we are done
@@ -298,8 +303,8 @@ class EmbeddedLinearTestDAE(ptype):
 
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
-        elif np.isnan(res):
-            self.logger.warning('Newton got nan after %i iterations...' % n)
+        # elif np.isnan(res):
+        #     self.logger.warning('Newton got nan after %i iterations...' % n)
 
         # if n == self.newton_maxiter:
         #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
@@ -339,7 +344,150 @@ class EmbeddedLinearTestDAE(ptype):
 
             me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')#, max_step=1e-5)
         else:
-            me[:] = (np.exp(2 * t), np.exp(2 * t))
+            me[:] = (np.exp(2 * self.lamb_diff * t), self.lamb_diff / self.lamb_alg * np.exp(2 * self.lamb_diff * t))
+        return me
+
+
+class EmbeddedDiscontinuousTestDAE(ptype):
+    dtype_u = mesh
+    dtype_f = mesh
+    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
+        """Initialization routine"""
+        super().__init__(init=(nvars, None, np.dtype('float64')))
+        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
+        self.nvars = nvars
+        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['rhs'] = WorkCounter()
+
+        self.t_switch_exact = np.arccosh(50)
+        self.t_switch = None
+        self.nswitches = 0
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the right-hand side of the problem.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains two components).
+        """
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        h = 2 * u[0] - 100
+        f = self.dtype_f(self.init)
+        f[0] = 0 if h >= 0 or t >= t_switch else u[1]
+        f[1] = (u[0]**2 - u[1]**2 - 1) / self.eps
+        self.work_counters['rhs']()
+        return f
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver.
+
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the nonlinear system.
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (required here for the BC).
+
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
+        """
+
+        u = self.dtype_u(u0)
+        Id = np.identity(2)
+
+        # start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            f = self.eval_f(u, t)
+            # g = np.array([u[0] - factor * f[0] - rhs[0], u[1] - factor * f[1] - rhs[1]])
+            g = u - factor * f - rhs
+            # if g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+
+            if res < self.newton_tol:
+                break
+
+            # assemble dg
+            t_switch = np.inf if self.t_switch is None else self.t_switch
+            h = 2 * u[0] - 100
+            # if h >= 0 or t >= t_switch:
+            #     dg = np.array([[1, 0], [-2 * factor * (1 / self.eps) * u[0], 2 * factor * (1 / self.eps) * u[1]]])
+            # else:
+            dg = np.array([[1, -factor], [-2 * factor * (1 / self.eps) * u[0], 2 * factor * (1 / self.eps) * u[1]]])
+
+            # newton update: u1 = u0 - g/dg
+            u -= np.linalg.solve(dg, g)
+
+            n += 1
+            self.work_counters['newton']()
+
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+        # elif np.isnan(res):
+        #     self.logger.warning('Newton got nan after %i iterations...' % n)
+
+        # if n == self.newton_maxiter:
+        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+        #     if self.stop_at_maxiter:
+        #         raise ProblemError(msg)
+        #     else:
+        #         self.logger.warning(msg)
+
+        me = self.dtype_u(self.init)
+        me[:] = u[:]
+
+        return me
+
+    def u_exact(self, t, u_init=None, t_init=None):
+        r"""
+        Routine to approximate the exact solution at time t by ``SciPy`` or give initial conditions when called at :math:`t=0`.
+
+        Parameters
+        ----------
+        t : float
+            Current time.
+        u_init : pySDC.problem.vanderpol.dtype_u
+            Initial conditions for getting the exact solution.
+        t_init : float
+            The starting time.
+
+        Returns
+        -------
+        me : dtype_u
+            Approximate exact solution.
+        """
+
+        assert t >= 1.0, 'ERROR: u_exact only available for t>=1'
+
+        me = self.dtype_u(self.init)
+
+        if t > 1.0:
+            def eval_rhs(t, u):
+                return self.eval_f(u, t)
+
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', max_step=1e-5)
+        else:
+            me[:] = (np.cosh(1.0), np.sinh(1.0))
         return me
 
 
@@ -731,6 +879,7 @@ class CosineProblem(ptype):
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
+        self.A = np.array([-1 / self.eps])
 
     def eval_f(self, u, t):
         r"""
@@ -750,7 +899,7 @@ class CosineProblem(ptype):
         """
 
         f = self.dtype_f(self.init)
-        f[:] = - 1 / self.eps * u + 1 / self.eps * np.cos(t) - np.sin(t)
+        f[:] = self.A.dot(u) - self.A.dot(np.cos(t)) - np.sin(t)
         self.work_counters['rhs']()
         return f
 
@@ -781,8 +930,9 @@ class CosineProblem(ptype):
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            # # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = u - factor * (- 1 / self.eps * u + 1 / self.eps * np.cos(t) - np.sin(t)) - rhs
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            f = self.eval_f(u, t)
+            g = u - factor * f - rhs
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -790,7 +940,7 @@ class CosineProblem(ptype):
                 break
 
             # assemble dg
-            dg = 1 - factor * (- 1 / self.eps)
+            dg = 1 - factor * self.A
 
             # newton update: u1 = u0 - g/dg
             u -= dg ** (-1) * g

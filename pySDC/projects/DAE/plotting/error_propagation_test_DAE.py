@@ -142,7 +142,7 @@ def plotSRIterMatrixDiffEpsDt():
     quad_type = 'RADAU-RIGHT'
     colors = ['turquoise', 'deepskyblue', 'purple', 'firebrick', 'limegreen', 'orange', 'plum', 'salmon', 'forestgreen', 'midnightblue', 'gold', 'silver']
 
-    lambda_d, lambda_a = 1, 1
+    lambda_d, lambda_a = -2, 1
 
     marker = ['o', '*', 'D', 's', '^', '<', '>', 'd', '8', 'p', 'P', 'h']
 
@@ -799,7 +799,7 @@ if __name__ == "__main__":
     plotSRIterMatrixDiffEpsDt()
     # plotSRDAE()
     # plotErrPropagationMaxNormDiffEps()
-    plotMaxNormIterMatrixDiffEpsDt()
+    # plotMaxNormIterMatrixDiffEpsDt()
     # plotErrPropagationMaxNormDAE()
     # plotErrPropagationMaxNormHeatmap()
     # plotCondNumberDiffEpsM()

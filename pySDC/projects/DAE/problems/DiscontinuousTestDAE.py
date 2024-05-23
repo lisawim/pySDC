@@ -59,7 +59,7 @@ class DiscontinuousTestDAE(ptype_dae):
 
     def __init__(self, newton_tol=1e-12):
         """Initialization routine"""
-        super().__init__(nvars=2, newton_tol=newton_tol)
+        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
 
         self.t_switch_exact = np.arccosh(50)
         self.t_switch = None
@@ -319,28 +319,25 @@ class DiscontinuousTestDAEIntegralFormulation2(DiscontinuousTestDAEIntegralFormu
         res = 99
         while n < self.newton_maxiter:
             y, z = u.diff[0], u.alg[0]
+            f = self.eval_f(u, t)
 
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            t_switch = np.inf if self.t_switch is None else self.t_switch
-            h = 2 * y - 100
-            if h >= 0 or t >= t_switch:
-                g = np.array([y - rhs.diff[0], -factor * (y**2 - z**2 - 1) - rhs.alg[0]]).flatten()
-            else:
-                g = np.array([y - factor * z - rhs.diff[0], -factor * (y**2 - z**2 - 1) - rhs.alg[0]]).flatten()
-
+            g = np.array([y[0] - factor * f.diff[0] - rhs.diff[0], -factor * f.alg[0] - rhs.alg[0]])
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
             # assemble dg
+            t_switch = np.inf if self.t_switch is None else self.t_switch
+            h = 2 * y[0] - 100
             if h >= 0 or t >= t_switch:
-                dg = np.array([[1, 0], [-2 * factor * y, 2 * factor * z]])
+                dg = np.array([[1, 0], [-2 * factor * y[0], 2 * factor * z[0]]])
             else:
-                dg = np.array([[1, -factor], [-2 * factor * y, 2 * factor * z]])
+                dg = np.array([[1, -factor], [-2 * factor * y[0], 2 * factor * z[0]]])
 
             # newton update: u1 = u0 - g/dg
-            dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))
+            dx = np.linalg.solve(dg, g).reshape(u.shape).view(type(u))
 
             u.diff[0] -= dx[0]
             u.alg[0] -= dx[1]

@@ -22,6 +22,11 @@ def main():
         LinearTestDAEIntegralFormulation2,
     ]
     sweepers = [generic_implicit, genericImplicitEmbedded2]
+
+    if sweepers[1].__name__.startswith("genericImplicitEmbedded"):
+        startsWith = True
+
+    assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
     
     # parameters for convergence
     maxiter = 40
@@ -29,7 +34,7 @@ def main():
     # sweeper params
     M = 4
     quad_type = 'RADAU-RIGHT'
-    QIAll = ['IE', 'LU', 'MIN-SR-S', 'MIN-SR-FLEX']
+    QIAll = ['MIN-SR-FLEX']#['IE', 'LU', 'MIN-SR-S', 'MIN-SR-FLEX']
 
     # hook class to be used
     hook_class = {
@@ -53,16 +58,18 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-14
+    newton_tol = 1e-12
 
     epsValues = {
-        'generic_implicit': [1e-5],
+        'generic_implicit': [1e-3],
         'genericImplicitEmbedded2': [0.0],
     }
 
     t0 = 0.0
-    dtValues = np.logspace(-2.5, -0.3, num=10)
     Tend = 1.0
+    nSteps = np.array([2])#np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    dtValues = Tend / nSteps
+    # dtValues = np.logspace(-2.5, -0.35, num=10)
 
     colors = [
         'salmon',
@@ -163,7 +170,7 @@ def main():
     for ax_wrapper in [axDiff, axAlg]:
         ax_wrapper.tick_params(axis='both', which='major', labelsize=14)
         ax_wrapper.set_xlabel(r'Costs', fontsize=20)
-        ax_wrapper.set_xlim(1e2, 1e4)
+        # ax_wrapper.set_xlim(1e2, 5e4)
         ax_wrapper.set_ylim(1e-14, 1e1)
         ax_wrapper.minorticks_off()
         if ax_wrapper == axDiff:
@@ -173,10 +180,10 @@ def main():
 
         ax_wrapper.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    figDiff.savefig(f"data/{problems[0].__name__}/plotCostsDiffQI_allM={M}_eps={epsValues['generic_implicit'][0]}.png", dpi=300, bbox_inches='tight')
+    figDiff.savefig(f"data/{problems[0].__name__}/{sweepers[1].__name__}/plotCostsDiffQI_allM={M}_eps={epsValues['generic_implicit'][0]}.png", dpi=300, bbox_inches='tight')
     plt.close(figDiff)
 
-    figAlg.savefig(f"data/{problems[0].__name__}/plotCostsAlgQI_all_M={M}_eps={epsValues['generic_implicit'][0]}.png", dpi=300, bbox_inches='tight')
+    figAlg.savefig(f"data/{problems[0].__name__}/{sweepers[1].__name__}/plotCostsAlgQI_all_M={M}_eps={epsValues['generic_implicit'][0]}.png", dpi=300, bbox_inches='tight')
     plt.close(figAlg)
 
 

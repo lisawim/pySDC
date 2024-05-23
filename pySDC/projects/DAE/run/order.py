@@ -30,14 +30,18 @@ def main():
     ]
     sweepers = [generic_implicit, genericImplicitEmbedded2]
 
+    if sweepers[1].__name__.startswith("genericImplicitEmbedded"):
+        startsWith = True
+
+    assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
+
     # sweeper params
-    M = 4
+    M = 3
     quad_type = 'RADAU-RIGHT'
     QI = 'IE'
 
     # parameters for convergence
-    restol = 1e-14
-    maxiter = 2 * M - 1  # 150
+    maxiter = 50
 
     # hook class to be used
     hook_class = {
@@ -57,17 +61,18 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-14
 
-    eps_list = [10 ** (-m) for m in range(0, 8, 1)]#[1.0, 0.5, 0.2, 0.1, 0.05, 1e-8]
+    eps_list = [10 ** (-m) for m in range(1, 10)]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitEmbedded2': [0.0],
     }
 
     t0 = 0.0
-    dtValues = np.logspace(-5.0, 2.5, num=30)#np.logspace(-4.0, -0.2, num=30)
-    for eps in eps_list:
-        for dt in dtValues:
-            print(f"For eps={eps} and dt={dt} we have {eps * dt}")
+    Tend = 1.0
+    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    dtValues = Tend / nSteps
+    # dtValues = np.logspace(-5.0, 2.5, num=30)
+
     colors = [
         'lightcoral',
         'indianred',
@@ -77,6 +82,7 @@ def main():
         'maroon',
         'lightgray',
         'gray',
+        'dimgray',
     ]
 
     fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
@@ -87,12 +93,14 @@ def main():
             errorsDiff, errorsAlg = [], []
 
             for dt in dtValues:
-                # print(eps, dt)
+                print(eps, dt)
                 problem_params = {
                     'newton_tol': newton_tol,
                 }
                 if not eps == 0.0:
                     problem_params = {'eps': eps}
+
+                restol = 1e-12 if not eps == 0.0 else 1e-13
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -117,7 +125,7 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=dt,
+                    Tend=Tend,
                     exact_event_time_avail=None,
                 )
 
@@ -170,7 +178,7 @@ def main():
     ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/plotOrderAccuracy_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/{problems[0].__name__}/{sweepers[1].__name__}/plotOrderAccuracy_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 

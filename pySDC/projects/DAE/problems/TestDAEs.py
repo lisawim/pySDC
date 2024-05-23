@@ -165,8 +165,7 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
                 break
 
             # assemble dg
-            # dg = np.array([[1 - factor, -factor], [1, -1]])
-            dg = np.array([[1 - self.lamb_diff * factor, -self.lamb_alg * factor], [-1, 1]])
+            dg = np.array([[1 - self.lamb_diff * factor, -self.lamb_alg * factor], [self.lamb_diff, -self.lamb_alg]])
 
             # newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g).reshape(u.shape).view(type(u))
@@ -177,10 +176,9 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
             self.work_counters['newton']()
 
         if np.isnan(res) and self.stop_at_nan:
-            print(f"Nan at time {t} for eps={self.eps}")
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
-        elif np.isnan(res):
-            self.logger.warning('Newton got nan after %i iterations...' % n)
+        # elif np.isnan(res):
+        #     self.logger.warning('Newton got nan after %i iterations...' % n)
 
         # if n == self.newton_maxiter:
         #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)

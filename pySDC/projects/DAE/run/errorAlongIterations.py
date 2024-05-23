@@ -49,8 +49,7 @@ def main():
     QI = 'IE'
 
     # parameters for convergence
-    restol = 1e-14
-    nSweeps = 65
+    nSweeps = 60
 
     # hook class to be used
     hook_class = {
@@ -70,43 +69,43 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-14
 
-    eps_list = [10 ** (-m) for m in range(0, 8, 1)]
+    epsList = [1e-3, 1e-4, 1e-5]
     epsValues = {
-        'generic_implicit': eps_list,
+        'generic_implicit': epsList,
         'genericImplicitEmbedded2': [0.0],
     }
 
     t0 = 0.0
-    dtValues = [2e-5]
-    for eps in eps_list:
-        for dt in np.logspace(-5.0, 2.5, num=30):
-            print(f"For eps={eps} and dt={dt} we have {(-1 / eps) * dt}")
+    dtValues = [10 ** (-m) for m in range(1, 10)]
 
     colors = [
-        'lightcoral',
-        'indianred',
-        'firebrick',
-        'brown',
-        'maroon',
+        'lightblue',
+        'deepskyblue',
+        'dodgerblue',
+        'royalblue',
+        'mediumblue',
         'lightgray',
         'darkgray',
         'gray',
+        'dimgray',
     ]
 
+    for problem, sweeper in zip(problems, sweepers):
+        epsLoop = epsValues[sweeper.__name__]
 
-    for dt in dtValues:
-        fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
-        figRes, axRes = plt.subplots(1, 1, figsize=(9.5, 9.5))
+        for eps in epsLoop:
+            fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
+            figRes, axRes = plt.subplots(1, 1, figsize=(9.5, 9.5))
 
-        for problem, sweeper in zip(problems, sweepers):
-            epsilons = epsValues[sweeper.__name__]
-
-            for i, eps in enumerate(epsilons):
+            for i, dt in enumerate(dtValues):
+                print(eps, dt)
                 problem_params = {
                     'newton_tol': newton_tol,
                 }
                 if not eps == 0.0:
                     problem_params = {'eps': eps}
+
+                restol = 1e-12 if not eps == 0.0 else 1e-13
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -143,58 +142,63 @@ def main():
                 errAlgIter = nestedListIntoSingleList(errAlgIter)
                 resIter = nestedListIntoSingleList(resIter)
 
-                color = colors[i] if not eps == 0.0 else 'k'
+                ax[0].set_title(rf"Differential error for $\varepsilon=${eps}")
                 ax[0].semilogy(
                     np.arange(1, len(errDiffIter) + 1),
                     errDiffIter,
-                    color=color,
+                    color=colors[i],
                     marker='*',
                     markersize=10.0,
                     linewidth=4.0,
                     solid_capstyle='round',
-                    label=rf'$\varepsilon=${eps}',
+                    label=rf'$\Delta t=${dt}',
                 )
+
+                ax[1].set_title(rf"Algebraic error for $\varepsilon=${eps}")
                 ax[1].semilogy(
                     np.arange(1, len(errAlgIter) + 1),
                     errAlgIter,
-                    color=color,
+                    color=colors[i],
                     marker='*',
                     markersize=10.0,
                     linewidth=4.0,
                     solid_capstyle='round',
                 )
 
+                axRes.set_title(rf"Residual for $\varepsilon=${eps}")
                 axRes.semilogy(
                     np.arange(1, len(resIter) + 1),
                     resIter,
-                    color=color,
+                    color=colors[i],
                     marker='*',
                     markersize=10.0,
                     linewidth=4.0,
                     solid_capstyle='round',
-                    label=rf'$\varepsilon=${eps}',
+                    label=rf'$\Delta t=${dt}',
                 )
-        for ax_wrapper in [ax[0], ax[1], axRes]:
-            ax_wrapper.tick_params(axis='both', which='major', labelsize=14)
-            ax_wrapper.set_xlabel(r'Iteration $k$', fontsize=20)
-            ax_wrapper.set_xlim(0, nSweeps + 1)
-            if not ax_wrapper == axRes:
-                ax_wrapper.set_ylim(1e-14, 1e1)
-            else:
-                ax_wrapper.set_ylim(1e-16, 1e-2)
-            ax_wrapper.set_yscale('log', base=10)
-            ax_wrapper.minorticks_off()
 
-        ax[0].set_ylabel(r"$||e_{diff}^k||_\infty$", fontsize=20)
-        ax[1].set_ylabel(r"$||e_{alg}^k||_\infty$", fontsize=20)
-        axRes.set_ylabel('Residual norm', fontsize=20)
-        ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
+            for ax_wrapper in [ax[0], ax[1], axRes]:
+                ax_wrapper.tick_params(axis='both', which='major', labelsize=14)
+                ax_wrapper.set_xlabel(r'Iteration $k$', fontsize=20)
+                ax_wrapper.set_xlim(0, nSweeps + 1)
+                if not ax_wrapper == axRes:
+                    ax_wrapper.set_ylim(1e-16, 1e1)
+                else:
+                    ax_wrapper.set_ylim(1e-16, 1e-2)
+                ax_wrapper.set_yscale('log', base=10)
+                ax_wrapper.minorticks_off()
 
-        fig.savefig(f"data/{problems[0].__name__}/plotErrorAlongIterations_QI={QI}_M={M}_dt={dt}.png", dpi=300, bbox_inches='tight')
-        plt.close(fig)
+            ax[0].set_ylabel(r"$||e_{diff}^k||_\infty$", fontsize=20)
+            ax[1].set_ylabel(r"$||e_{alg}^k||_\infty$", fontsize=20)
+            axRes.set_ylabel('Residual norm', fontsize=20)
+            ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
+            axRes.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-        figRes.savefig(f"data/{problems[0].__name__}/plotResidualAlongIterations_QI={QI}_M={M}_dt={dt}.png", dpi=300, bbox_inches='tight')
-        plt.close(figRes)
+            fig.savefig(f"data/{problems[0].__name__}/{sweeper.__name__}/plotErrorAlongIterations_QI={QI}_M={M}_eps={eps}.png", dpi=300, bbox_inches='tight')
+            plt.close(fig)
+
+            figRes.savefig(f"data/{problems[0].__name__}/{sweeper.__name__}/plotResidualAlongIterations_QI={QI}_M={M}_eps={eps}.png", dpi=300, bbox_inches='tight')
+            plt.close(figRes)
 
 
 if __name__ == "__main__":

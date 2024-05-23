@@ -1,16 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAE, EmbeddedLinearTestDAEMinion
-
 from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded, genericImplicitEmbedded2
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEIntegralFormulation, LinearTestDAEMinionIntegralFormulation2
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEIntegralFormulation, LinearTestDAEIntegralFormulation2
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
 from pySDC.implementations.hooks.log_work import LogWork
-from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation
 from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
 
 from pySDC.helpers.stats_helper import get_sorted
@@ -18,38 +14,26 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        EmbeddedLinearTestDAE,
-        LinearTestDAEIntegralFormulation,  # 2,
+        LinearTestDAEIntegralFormulation2,
+        LinearTestDAEIntegralFormulation,
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded]
-
-    if sweepers[1].__name__.startswith("genericImplicitEmbedded"):
-        startsWith = True
-
-    assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
+    sweepers = [genericImplicitEmbedded2, genericImplicitEmbedded]
 
     # sweeper params
-    M = 3
+    M = 4
     quad_type = 'RADAU-RIGHT'
-    QI = 'IE'
+    QIAll = ['IE', 'LU', 'MIN-SR-S']
 
     # parameters for convergence
-    nSweeps = 60
+    restol = 1e-13
+    nSweeps = 70
 
     # hook class to be used
-    hook_class = {
-        'generic_implicit': [
-            LogWork,
-            LogGlobalErrorPostStep,
-            LogGlobalErrorPostStepPerturbation,
-        ],
-        'genericImplicitEmbedded2': [
-            LogWork,
-            LogGlobalErrorPostStepDifferentialVariable,
-            LogGlobalErrorPostStepAlgebraicVariable,
-        ],
-    }
-
+    hook_class = [
+        LogWork,
+        LogGlobalErrorPostStepDifferentialVariable,
+        LogGlobalErrorPostStepAlgebraicVariable,
+    ]
     # no special treatment
     use_A = False
     use_SE = False
@@ -60,47 +44,31 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    eps_list = [10 ** (-m) for m in range(1, 10, 1)]
-    epsValues = {
-        'generic_implicit': eps_list,
-        'genericImplicitEmbedded2': [0.0],
-    }
+    colors = [
+        'salmon',
+        'palegreen',
+        'turquoise',
+        'deepskyblue',
+        'violet',
+    ]
 
     t0 = 0.0
-    Tend = 1.0
-    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    Tend = 2.0
+    nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
     dtValues = Tend / nSteps
-    # dtValues = np.logspace(-2.2, -0.3, num=7)
-
-    colors = [
-        'lightcoral',
-        'indianred',
-        'firebrick',
-        'brown',
-        'maroon',
-        'lightgray',
-        'darkgray',
-        'gray',
-        'dimgray',
-    ]
 
     fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
     for problem, sweeper in zip(problems, sweepers):
-        epsilons = epsValues[sweeper.__name__]
 
-        for i, eps in enumerate(epsilons):
+        for q, QI in enumerate(QIAll):
             costs = []
             errorsDiff, errorsAlg = [], []
 
             for dt in dtValues:
-                print(eps, dt)
+                print(QI, dt)
                 problem_params = {
                     'newton_tol': newton_tol,
                 }
-                if not eps == 0.0:
-                    problem_params = {'eps': eps}
-
-                restol = 1e-12 if not eps == 0.0 else 1e-13
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -109,7 +77,7 @@ def main():
                     num_nodes=M,
                     quad_type=quad_type,
                     QI=QI,
-                    hook_class=hook_class[sweeper.__name__],
+                    hook_class=hook_class,
                     use_adaptivity=use_A,
                     use_switch_estimator=use_SE,
                     problem_params=problem_params,
@@ -141,27 +109,34 @@ def main():
                 errorsDiff.append(max(errDiffValues[:, 1]))
                 errorsAlg.append(max(errAlgValues[:, 1]))
 
-            color = colors[i] if not eps == 0.0 else 'k'
+            linestyle = 'solid' if sweeper.__name__ == 'genericImplicitEmbedded' else 'dashed'
+            solid_capstyle = 'round' if linestyle == 'solid' else None
+            dash_capstyle = 'round' if linestyle == 'dashed' else None
+            label = f'{QI}' if sweeper.__name__ == 'genericImplicitEmbedded' else f'{QI}-2'
             ax[0].loglog(
                 costs,
                 errorsDiff,
-                color=color,
+                color=colors[q],
                 marker='*',
                 markersize=10.0,
                 linewidth=4.0,
-                solid_capstyle='round',
-                label=rf'$\varepsilon=${eps}',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
 
             ax[1].loglog(
                 costs,
                 errorsAlg,
-                color=color,
+                color=colors[q],
                 marker='*',
                 markersize=10.0,
                 linewidth=4.0,
-                solid_capstyle='round',
-                label=rf'$\varepsilon=${eps}',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
 
     for ind in [0, 1]:
@@ -174,9 +149,8 @@ def main():
     ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/{sweepers[1].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/EmbeddedLinearTestDAE/plotCostsSDCForDAEs_{nSweeps}sweeps_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
-
 
 if __name__ == "__main__":
     main()

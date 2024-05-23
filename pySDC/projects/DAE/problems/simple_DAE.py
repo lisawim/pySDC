@@ -708,6 +708,26 @@ class simple_dae_1(ptype_dae):
         me.alg[0] = -np.exp(t) / (2 - t)
         return me
 
+    def du_exact(self, t):
+        """
+        Routine for the derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            The time of the reference solution.
+
+        Returns
+        -------
+        me : dtype_u
+            The reference solution as mesh object containing three components.
+        """
+
+        me = self.dtype_u(self.init)
+        me.diff[:2] = (np.exp(t), np.exp(t))
+        me.alg[0] = (np.exp(t) * (t - 3)) / ((2 - t) ** 2)
+        return me
+
 
 class simple_dae_1IntegralFormulation(simple_dae_1):
     def __init__(self, nvars=3, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
@@ -990,4 +1010,23 @@ class problematic_f(ptype_dae):
         """
         me = self.dtype_u(self.init)
         me[:] = (np.sin(t), 0)
+        return me
+
+    def du_exact(self, t):
+        """
+        Routine for the derivative of the exact solution.
+
+        Parameters
+        ----------
+        t : float
+            The time of the reference solution.
+
+        Returns
+        -------
+        me : dtype_u
+            The reference solution as mesh object containing two components.
+        """
+
+        me = self.dtype_u(self.init)
+        me[:] = (np.cos(t), 0)
         return me

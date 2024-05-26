@@ -1,4 +1,5 @@
 import numpy as np
+np.printoptions(precision=30)
 
 from pySDC.core.Problem import WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
@@ -68,8 +69,29 @@ class LinearTestDAE(ptype_dae):
 
         f = self.dtype_f(self.init)
         f.diff[:] = du_diff - self.lamb_diff * u_diff - self.lamb_alg * u_alg
-        f.alg[:] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        f.alg[:] = self.algebraicConstraints(u, t)
         return f
+
+    def algebraicConstraints(self, u, t):
+        r"""
+        Returns the algebraic constraints of the semi-explicit DAE system.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains two components).
+        """
+
+        f = self.dtype_f(self.init)
+        f.alg[:] = self.lamb_diff * u.diff[:] - self.lamb_alg * u.alg[:]
+        return f.alg
 
     def u_exact(self, t, **kwargs):
         r"""
@@ -92,7 +114,11 @@ class LinearTestDAE(ptype_dae):
         return me
 
 
-class LinearTestDAEIntegralFormulation(LinearTestDAE):
+class LinearTestDAEConstrained(LinearTestDAE):
+    r"""
+    For this class no quadrature is used for the algebraic constraints, i.e., system for algebraic constraints is solved directly.
+    """
+
     def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False):
         """Initialization routine"""
         super().__init__()
@@ -121,7 +147,7 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
 
         f = self.dtype_f(self.init)
         f.diff[:] = self.lamb_diff * u_diff + self.lamb_alg * u_alg
-        f.alg[:] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        f.alg[:] = self.algebraicConstraints(u, t)
         self.work_counters['rhs']()
         return f
 
@@ -147,7 +173,7 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
         """
 
         u = self.dtype_u(u0)
-
+        print(f"rhs at time {t} for lamb_d={self.lamb_diff}, lamb_alg={self.lamb_alg}: {rhs}")
         # start newton iteration
         n = 0
         res = 99
@@ -174,7 +200,7 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
 
             n += 1
             self.work_counters['newton']()
-
+        print(f'Time {t}: ', n, res)
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):
@@ -193,7 +219,10 @@ class LinearTestDAEIntegralFormulation(LinearTestDAE):
         return me
 
 
-class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
+class LinearTestDAEEmbedded(LinearTestDAEConstrained):
+    r"""
+    For this class the naively approach of embedded SDC is used.
+    """
 
     def solve_system(self, rhs, factor, u0, t):
         """
@@ -220,7 +249,7 @@ class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
 
         Id = np.identity(2)
         Id[-1, -1] = 0
-
+        print(f"rhs at time {t}: {rhs}")
         # start newton iteration
         n = 0
         res = 99
@@ -249,7 +278,7 @@ class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
 
             n += 1
             self.work_counters['newton']()
-
+        print(f'Time {t}: ', n, res)
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):
@@ -268,7 +297,11 @@ class LinearTestDAEIntegralFormulation2(LinearTestDAEIntegralFormulation):
         return me
 
 
-class LinearTestDAEMinionIntegralFormulation(ptype_dae):
+class LinearTestDAEMinionConstrained(ptype_dae):
+    r"""
+    For this class no quadrature is used for the algebraic constraints, i.e., system for algebraic constraints is solved directly.
+    """
+
     def __init__(self, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
         super().__init__(nvars=(3, 1), newton_tol=newton_tol)
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
@@ -299,8 +332,29 @@ class LinearTestDAEMinionIntegralFormulation(ptype_dae):
         f.diff[0] = u1 - u3 + u4
         f.diff[1] = -1e4 * u2 + (1 + 1e4) * np.exp(t)
         f.diff[2] = u1
-        f.alg[0] = u1 + u2 + u4 - np.exp(t)
+        f.alg[0] = self.algebraicConstraints(u, t)[0]
         return f
+
+    def algebraicConstraints(self, u, t):
+        r"""
+        Returns the algebraic constraints of the semi-explicit DAE system.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains two components).
+        """
+
+        f = self.dtype_f(self.init)
+        f.alg[0] = u.diff[0] + u.diff[1] + u.alg[0] - np.exp(t)
+        return f.alg
 
     def solve_system(self, rhs, factor, u0, t):
         """
@@ -332,13 +386,15 @@ class LinearTestDAEMinionIntegralFormulation(ptype_dae):
             u1, u2, u3 = u.diff[0], u.diff[1], u.diff[2]
             u4 = u.alg[0]
 
+            f = self.eval_f(u, t)
+
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
             g = np.array(
                 [
-                    u1 - factor * (u1 - u3 + u4) - rhs.diff[0],
-                    u2 - factor * (-1e4 * u2 + (1 + 1e4) * np.exp(t)) - rhs.diff[1],
-                    u3 - factor * u1 - rhs.diff[2],
-                    u1 + u2 + u4 - np.exp(t),
+                    u1 - factor * f.diff[0] - rhs.diff[0],
+                    u2 - factor * f.diff[1] - rhs.diff[1],
+                    u3 - factor * f.diff[2] - rhs.diff[2],
+                    f.alg[0],
                 ]
             )
 
@@ -413,7 +469,10 @@ class LinearTestDAEMinionIntegralFormulation(ptype_dae):
         return me
 
 
-class LinearTestDAEMinionIntegralFormulation2(LinearTestDAEMinionIntegralFormulation):
+class LinearTestDAEMinionEmbedded(LinearTestDAEMinionConstrained):
+    r"""
+    For this class the naively approach of embedded SDC is used.
+    """
 
     def solve_system(self, rhs, factor, u0, t):
         """
@@ -445,13 +504,15 @@ class LinearTestDAEMinionIntegralFormulation2(LinearTestDAEMinionIntegralFormula
             u1, u2, u3 = u.diff[0], u.diff[1], u.diff[2]
             u4 = u.alg[0]
 
+            f = self.eval_f(u, t)
+
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
             g = np.array(
                 [
-                    u1 - factor * (u1 - u3 + u4) - rhs.diff[0],
-                    u2 - factor * (-1e4 * u2 + (1 + 1e4) * np.exp(t)) - rhs.diff[1],
-                    u3 - factor * u1 - rhs.diff[2],
-                    -factor * (u1 + u2 + u4 - np.exp(t)) - rhs.alg[0],
+                    u1 - factor * f.diff[0] - rhs.diff[0],
+                    u2 - factor * f.diff[1] - rhs.diff[1],
+                    u3 - factor * f.diff[2] - rhs.diff[2],
+                    -factor * f.alg[0] - rhs.alg[0],
                 ]
             )
 

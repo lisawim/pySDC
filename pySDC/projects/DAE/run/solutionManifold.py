@@ -1,21 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
 from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinionConstrained, LinearTestDAEMinionEmbedded
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
-from pySDC.implementations.hooks.log_work import LogWork
-from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
+from pySDC.implementations.hooks.log_solution import LogSolution
 
 from pySDC.helpers.stats_helper import get_sorted
 
 
 def main():
     problems = [
-        # LinearTestDAEEmbedded,
-        # LinearTestDAEConstrained,
         LinearTestDAEMinionEmbedded,
         LinearTestDAEMinionConstrained,
     ]
@@ -28,14 +25,11 @@ def main():
 
     # parameters for convergence
     restol = 1e-13
-    nSweeps = 2*M - 1#70
+    nSweeps = 70
 
     # hook class to be used
-    hook_class = [
-        LogWork,
-        LogGlobalErrorPostStepDifferentialVariable,
-        LogGlobalErrorPostStepAlgebraicVariable,
-    ]
+    hook_class = [LogSolution]
+
     # no special treatment
     use_A = False
     use_SE = False
@@ -58,13 +52,13 @@ def main():
     Tend = 2.0
     nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
     dtValues = Tend / nSteps
+    # dtValues = np.logspace(-3.0, -1.1, num=16)
 
-    fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
+    fig, ax = plt.subplots(1, 1, figsize=(9.5, 9.5))
     for problem, sweeper in zip(problems, sweepers):
 
         for q, QI in enumerate(QIAll):
-            costs = []
-            errorsDiff, errorsAlg = [], []
+            algConstr = []
 
             for dt in dtValues:
                 print(QI, dt)
@@ -99,25 +93,22 @@ def main():
                     exact_event_time_avail=None,
                 )
 
-                newton = np.array(get_sorted(stats, type='work_newton', sortby='time'))
-                rhs = np.array(get_sorted(stats, type='work_rhs', sortby='time'))
+                u_val = get_sorted(stats, type='u', sortby='time')
+                t = [me[0] for me in u_val]
+                u = [me[1] for me in u_val]
 
-                cost = sum(newton[:, 1]) + sum(rhs[:, 1])
-                costs.append(cost)
+                P = controller.MS[0].levels[0].prob
+                g = P.algebraicConstraints(u[-1], t[-1])
 
-                errDiffValues = np.array(get_sorted(stats, type='e_global_post_step', sortby='time'))
-                errAlgValues = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time'))
-
-                errorsDiff.append(max(errDiffValues[:, 1]))
-                errorsAlg.append(max(errAlgValues[:, 1]))
+                algConstr.append(abs(g))
 
             linestyle = 'solid' if sweeper.__name__ == 'genericImplicitConstrained' else 'dashed'
             solid_capstyle = 'round' if linestyle == 'solid' else None
             dash_capstyle = 'round' if linestyle == 'dashed' else None
             label = f'{QI}-constrained' if sweeper.__name__ == 'genericImplicitConstrained' else f'{QI}-embedded'
-            ax[0].loglog(
-                costs,
-                errorsDiff,
+            ax.loglog(
+                dtValues,
+                algConstr,
                 color=colors[q],
                 marker='*',
                 markersize=10.0,
@@ -128,30 +119,15 @@ def main():
                 label=label,
             )
 
-            ax[1].loglog(
-                costs,
-                errorsAlg,
-                color=colors[q],
-                marker='*',
-                markersize=10.0,
-                linewidth=4.0,
-                linestyle=linestyle,
-                solid_capstyle=solid_capstyle,
-                dash_capstyle=dash_capstyle,
-                label=label,
-            )
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.set_xlabel(r'$\Delta t$', fontsize=20)
+    ax.set_ylim(1e-16, 1e-6)
+    ax.minorticks_off()
 
-    for ind in [0, 1]:
-        ax[ind].tick_params(axis='both', which='major', labelsize=14)
-        ax[ind].set_xlabel(r'Costs', fontsize=20)
-        ax[ind].set_ylim(1e-15, 1e2)
-        ax[ind].minorticks_off()
+    ax.set_ylabel(r"$||g(y, z)||_\infty$", fontsize=20)
+    ax.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    ax[0].set_ylabel(r"$||e_{diff}||_\infty$", fontsize=20)
-    ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
-    ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
-
-    fig.savefig(f"data/LinearTestSPPMinion/plotCostsSDCForDAEs_{nSweeps}sweeps_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/LinearTestSPPMinion/plotAlgConstraints_{nSweeps}sweeps_M={M}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 if __name__ == "__main__":

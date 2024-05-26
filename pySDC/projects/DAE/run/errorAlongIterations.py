@@ -2,18 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import (
-    EmbeddedLinearTestDAE,
-    EmbeddedLinearTestDAEMinion,
-    EmbeddedDiscontinuousTestDAE,
-)
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPPMinion
 
-from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded2
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
 from pySDC.projects.DAE.problems.TestDAEs import (
-    LinearTestDAEIntegralFormulation2,
-    LinearTestDAEMinionIntegralFormulation2,
+    LinearTestDAEMinionEmbedded,
+    LinearTestDAEMinionConstrained,
 )
-from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEIntegralFormulation2
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
@@ -38,23 +33,27 @@ def nestedListIntoSingleList(res):
 
 def main():
     problems = [
-        EmbeddedLinearTestDAE,
-        LinearTestDAEIntegralFormulation2,
+        LinearTestSPPMinion,
+        LinearTestDAEMinionEmbedded,
+        LinearTestDAEMinionConstrained,
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded2]
+    sweepers = [generic_implicit, genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
-    M = 4
+    M = 3
     quad_type = 'RADAU-RIGHT'
     QI = 'IE'
 
     # parameters for convergence
-    nSweeps = 60
+    nSweeps = 70
 
     # hook class to be used
     hook_class = {
         'generic_implicit': [LogGlobalErrorPostIter, LogGlobalErrorPostIterPerturbation],
-        'genericImplicitEmbedded2': [
+        'genericImplicitEmbedded': [
+            LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg
+        ],
+        'genericImplicitConstrained': [
             LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg
         ],
     }
@@ -69,35 +68,37 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-14
 
-    epsList = [1e-3, 1e-4, 1e-5]
+    epsList = [10 ** (-m) for m in range(4, 11)]
     epsValues = {
         'generic_implicit': epsList,
-        'genericImplicitEmbedded2': [0.0],
+        'genericImplicitEmbedded': [0.0],
+        'genericImplicitConstrained': [0.0],
     }
 
     t0 = 0.0
-    dtValues = [10 ** (-m) for m in range(1, 10)]
+    dtValues = [5 * 10 ** (-m) for m in range(1, 10)]
 
     colors = [
-        'lightblue',
-        'deepskyblue',
-        'dodgerblue',
-        'royalblue',
-        'mediumblue',
+        'lightsalmon',
+        'lightcoral',
+        'indianred',
+        'firebrick',
+        'brown',
+        'maroon',
         'lightgray',
         'darkgray',
         'gray',
         'dimgray',
     ]
 
-    for problem, sweeper in zip(problems, sweepers):
-        epsLoop = epsValues[sweeper.__name__]
+    for i, dt in enumerate(dtValues):
+        fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
+        figRes, axRes = plt.subplots(1, 1, figsize=(9.5, 9.5))
 
-        for eps in epsLoop:
-            fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
-            figRes, axRes = plt.subplots(1, 1, figsize=(9.5, 9.5))
+        for problem, sweeper in zip(problems, sweepers):
+            epsLoop = epsValues[sweeper.__name__]
 
-            for i, dt in enumerate(dtValues):
+            for e, eps in enumerate(epsLoop):
                 print(eps, dt)
                 problem_params = {
                     'newton_tol': newton_tol,
@@ -105,7 +106,7 @@ def main():
                 if not eps == 0.0:
                     problem_params = {'eps': eps}
 
-                restol = 1e-12 if not eps == 0.0 else 1e-13
+                restol = 5e-11 if not eps == 0.0 else 2e-12
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -142,63 +143,83 @@ def main():
                 errAlgIter = nestedListIntoSingleList(errAlgIter)
                 resIter = nestedListIntoSingleList(resIter)
 
-                ax[0].set_title(rf"Differential error for $\varepsilon=${eps}")
+                color = colors[e + 1] if not eps == 0.0 else 'k'
+                if eps != 0.0:
+                    linestyle = 'solid'
+                    label=rf'$\varepsilon=${eps}'
+                elif eps == 0.0 and sweeper.__name__ == 'genericImplicitEmbedded':
+                    linestyle = 'solid'
+                    label=rf'$\varepsilon=${eps} -' + r'$\mathtt{SDC-E}$'
+                else:
+                    linestyle = 'dashed'
+                    label=rf'$\varepsilon=${eps} - ' + r'$\mathtt{SDC-C}$'
+                solid_capstyle = 'round' if linestyle == 'solid' else None
+                dash_capstyle = 'round' if linestyle == 'dashed' else None
+
+                ax[0].set_title(rf"Differential error for $\Delta t=${dt}")
                 ax[0].semilogy(
                     np.arange(1, len(errDiffIter) + 1),
                     errDiffIter,
-                    color=colors[i],
+                    color=color,
                     marker='*',
                     markersize=10.0,
                     linewidth=4.0,
-                    solid_capstyle='round',
-                    label=rf'$\Delta t=${dt}',
+                    linestyle=linestyle,
+                    solid_capstyle=solid_capstyle,
+                    dash_capstyle=dash_capstyle,
+                    label=label,
                 )
 
-                ax[1].set_title(rf"Algebraic error for $\varepsilon=${eps}")
+                ax[1].set_title(rf"Algebraic error for $\Delta t=${dt}")
                 ax[1].semilogy(
                     np.arange(1, len(errAlgIter) + 1),
                     errAlgIter,
-                    color=colors[i],
+                    color=color,
                     marker='*',
                     markersize=10.0,
                     linewidth=4.0,
-                    solid_capstyle='round',
+                    linestyle=linestyle,
+                    solid_capstyle=solid_capstyle,
+                    dash_capstyle=dash_capstyle,
+                    label=label,
                 )
 
-                axRes.set_title(rf"Residual for $\varepsilon=${eps}")
+                axRes.set_title(rf"Residual for $\Delta t=${dt}")
                 axRes.semilogy(
                     np.arange(1, len(resIter) + 1),
                     resIter,
-                    color=colors[i],
+                    color=color,
                     marker='*',
                     markersize=10.0,
                     linewidth=4.0,
-                    solid_capstyle='round',
-                    label=rf'$\Delta t=${dt}',
+                    linestyle=linestyle,
+                    solid_capstyle=solid_capstyle,
+                    dash_capstyle=dash_capstyle,
+                    label=label,
                 )
 
-            for ax_wrapper in [ax[0], ax[1], axRes]:
-                ax_wrapper.tick_params(axis='both', which='major', labelsize=14)
-                ax_wrapper.set_xlabel(r'Iteration $k$', fontsize=20)
-                ax_wrapper.set_xlim(0, nSweeps + 1)
-                if not ax_wrapper == axRes:
-                    ax_wrapper.set_ylim(1e-16, 1e1)
-                else:
-                    ax_wrapper.set_ylim(1e-16, 1e-2)
-                ax_wrapper.set_yscale('log', base=10)
-                ax_wrapper.minorticks_off()
+        for ax_wrapper in [ax[0], ax[1], axRes]:
+            ax_wrapper.tick_params(axis='both', which='major', labelsize=14)
+            ax_wrapper.set_xlabel(r'Iteration $k$', fontsize=20)
+            ax_wrapper.set_xlim(0, nSweeps + 1)
+            if not ax_wrapper == axRes:
+                ax_wrapper.set_ylim(1e-16, 1e1)
+            else:
+                ax_wrapper.set_ylim(1e-15, 1e6)
+            ax_wrapper.set_yscale('log', base=10)
+            ax_wrapper.minorticks_off()
 
-            ax[0].set_ylabel(r"$||e_{diff}^k||_\infty$", fontsize=20)
-            ax[1].set_ylabel(r"$||e_{alg}^k||_\infty$", fontsize=20)
-            axRes.set_ylabel('Residual norm', fontsize=20)
-            ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
-            axRes.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
+        ax[0].set_ylabel(r"$||e_{diff}^k||_\infty$", fontsize=20)
+        ax[1].set_ylabel(r"$||e_{alg}^k||_\infty$", fontsize=20)
+        axRes.set_ylabel('Residual norm', fontsize=20)
+        ax[0].legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
+        axRes.legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
 
-            fig.savefig(f"data/{problems[0].__name__}/{sweeper.__name__}/plotErrorAlongIterations_QI={QI}_M={M}_eps={eps}.png", dpi=300, bbox_inches='tight')
-            plt.close(fig)
+        fig.savefig(f"data/{problems[0].__name__}/plotErrorAlongIterations_QI={QI}_M={M}_dt={dt}.png", dpi=300, bbox_inches='tight')
+        plt.close(fig)
 
-            figRes.savefig(f"data/{problems[0].__name__}/{sweeper.__name__}/plotResidualAlongIterations_QI={QI}_M={M}_eps={eps}.png", dpi=300, bbox_inches='tight')
-            plt.close(figRes)
+        figRes.savefig(f"data/{problems[0].__name__}/plotResidualAlongIterations_QI={QI}_M={M}_dt={dt}.png", dpi=300, bbox_inches='tight')
+        plt.close(figRes)
 
 
 if __name__ == "__main__":

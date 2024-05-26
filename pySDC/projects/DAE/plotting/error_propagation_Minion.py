@@ -3,14 +3,14 @@ import numpy as np
 
 from pySDC.core.Step import step
 
-from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAE
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE as SemiExplicitDAE
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-# from pySDC.projects.DAE.run.DAE_study import plotStylingStuff
+# from pySDC.projects.DAE.run.study_SPP import plotStylingStuff
 
 
-def generateDescription(dt, M, QI, sweeper, quad_type):
+def generateDescription(dt, M, QI, sweeper, quad_type, problem, eps=0.001):
     # initialize level parameters
     level_params = {
         'dt': dt,
@@ -18,7 +18,7 @@ def generateDescription(dt, M, QI, sweeper, quad_type):
 
     problem_params = {
         'newton_tol': 1e-9,
-        # 'method': 'gmres',
+        'eps': eps,
     }
 
     # initialize sweeper parameters
@@ -31,7 +31,7 @@ def generateDescription(dt, M, QI, sweeper, quad_type):
 
     # fill description dictionary for easy step instantiation
     description = {
-        'problem_class': EmbeddedLinearTestDAE,
+        'problem_class': problem,
         'problem_params': problem_params,
         'sweeper_class': sweeper,
         'sweeper_params': sweeper_params,
@@ -48,7 +48,7 @@ def plot_SR_different_QDelta():
     sweepers = [fully_implicit_DAE, SemiExplicitDAE]
     M_all = [4, 5, 6, 7]
     QI_all = ['IE', 'LU', 'IEpar', 'MIN', 'MIN-SR-S']
-    colors, _, _, _ = plotStylingStuff(color_type='M')
+    # colors, _, _, _ = plotStylingStuff(color_type='M')
 
 
     A = np.array([[1, 0, -1, 1], [0, -1e4, 0, 0], [1, 0, 0, 0], [1, 1, 0, 1]])
@@ -118,7 +118,7 @@ def plot_SR_different_QDelta():
                     dt_list,
                     spectral_radius[:, q_plot],
                     linestyle=linestyle,
-                    color=colors[q_plot + 2],
+                    # color=colors[q_plot + 2],
                     marker=marker,
                     markeredgecolor='k',
                     label=rf'{sweeper_cls_name} - {QI_plot}'

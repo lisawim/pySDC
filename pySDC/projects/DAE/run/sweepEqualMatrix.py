@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.core.Step import step
-from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAE, CosineProblem
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPPMinion
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 
 
@@ -35,15 +35,15 @@ def getManySweepsMatrix(LHS, RHS, nSweeps):
 
 
 def testSweepEqualMatrix():
-    QI = 'LU'
+    QI = 'IE'
     sweeper = generic_implicit
-    problem = EmbeddedLinearTestDAE
-    nNodes = 4
+    problem = LinearTestSPPMinion
+    nNodes = 3
     quad_type = 'RADAU-RIGHT'
-    nSweeps = 150
+    nSweeps = 70
 
-    dtValues = np.logspace(-5.0, 2.5, num=40)
-    epsValues = np.logspace(-9.0, -0.0, num=10)
+    dtValues = np.logspace(-5.0, 0.0, num=40)
+    epsValues = [10 ** (-m) for m in range(1, 11)]
     spectralRadius, maxNorm = np.zeros((len(epsValues), len(dtValues))), np.zeros((len(epsValues), len(dtValues)))
     maxNormLastRow = np.zeros((len(epsValues), len(dtValues)))
     for d, dt in enumerate(dtValues):
@@ -93,17 +93,17 @@ def testSweepEqualMatrix():
             QImat = L.sweep.QI[1:, 1:]
             Q = L.sweep.coll.Qmat[1:, 1:]
 
-            S.levels[0].sweep.predict()
-            u0full = np.array([L.u[m].flatten() for m in range(1, nNodes + 1)]).flatten()
-            L.sweep.update_nodes()
+            # S.levels[0].sweep.predict()
+            # u0full = np.array([L.u[m].flatten() for m in range(1, nNodes + 1)]).flatten()
+            # L.sweep.update_nodes()
 
-            nodes = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(nNodes)]
-            uexfull = np.array([P.u_exact(t).flatten() for t in nodes]).flatten()
+            # nodes = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(nNodes)]
+            # uexfull = np.array([P.u_exact(t).flatten() for t in nodes]).flatten()
 
             LHS, RHS = getSweeperMatrix(nNodes, dt, QImat, Q, P.A)
 
-            uMatrix = np.linalg.inv(LHS).dot(u0full + RHS.dot(u0full))
-            uSweep = np.array([L.u[m].flatten() for m in range(1, nNodes + 1)]).flatten()
+            # uMatrix = np.linalg.inv(LHS).dot(u0full + RHS.dot(u0full))
+            # uSweep = np.array([L.u[m].flatten() for m in range(1, nNodes + 1)]).flatten()
 
             # print(f"Numerical error for eps={eps}: {np.linalg.norm(uMatrix - uSweep, np.inf)}")
 
@@ -115,7 +115,7 @@ def testSweepEqualMatrix():
             # matSweep = getManySweepsMatrix(LHS, RHS, nSweeps)
             maxNorm[e, d] = np.linalg.norm(K, np.inf)
             # maxNorm[e, d] = np.linalg.norm(matSweep, np.inf)
-            
+
             # values of iteration on last collocation node
             n = K.shape[0]
             eUnit = np.zeros(n)
@@ -159,14 +159,26 @@ def testSweepEqualMatrix():
 
 
 def plotQuantity(dtValues, epsValues, quantity, prob_cls_name, quantity_label, yLimMax, file_name):
+    colors = [
+        'lightsalmon',
+        'lightcoral',
+        'indianred',
+        'firebrick',
+        'brown',
+        'maroon',
+        'lightgray',
+        'darkgray',
+        'gray',
+        'dimgray',
+    ]
     plt.figure(figsize=(9.5, 9.5))
     for e, eps in enumerate(epsValues):
         plt.semilogx(
             dtValues,
             quantity[e, :],
-            # marker='*',
-            # markersize=10.0,
-            # markeredgecolor='k',
+            color=colors[e],
+            marker='*',
+            markersize=10.0,
             linewidth=4.0,
             solid_capstyle='round',
             label=rf"$\varepsilon=${eps}",

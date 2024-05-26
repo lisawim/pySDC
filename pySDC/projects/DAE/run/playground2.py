@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEConstrained
+from projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEEmbedded
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
@@ -45,9 +45,9 @@ def run():
 
     # fill description dictionary for easy step instantiation
     description = {
-        'problem_class': LinearTestDAEConstrained,
+        'problem_class': LinearTestDAEEmbedded,
         'problem_params': problem_params,
-        'sweeper_class': genericImplicitConstrained,
+        'sweeper_class': genericImplicitEmbedded,
         'sweeper_params': sweeper_params,
         'level_params': level_params,
         'step_params': step_params,

@@ -121,7 +121,7 @@ def generateDescription(
         'num_nodes': num_nodes,
         'QI': QI,
         'initial_guess': 'spread',
-        'skip_residual_computation': ('IT_DOWN', 'IT_UP', 'IT_COARSE', 'IT_FINE'),
+        # 'skip_residual_computation': ('IT_DOWN', 'IT_UP', 'IT_COARSE', 'IT_FINE'),
     }
 
     # initialize step parameters

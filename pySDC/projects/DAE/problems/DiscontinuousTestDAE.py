@@ -205,7 +205,7 @@ class DiscontinuousTestDAE(ptype_dae):
         self.nswitches += 1
 
 
-class DiscontinuousTestDAEIntegralFormulation(DiscontinuousTestDAE):
+class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
     def __init__(self, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
         """Initialization routine"""
         super().__init__()
@@ -316,7 +316,7 @@ class DiscontinuousTestDAEIntegralFormulation(DiscontinuousTestDAE):
         return me
 
 
-class DiscontinuousTestDAEIntegralFormulation2(DiscontinuousTestDAEIntegralFormulation):
+class DiscontinuousTestDAEEmbedded(DiscontinuousTestDAEConstrained):
 
     def solve_system(self, rhs, factor, u0, t):
         """

@@ -5,7 +5,26 @@ from pySDC.implementations.sweeper_classes.generic_implicit import generic_impli
 from pySDC.core.Errors import ParameterError
 
 
-class genericImplicitEmbedded(generic_implicit):
+class genericImplicitConstrained(generic_implicit):
+    r"""
+    Base sweeper class for solving differential-algebraic equations of the form
+
+    .. math::
+        y' = f(y, z),
+
+    .. math::
+        0 = g(y, z).
+    
+    The SDC scheme applied to semi-explicit DAEs where no quadrature is applied to the constrains reads
+
+    .. math::
+       \mathbf{y}^{k+1} = \mathbf{y}_0 + \Delta t (\mathbf{Q} - \mathbf{Q}_\Delta)\otimes \mathbf{I}_{N_d}f(\mathbf{y}^{k}, \mathbf{z}^{k}) +
+       \Delta t \mathbf{Q}_\Delta\otimes \mathbf{I}_{N_d}f(\mathbf{y}^{k+1}, \mathbf{z}^{k+1}),
+
+    .. math::
+       \mathbf{0} = g(\mathbf{y}^{k+1}, \mathbf{z}^{k+1}).
+    """
+
     def __init__(self, params):
         """
         Initialization routine for the custom sweeper
@@ -162,7 +181,7 @@ class genericImplicitEmbedded(generic_implicit):
         return None
 
 
-class genericImplicitEmbedded2(generic_implicit):
+class genericImplicitEmbedded(generic_implicit):
     r"""
     This is a test sweeper for solving differential-algebraic equations of the form
 
@@ -182,7 +201,13 @@ class genericImplicitEmbedded2(generic_implicit):
     .. math::
        \mathbf{0} = \Delta t (\mathbf{Q} - \mathbf{Q}_\Delta)\otimes \mathbf{I}_{N_d}g(\mathbf{y}^{k}, \mathbf{z}^{k}) +
        \Delta t \mathbf{Q}_\Delta\otimes \mathbf{I}_{N_a}g(\mathbf{y}^{k+1}, \mathbf{z}^{k+1}).
+
+    Note
+    ----
+    Deriving this scheme, only :math:`\varepsilon=0` is set in the SDC method for singular perturbed problems. In other words,
+    the scheme is embedded in the way that it can be naively applied to the corresponding DAE.
     """
+
     def __init__(self, params):
         """
         Initialization routine for the custom sweeper
@@ -235,7 +260,6 @@ class genericImplicitEmbedded2(generic_implicit):
             # get -QdF(u^k)_m
             for j in range(1, M + 1):
                 integral[m][:] -= L.dt * self.QI[m + 1, j] * L.f[j][:]
-
             # add initial value - here, u0 is only added to differential part
             integral[m].diff[:] += L.u[0].diff[:]
             # add tau if associated

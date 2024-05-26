@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAE, EmbeddedLinearTestDAEMinion
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPPMinion
 
-from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded, genericImplicitEmbedded2
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEIntegralFormulation, LinearTestDAEMinionIntegralFormulation2
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinionConstrained, LinearTestDAEMinionEmbedded
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
@@ -18,15 +18,11 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        EmbeddedLinearTestDAE,
-        LinearTestDAEIntegralFormulation,  # 2,
+        LinearTestSPPMinion,
+        LinearTestDAEMinionEmbedded,
+        LinearTestDAEMinionConstrained,
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded]
-
-    if sweepers[1].__name__.startswith("genericImplicitEmbedded"):
-        startsWith = True
-
-    assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
+    sweepers = [generic_implicit, genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
     M = 3
@@ -34,7 +30,7 @@ def main():
     QI = 'IE'
 
     # parameters for convergence
-    nSweeps = 60
+    nSweeps = 70
 
     # hook class to be used
     hook_class = {
@@ -43,7 +39,12 @@ def main():
             LogGlobalErrorPostStep,
             LogGlobalErrorPostStepPerturbation,
         ],
-        'genericImplicitEmbedded2': [
+        'genericImplicitEmbedded': [
+            LogWork,
+            LogGlobalErrorPostStepDifferentialVariable,
+            LogGlobalErrorPostStepAlgebraicVariable,
+        ],
+        'genericImplicitConstrained': [
             LogWork,
             LogGlobalErrorPostStepDifferentialVariable,
             LogGlobalErrorPostStepAlgebraicVariable,
@@ -58,21 +59,23 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-12
+    newton_tol = 1e-14
 
-    eps_list = [10 ** (-m) for m in range(1, 10, 1)]
+    eps_list = [10 ** (-m) for m in range(4, 11)]
     epsValues = {
         'generic_implicit': eps_list,
-        'genericImplicitEmbedded2': [0.0],
+        'genericImplicitConstrained': [0.0],
+        'genericImplicitEmbedded': [0.0],
     }
 
     t0 = 0.0
     Tend = 1.0
     nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
-    dtValues = Tend / nSteps
-    # dtValues = np.logspace(-2.2, -0.3, num=7)
+    # dtValues = Tend / nSteps
+    dtValues = np.logspace(-5.0, 0.0, num=40)#np.logspace(-3.0, -1.1, num=16)
 
     colors = [
+        'lightsalmon',
         'lightcoral',
         'indianred',
         'firebrick',
@@ -100,7 +103,7 @@ def main():
                 if not eps == 0.0:
                     problem_params = {'eps': eps}
 
-                restol = 1e-12 if not eps == 0.0 else 1e-13
+                restol = 5e-11 if not eps == 0.0 else 2e-12
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -125,7 +128,7 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=Tend,
+                    Tend=dt,#Tend,
                     exact_event_time_avail=None,
                 )
 
@@ -141,7 +144,18 @@ def main():
                 errorsDiff.append(max(errDiffValues[:, 1]))
                 errorsAlg.append(max(errAlgValues[:, 1]))
 
-            color = colors[i] if not eps == 0.0 else 'k'
+            color = colors[i + 1] if not eps == 0.0 else 'k'
+            if eps != 0.0:
+                linestyle = 'solid'
+                label=rf'$\varepsilon=${eps}'
+            elif eps == 0.0 and sweeper.__name__ == 'genericImplicitEmbedded':
+                linestyle = 'solid'
+                label=rf'$\varepsilon=${eps} -' + r'$\mathtt{SDC-E}$'
+            else:
+                linestyle = 'dashed'
+                label=rf'$\varepsilon=${eps} - ' + r'$\mathtt{SDC-C}$'
+            solid_capstyle = 'round' if linestyle == 'solid' else None
+            dash_capstyle = 'round' if linestyle == 'dashed' else None
             ax[0].loglog(
                 costs,
                 errorsDiff,
@@ -149,8 +163,10 @@ def main():
                 marker='*',
                 markersize=10.0,
                 linewidth=4.0,
-                solid_capstyle='round',
-                label=rf'$\varepsilon=${eps}',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
 
             ax[1].loglog(
@@ -160,21 +176,23 @@ def main():
                 marker='*',
                 markersize=10.0,
                 linewidth=4.0,
-                solid_capstyle='round',
-                label=rf'$\varepsilon=${eps}',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
 
     for ind in [0, 1]:
         ax[ind].tick_params(axis='both', which='major', labelsize=14)
         ax[ind].set_xlabel(r'Costs', fontsize=20)
-        ax[ind].set_ylim(1e-15, 1e2)
+        ax[ind].set_ylim(1e-15, 1e-2)
         ax[ind].minorticks_off()
 
     ax[0].set_ylabel(r"$||e_{diff}||_\infty$", fontsize=20)
     ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/{sweepers[1].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/{problems[0].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 

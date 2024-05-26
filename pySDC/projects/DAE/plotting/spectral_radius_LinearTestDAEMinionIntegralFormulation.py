@@ -3,20 +3,20 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from pySDC.core.Step import step
-from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded
+from projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained
 from pySDC.projects.DAE.plotting.error_propagation_Minion import generateDescription
 
 
 def plot():
     r"""
-    Function plots the spectral radius for ``LinearTestDAEIntegralFormulation``.
+    Function plots the spectral radius for ``LinearTestDAEMinionConstrained``.
     """
 
     Path("data").mkdir(parents=True, exist_ok=True)
-    Path(f"data/LinearTestDAEMinionIntegralFormulation").mkdir(parents=True, exist_ok=True)
+    Path(f"data/LinearTestDAEMinionConstrained").mkdir(parents=True, exist_ok=True)
 
     dt_list = np.logspace(-3.0, 2.0, num=50)
-    sweeper = genericImplicitEmbedded
+    sweeper = genericImplicitConstrained
     M_all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     QI = 'IE'
     quad_type = 'RADAU-RIGHT'
@@ -78,7 +78,7 @@ def plot():
     ax.legend(frameon=False, fontsize=10, loc='upper left', ncol=2)
     ax.minorticks_off()
 
-    fig.savefig(f"data/LinearTestDAEMinionIntegralFormulation/SR_IterMatrix_QI={QI}_M={M}_{quad_type}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/LinearTestDAEMinionConstrained/SR_IterMatrix_QI={QI}_M={M}_{quad_type}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 

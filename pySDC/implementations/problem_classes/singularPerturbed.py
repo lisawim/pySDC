@@ -5,7 +5,7 @@ from pySDC.implementations.datatype_classes.mesh import mesh
 from pySDC.core.Errors import ProblemError
 
 
-class EmbeddedLinearTestDAEMinion(ptype):
+class LinearTestSPPMinion(ptype):
     r"""
     Example implementing the singular perturbation problem of the form
 
@@ -48,7 +48,7 @@ class EmbeddedLinearTestDAEMinion(ptype):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, nvars=4, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
+    def __init__(self, nvars=4, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
         """Initialization routine"""
         super().__init__(init=(nvars, None, np.dtype('float64')))
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
@@ -61,7 +61,6 @@ class EmbeddedLinearTestDAEMinion(ptype):
         self.A[2, :] = [1, 0, 0, 0]
         self.A[3, :] = [1 / self.eps, 1 / self.eps, 0, 1 / self.eps]
         lambdas = np.linalg.eigvals(self.A)
-        print(lambdas, f'stiffness ratio: {abs(max(lambdas.real)) / abs(min(lambdas.real))}')
 
     def eval_f(self, u, t):
         r"""
@@ -173,16 +172,19 @@ class EmbeddedLinearTestDAEMinion(ptype):
 
         me = self.dtype_u(self.init)
         if t > 0.0:
-            def eval_rhs(t, u):
-                return self.eval_f(u, t)
+            if self.eps >= 1e-3:
+                def eval_rhs(t, u):
+                    return self.eval_f(u, t)
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau', max_step=1e-7)
+                me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau', max_step=1e-8)
+            else:
+                me[:] = (np.cos(t), np.exp(t), np.sin(t), -np.cos(t))
         else:
             me[:] = (np.cos(t), np.exp(t), np.sin(t), -np.cos(t))
         return me
 
 
-class EmbeddedLinearTestDAE(ptype):
+class LinearTestSPP(ptype):
     r"""
     Example implementing the singular perturbation problem of the form
 
@@ -348,7 +350,7 @@ class EmbeddedLinearTestDAE(ptype):
         return me
 
 
-class EmbeddedDiscontinuousTestDAE(ptype):
+class DiscontinuousTestSPP(ptype):
     dtype_u = mesh
     dtype_f = mesh
     def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):

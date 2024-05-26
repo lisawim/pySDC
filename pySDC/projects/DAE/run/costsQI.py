@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import EmbeddedLinearTestDAE, EmbeddedLinearTestDAEMinion
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion
 
-from pySDC.projects.DAE.sweepers.genericImplicitEmbedded import genericImplicitEmbedded2
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEIntegralFormulation2, LinearTestDAEMinionIntegralFormulation2
+from projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEEmbedded, LinearTestDAEMinionEmbedded
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
@@ -18,12 +18,12 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        EmbeddedLinearTestDAE,
-        LinearTestDAEIntegralFormulation2,
+        LinearTestSPP,
+        LinearTestDAEEmbedded,
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded2]
+    sweepers = [generic_implicit, genericImplicitEmbedded]
 
-    if sweepers[1].__name__.startswith("genericImplicitEmbedded"):
+    if sweepers[1].__name__.startswith("genericImplicit"):
         startsWith = True
 
     assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
@@ -43,7 +43,7 @@ def main():
             LogGlobalErrorPostStep,
             LogGlobalErrorPostStepPerturbation,
         ],
-        'genericImplicitEmbedded2': [
+        'genericImplicitEmbedded': [
             LogWork,
             LogGlobalErrorPostStepDifferentialVariable,
             LogGlobalErrorPostStepAlgebraicVariable,
@@ -62,7 +62,7 @@ def main():
 
     epsValues = {
         'generic_implicit': [1e-3],
-        'genericImplicitEmbedded2': [0.0],
+        'genericImplicitEmbedded': [0.0],
     }
 
     t0 = 0.0

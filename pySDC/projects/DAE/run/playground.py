@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEConstrained
+from pySDC.implementations.problem_classes.singularPerturbed import DiscontinuousTestSPP
+from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
@@ -16,6 +16,7 @@ def run():
     # initialize level parameters
     level_params = {
         'restol': 1e-12,
+        'residual_type': 'full_rel',
         'dt': 0.1,
     }
 
@@ -45,9 +46,9 @@ def run():
 
     # fill description dictionary for easy step instantiation
     description = {
-        'problem_class': LinearTestDAEConstrained,
+        'problem_class': DiscontinuousTestSPP,
         'problem_params': problem_params,
-        'sweeper_class': genericImplicitConstrained,
+        'sweeper_class': generic_implicit,
         'sweeper_params': sweeper_params,
         'level_params': level_params,
         'step_params': step_params,
@@ -56,8 +57,8 @@ def run():
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
 
-    t0 = 0.0
-    Tend = 2 * level_params['dt']
+    t0 = 1.0
+    Tend = t0 + 2 * level_params['dt']
 
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
@@ -67,7 +68,7 @@ def run():
     # call main function to get things done...
     uend, stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
 
-    plotSolution(stats)
+    # plotSolution(stats)
 
 
 def plotSolution(stats):

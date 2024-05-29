@@ -8,7 +8,7 @@ from pySDC.implementations.problem_classes.singularPerturbed import (
     DiscontinuousTestSPP,
 )
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
 from pySDC.projects.DAE.problems.TestDAEs import (
     LinearTestDAEEmbedded,
     LinearTestDAEMinionEmbedded,
@@ -25,8 +25,10 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        LinearTestSPP,
-        LinearTestDAEEmbedded,
+        # LinearTestSPP,
+        # LinearTestDAEEmbedded,
+        DiscontinuousTestSPP,
+        DiscontinuousTestDAEEmbedded
     ]
     sweepers = [generic_implicit, genericImplicitEmbedded]
 
@@ -38,10 +40,11 @@ def main():
     # sweeper params
     M = 3
     quad_type = 'RADAU-RIGHT'
-    QI = 'IE'
+    QI = 'LU'
+    residual_type = 'initial_rel'
 
     # parameters for convergence
-    maxiter = 50
+    maxiter = 25
 
     # hook class to be used
     hook_class = {
@@ -59,7 +62,7 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-14
+    newton_tol = 1e-12
 
     eps_list = [10 ** (-m) for m in range(1, 10)]
     epsValues = {
@@ -67,11 +70,11 @@ def main():
         'genericImplicitEmbedded': [0.0],
     }
 
-    t0 = 0.0
+    t0 = 1.0
     Tend = 1.0
-    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
-    dtValues = Tend / nSteps
-    # dtValues = np.logspace(-5.0, 2.5, num=30)
+    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    # dtValues = Tend / nSteps
+    dtValues = np.logspace(-2.5, 0.0, num=30)
 
     colors = [
         'lightcoral',
@@ -100,7 +103,7 @@ def main():
                 if not eps == 0.0:
                     problem_params = {'eps': eps}
 
-                restol = 1e-12 if not eps == 0.0 else 1e-13
+                restol = 2e-7 if not eps == 0.0 else 1e-9
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -118,6 +121,7 @@ def main():
                     max_restarts=max_restarts,
                     tol_event=tol_event,
                     alpha=alpha,
+                    residual_type=residual_type,
                 )
 
                 stats, _ = controllerRun(
@@ -125,7 +129,7 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=Tend,
+                    Tend=t0+dt,  # Tend,
                     exact_event_time_avail=None,
                 )
 
@@ -178,7 +182,7 @@ def main():
     ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/{sweepers[1].__name__}/plotOrderAccuracy_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/{problems[0].__name__}/plotOrderAccuracy_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 

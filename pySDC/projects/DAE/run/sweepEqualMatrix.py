@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.core.Step import step
-from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPPMinion
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 
 
@@ -35,17 +35,18 @@ def getManySweepsMatrix(LHS, RHS, nSweeps):
 
 
 def testSweepEqualMatrix():
-    QI = 'IE'
+    QI = 'LU'
     sweeper = generic_implicit
-    problem = LinearTestSPPMinion
+    problem = LinearTestSPP
     nNodes = 3
     quad_type = 'RADAU-RIGHT'
     nSweeps = 70
 
-    dtValues = np.logspace(-5.0, 0.0, num=40)
+    dtValues = np.logspace(-2.5, 0.0, num=40)
     epsValues = [10 ** (-m) for m in range(1, 11)]
     spectralRadius, maxNorm = np.zeros((len(epsValues), len(dtValues))), np.zeros((len(epsValues), len(dtValues)))
     maxNormLastRow = np.zeros((len(epsValues), len(dtValues)))
+    cond = np.zeros((len(epsValues), len(dtValues)))
     for d, dt in enumerate(dtValues):
         for e, eps in enumerate(epsValues):
             print(dt, eps)
@@ -102,6 +103,12 @@ def testSweepEqualMatrix():
 
             LHS, RHS = getSweeperMatrix(nNodes, dt, QImat, Q, P.A)
 
+            C = np.kron(np.identity(nNodes), np.identity(P.A.shape[0])) - dt * np.kron(Q, P.A)
+            M = np.linalg.inv(np.kron(np.identity(nNodes), np.identity(P.A.shape[0])) - dt * np.kron(QImat, P.A)).dot(C)
+
+            # cond[e, d] = np.linalg.norm(C, np.inf) * np.linalg.norm(np.linalg.inv(C), np.inf)
+            cond[e, d] = np.linalg.norm(M, np.inf) * np.linalg.norm(np.linalg.inv(M), np.inf)
+
             # uMatrix = np.linalg.inv(LHS).dot(u0full + RHS.dot(u0full))
             # uSweep = np.array([L.u[m].flatten() for m in range(1, nNodes + 1)]).flatten()
 
@@ -131,7 +138,7 @@ def testSweepEqualMatrix():
         spectralRadius,
         description['problem_class'].__name__,
         'Spectral radius',
-        1.5,
+        1.0,
         f'plotSpectralRadius_QI={QI}_M={nNodes}.png',
     )
 
@@ -155,6 +162,16 @@ def testSweepEqualMatrix():
         rf'Global error transport $||e_N^T K||_\infty$',
         3.0,
         f'plotMaximumNormLastRow_{nSweeps}sweeps_QI={QI}_M={nNodes}.png',
+    )
+
+    plotQuantity(
+        dtValues,
+        epsValues,
+        cond,
+        description['problem_class'].__name__,
+        rf'Condition number $\kappa(I-C)$',
+        None,
+        f'plotCondition_{nSweeps}sweeps_QI={QI}_M={nNodes}.png',
     )
 
 
@@ -186,11 +203,12 @@ def plotQuantity(dtValues, epsValues, quantity, prob_cls_name, quantity_label, y
 
     plt.tick_params(axis='both', which='major', labelsize=14)
     plt.xlabel(r'$\Delta t$', fontsize=20)
-    plt.ylim(0, yLimMax)
+    if yLimMax is not None:
+        plt.ylim(0, yLimMax)
     plt.minorticks_off()
 
     plt.ylabel(quantity_label, fontsize=20)
-    plt.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
+    plt.legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
 
     plt.savefig(f"data/{prob_cls_name}/{file_name}", dpi=300, bbox_inches='tight')
     plt.close()

@@ -284,9 +284,9 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
 
             # assemble dg
             if h >= 0 or t >= t_switch:
-                dg = np.array([[1, 0], [2 * y, -2 * z]])
+                dg = np.array([[1, 0], [2 * y[0], -2 * z[0]]])
             else:
-                dg = np.array([[1, -factor], [2 * y, -2 * z]])
+                dg = np.array([[1, -factor], [2 * y[0], -2 * z[0]]])
 
             # newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))

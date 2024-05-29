@@ -344,7 +344,7 @@ class LinearTestSPP(ptype):
             def eval_rhs(t, u):
                 return self.eval_f(u, t)
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')#, max_step=1e-5)
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')  # , max_step=1e-5)
         else:
             me[:] = (np.exp(2 * self.lamb_diff * t), self.lamb_diff / self.lamb_alg * np.exp(2 * self.lamb_diff * t))
         return me
@@ -421,8 +421,8 @@ class DiscontinuousTestSPP(ptype):
         while n < self.newton_maxiter:
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
             f = self.eval_f(u, t)
-            # g = np.array([u[0] - factor * f[0] - rhs[0], u[1] - factor * f[1] - rhs[1]])
             g = u - factor * f - rhs
+
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
 
@@ -432,10 +432,10 @@ class DiscontinuousTestSPP(ptype):
             # assemble dg
             t_switch = np.inf if self.t_switch is None else self.t_switch
             h = 2 * u[0] - 100
-            # if h >= 0 or t >= t_switch:
-            #     dg = np.array([[1, 0], [-2 * factor * (1 / self.eps) * u[0], 2 * factor * (1 / self.eps) * u[1]]])
-            # else:
-            dg = np.array([[1, -factor], [-2 * factor * (1 / self.eps) * u[0], 2 * factor * (1 / self.eps) * u[1]]])
+            if h >= 0 or t >= t_switch:
+                dg = np.array([[1, 0], [-2 * factor * (1 / self.eps) * u[0], 2 * factor * (1 / self.eps) * u[1]]])
+            else:
+                dg = np.array([[1, -factor], [-2 * factor * (1 / self.eps) * u[0], 2 * factor * (1 / self.eps) * u[1]]])
 
             # newton update: u1 = u0 - g/dg
             u -= np.linalg.solve(dg, g)
@@ -487,10 +487,44 @@ class DiscontinuousTestSPP(ptype):
             def eval_rhs(t, u):
                 return self.eval_f(u, t)
 
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', max_step=1e-5)
+            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')#, max_step=1e-5)
         else:
             me[:] = (np.cosh(1.0), np.sinh(1.0))
         return me
+
+    def generate_scipy_reference_solution(self, eval_rhs, t, u_init=None, t_init=None, **kwargs):
+        """
+        Compute a reference solution using `scipy.solve_ivp` with very small tolerances.
+        Keep in mind that scipy needs the solution to be a one dimensional array. If you are solving something higher
+        dimensional, you need to make sure the function `eval_rhs` takes a flattened one-dimensional version as an input
+        and output, but reshapes to whatever the problem needs for evaluation.
+
+        The keyword arguments will be passed to `scipy.solve_ivp`. You should consider passing `method='BDF'` for stiff
+        problems and to accelerate that you can pass a function that evaluates the Jacobian with arguments `jac(t, u)`
+        as `jac=jac`.
+
+        Args:
+            eval_rhs (function): Function evaluate the full right hand side. Must have signature `eval_rhs(float: t, numpy.1darray: u)`
+            t (float): current time
+            u_init (pySDC.implementations.problem_classes.Lorenz.dtype_u): initial conditions for getting the exact solution
+            t_init (float): the starting time
+
+        Returns:
+            numpy.ndarray: Reference solution
+        """
+        import numpy as np
+        from scipy.integrate import solve_ivp
+
+        kwargs = {
+            'atol': 100 * np.finfo(float).eps,
+            'rtol': 100 * np.finfo(float).eps,
+            **kwargs,
+        }
+        u_init = self.u_exact(t=1.0) if u_init is None else u_init * 1.0
+        t_init = 1.00 if t_init is None else t_init
+
+        u_shape = u_init.shape
+        return solve_ivp(eval_rhs, (t_init, t), u_init.flatten(), **kwargs).y[:, -1].reshape(u_shape)
 
 
 class VanDerPol(ptype):

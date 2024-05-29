@@ -2,12 +2,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion
+from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinionConstrained, LinearTestDAEMinionEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+    LinearTestDAEMinionConstrained,
+    LinearTestDAEMinionEmbedded,
+)
+from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
+from pySDC.projects.DAE.run.costs import get_restol
 
 from pySDC.implementations.hooks.log_work import LogWork
 from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation
@@ -18,19 +25,26 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        LinearTestSPPMinion,
-        LinearTestDAEMinionEmbedded,
-        LinearTestDAEMinionConstrained,
+        LinearTestSPP,
+        LinearTestDAEEmbedded,
+        LinearTestDAEConstrained,
+        # LinearTestSPPMinion,
+        # LinearTestDAEMinionEmbedded,
+        # LinearTestDAEMinionConstrained,
+        # DiscontinuousTestSPP,
+        # DiscontinuousTestDAEEmbedded,
+        # DiscontinuousTestDAEConstrained,
     ]
     sweepers = [generic_implicit, genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
     M = 3
     quad_type = 'RADAU-RIGHT'
-    QI = 'IE'
+    QI = 'LU'
+    residual_type = 'initial_rel'
 
     # parameters for convergence
-    nSweeps = 70
+    nSweeps = 6
 
     # hook class to be used
     hook_class = [LogWork]
@@ -45,7 +59,7 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    eps_list = [10 ** (-m) for m in range(0, 10)]
+    eps_list = [10 ** (-m) for m in range(1, 11)]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitEmbedded': [0.0],
@@ -55,7 +69,7 @@ def main():
     t0 = 0.0
     # nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
     # dtValues = Tend / nSteps
-    dtValues = np.logspace(-5.0, 0.0, num=40)
+    dtValues = np.logspace(-2.5, 0.0, num=40)
 
     colors = [
         'lightsalmon',
@@ -85,7 +99,7 @@ def main():
                 if not eps == 0.0:
                     problem_params = {'eps': eps}
                 
-                restol = 5e-11 if not eps == 0.0 else 2e-12
+                restol = 3e-10 if not eps == 0.0 else 1e-10
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -103,6 +117,7 @@ def main():
                     max_restarts=max_restarts,
                     tol_event=tol_event,
                     alpha=alpha,
+                    residual_type=residual_type,
                 )
 
                 stats, _ = controllerRun(
@@ -110,7 +125,7 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=dt,
+                    Tend=t0+dt,
                     exact_event_time_avail=None,
                 )
 
@@ -161,7 +176,7 @@ def main():
         ax[ind].set_xlabel(r'$\Delta t$', fontsize=20)
         ax[ind].set_xscale('log', base=10)
         ax[ind].minorticks_off()
-    ax[0].set_ylim(1, nSweeps + 50)
+    ax[0].set_ylim(1, nSweeps + 5)
 
     ax[0].set_ylabel(r"Number of SDC iterations", fontsize=20)
     ax[1].set_ylabel(r"Number of Newton iterations", fontsize=20)

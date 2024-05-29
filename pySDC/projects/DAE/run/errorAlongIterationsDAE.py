@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
 from pySDC.projects.DAE.problems.TestDAEs import (
     LinearTestDAEConstrained,
     LinearTestDAEEmbedded,
@@ -44,7 +44,7 @@ def main():
     QI = 'IE'
 
     # parameters for convergence
-    restol = 1e-14
+    restol = 2e-12
     nSweeps = 60
 
     # hook class to be used

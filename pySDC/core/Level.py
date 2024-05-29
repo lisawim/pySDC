@@ -13,7 +13,7 @@ class _Pars(FrozenClass):
             setattr(self, k, v)
         # freeze class, no further attributes allowed from this point
         self._freeze()
-
+        # print('init _Pars', self.residual_type)
         self.dt_initial = self.dt * 1.0 if self.dt is not None else None
 
 

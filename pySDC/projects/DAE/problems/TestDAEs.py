@@ -1,5 +1,4 @@
 import numpy as np
-np.printoptions(precision=30)
 
 from pySDC.core.Problem import WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
@@ -173,7 +172,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
         """
 
         u = self.dtype_u(u0)
-        print(f"rhs at time {t} for lamb_d={self.lamb_diff}, lamb_alg={self.lamb_alg}: {rhs}")
+
         # start newton iteration
         n = 0
         res = 99
@@ -200,7 +199,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
 
             n += 1
             self.work_counters['newton']()
-        print(f'Time {t}: ', n, res)
+
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):
@@ -249,7 +248,7 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
 
         Id = np.identity(2)
         Id[-1, -1] = 0
-        print(f"rhs at time {t}: {rhs}")
+
         # start newton iteration
         n = 0
         res = 99
@@ -278,7 +277,7 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
 
             n += 1
             self.work_counters['newton']()
-        print(f'Time {t}: ', n, res)
+
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):
@@ -425,7 +424,6 @@ class LinearTestDAEMinionConstrained(ptype_dae):
             self.work_counters['newton']()
 
         if np.isnan(res) and self.stop_at_nan:
-            print(f"Nan at time {t} for eps={self.eps}")
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         elif np.isnan(res):
             self.logger.warning('Newton got nan after %i iterations...' % n)
@@ -543,7 +541,6 @@ class LinearTestDAEMinionEmbedded(LinearTestDAEMinionConstrained):
             self.work_counters['newton']()
 
         if np.isnan(res) and self.stop_at_nan:
-            print(f"Nan at time {t} for eps={self.eps}")
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         elif np.isnan(res):
             self.logger.warning('Newton got nan after %i iterations...' % n)

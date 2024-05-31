@@ -67,9 +67,10 @@ def main():
     }
 
     t0 = 0.0
-    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
-    # dtValues = Tend / nSteps
-    dtValues = np.logspace(-2.5, 0.0, num=40)
+    Tend = 1.0
+    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    dtValues = Tend / nSteps
+    # dtValues = np.logspace(-2.5, 0.0, num=40)
 
     colors = [
         'lightsalmon',
@@ -92,14 +93,18 @@ def main():
             nIters, nItersNewton = [], []
 
             for dt in dtValues:
-
-                problem_params = {
-                    'newton_tol': newton_tol,
-                }
+                print(dt, eps)
                 if not eps == 0.0:
-                    problem_params = {'eps': eps}
-                
-                restol = 3e-10 if not eps == 0.0 else 1e-10
+                    problem_params = {
+                        'newton_tol': 5e-7,
+                        'eps': eps
+                    }
+                else:
+                    problem_params = {
+                        'newton_tol': 1e-12,
+                    }
+
+                restol = 5e-7 if not eps == 0.0 else 1e-10
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -125,11 +130,11 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=t0+dt,
+                    Tend=Tend,
                     exact_event_time_avail=None,
                 )
 
-                nIter = np.sum(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
+                nIter = np.mean(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
                 nIters.append(nIter)
 
                 nIterNewton = np.sum(np.array(get_sorted(stats, type='work_newton', sortby='time'))[:, 1])
@@ -139,20 +144,26 @@ def main():
             if eps != 0.0:
                 linestyle = 'solid'
                 label=rf'$\varepsilon=${eps}'
+                marker=None
+                markersize=None
             elif eps == 0.0 and sweeper.__name__ == 'genericImplicitEmbedded':
                 linestyle = 'solid'
                 label=rf'$\varepsilon=${eps} -' + r'$\mathtt{SDC-E}$'
+                marker=None
+                markersize=None
             else:
                 linestyle = 'dashed'
                 label=rf'$\varepsilon=${eps} - ' + r'$\mathtt{SDC-C}$'
+                marker='*'
+                markersize=10.0
             solid_capstyle = 'round' if linestyle == 'solid' else None
             dash_capstyle = 'round' if linestyle == 'dashed' else None
             ax[0].semilogx(
                 dtValues,
                 nIters,
                 color=color,
-                marker='*',
-                markersize=10.0,
+                marker=marker,
+                markersize=markersize,
                 linewidth=4.0,
                 linestyle=linestyle,
                 solid_capstyle=solid_capstyle,
@@ -163,8 +174,8 @@ def main():
                 dtValues,
                 nItersNewton,
                 color=color,
-                marker='*',
-                markersize=10.0,
+                marker=marker,
+                markersize=markersize,
                 linewidth=4.0,
                 linestyle=linestyle,
                 solid_capstyle=solid_capstyle,
@@ -178,8 +189,8 @@ def main():
         ax[ind].minorticks_off()
     ax[0].set_ylim(1, nSweeps + 5)
 
-    ax[0].set_ylabel(r"Number of SDC iterations", fontsize=20)
-    ax[1].set_ylabel(r"Number of Newton iterations", fontsize=20)
+    ax[0].set_ylabel(r"(Mean) number of SDC iterations", fontsize=20)
+    ax[1].set_ylabel(r"Accumulated sum of Newton iterations", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
     fig.savefig(f"data/{problems[0].__name__}/plotIterationsNewtonAndSDC_{nSweeps}sweeps_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')

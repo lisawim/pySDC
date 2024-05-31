@@ -302,7 +302,8 @@ class LinearTestSPP(ptype):
 
             n += 1
             self.work_counters['newton']()
-
+        # print(n, res)
+        # print()
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):

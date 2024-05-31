@@ -54,7 +54,7 @@ def main():
     QI = 'LU'
 
     # parameters for convergence
-    nSweeps = 20
+    nSweeps = 12
     residual_type = 'initial_rel'
 
     # hook class to be used
@@ -76,9 +76,21 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 5e-7#1e-12
+    newton_tol = 1e-12
+    newton_tolerances = {
+        0.1: 1e-12,
+        0.01: 1e-12, 
+        0.001: 1e-12,
+        0.0001: 1e-12,
+        1e-5: 5e-12,
+        1e-6: 5e-11,
+        1e-7: 5e-10,
+        1e-8: 5e-9,
+        1e-9: 5e-8,
+        1e-10: 5e-7,
+    }
 
-    epsList = [1e-2]#[10 ** (-m) for m in range(1, 11)]#[10 ** (-m) for m in range(1, 11)]
+    epsList = [10 ** (-m) for m in range(1, 11)]#[10 ** (-m) for m in range(1, 11)]
     # epsList = list(reversed(epsList))
     epsValues = {
         'generic_implicit': epsList,
@@ -114,18 +126,19 @@ def main():
             epsLoop = epsValues[sweeper.__name__]
 
             for e, eps in enumerate(epsLoop):
-                print(dt, eps)
+                print(f"{dt=}, {eps=}")
                 if not eps == 0.0:
                     problem_params = {
-                        'newton_tol': 5e-7,
+                        'newton_tol': newton_tolerances[eps],#5e-7,
                         'eps': eps
                     }
+                    print(eps, newton_tolerances[eps])
                 else:
                     problem_params = {
                         'newton_tol': 1e-12,
                     }
 
-                restol = 5e-7 if not eps == 0.0 else 1e-10
+                restol = 1e-10#5e-6#1e-10#5e-7 if not eps == 0.0 else 1e-10
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,

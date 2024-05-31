@@ -91,6 +91,18 @@ def main():
 
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
+    newton_tolerances = {
+        0.1: 1e-12,
+        0.01: 1e-12, 
+        0.001: 1e-12,
+        0.0001: 1e-12,
+        1e-5: 5e-12,
+        1e-6: 5e-11,
+        1e-7: 5e-10,
+        1e-8: 5e-9,
+        1e-9: 5e-8,
+        1e-10: 5e-7,
+    }
 
     eps_list = [10 ** (-m) for m in range(1, 11)]
     epsValues = {
@@ -130,7 +142,7 @@ def main():
                 print(eps, dt)
                 if not eps == 0.0:
                     problem_params = {
-                        'newton_tol': 5e-7,
+                        'newton_tol': newton_tolerances[eps],#5e-7,
                         'eps': eps
                     }
                 else:

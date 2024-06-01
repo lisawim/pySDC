@@ -90,7 +90,7 @@ def main():
         1e-10: 5e-7,
     }
 
-    epsList = [10 ** (-m) for m in range(1, 11)]#[10 ** (-m) for m in range(1, 11)]
+    epsList = [1e-10]#[10 ** (-m) for m in range(1, 11)]#[10 ** (-m) for m in range(1, 11)]
     # epsList = list(reversed(epsList))
     epsValues = {
         'generic_implicit': epsList,
@@ -129,7 +129,7 @@ def main():
                 print(f"{dt=}, {eps=}")
                 if not eps == 0.0:
                     problem_params = {
-                        'newton_tol': newton_tolerances[eps],#5e-7,
+                        'newton_tol': 1e-12, #newton_tolerances[eps],#5e-7,
                         'eps': eps
                     }
                     print(eps, newton_tolerances[eps])

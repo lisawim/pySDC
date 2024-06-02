@@ -118,7 +118,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
     For this class no quadrature is used for the algebraic constraints, i.e., system for algebraic constraints is solved directly.
     """
 
-    def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False):
+    def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=20, stop_at_maxiter=False, stop_at_nan=False):
         """Initialization routine"""
         super().__init__()
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
@@ -185,7 +185,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
-
+            # print(n, res)
             if res < self.newton_tol:
                 break
 
@@ -199,7 +199,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
 
             n += 1
             self.work_counters['newton']()
-
+        # print()
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):
@@ -263,7 +263,7 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
-
+            print(n, res)
             if res < self.newton_tol:
                 break
 
@@ -277,7 +277,7 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
 
             n += 1
             self.work_counters['newton']()
-
+        print()
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):

@@ -36,8 +36,8 @@ def nestedListIntoSingleList(res):
 
 def main():
     problems = [
-        LinearTestSPP,
-        # LinearTestDAEEmbedded,
+        # LinearTestSPP,
+        LinearTestDAEEmbedded,
         # LinearTestDAEConstrained,
         # LinearTestSPPMinion,
         # LinearTestDAEMinionEmbedded,
@@ -46,7 +46,8 @@ def main():
         # DiscontinuousTestDAEEmbedded,
         # DiscontinuousTestDAEConstrained,
     ]
-    sweepers = [generic_implicit]#, genericImplicitEmbedded, genericImplicitConstrained]
+    # sweepers = [generic_implicit]#,
+    sweepers = [genericImplicitEmbedded]#, genericImplicitConstrained]
 
     # sweeper params
     M = 3
@@ -54,7 +55,7 @@ def main():
     QI = 'LU'
 
     # parameters for convergence
-    nSweeps = 12
+    nSweeps = 6
     residual_type = 'initial_rel'
 
     # hook class to be used
@@ -138,7 +139,7 @@ def main():
                         'newton_tol': 1e-12,
                     }
 
-                restol = 1e-10#5e-6#1e-10#5e-7 if not eps == 0.0 else 1e-10
+                restol = 1e-8#5e-6#1e-10#5e-7 if not eps == 0.0 else 1e-10
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,

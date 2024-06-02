@@ -22,8 +22,8 @@ from pySDC.helpers.stats_helper import get_sorted
 
 
 def main():
-    problem = LinearTestSPP
-    sweeper = generic_implicit
+    problem = LinearTestDAEConstrained#LinearTestSPP
+    sweeper = genericImplicitConstrained#generic_implicit
 
     # sweeper params
     M = 3
@@ -31,7 +31,7 @@ def main():
     QI = 'LU'
 
     # parameters for convergence
-    nSweeps = 12
+    nSweeps = 6
     residual_type = 'initial_rel'
 
     # hook class to be used
@@ -47,7 +47,7 @@ def main():
     # tolerance for implicit system to be solved
     newton_tolerances = [10 ** (-m) for m in range(7, 13)]
 
-    eps = 1e-10
+    eps = 0.0#1e-10
 
     t0 = 0.0
     Tend = 1.0
@@ -168,10 +168,10 @@ def main():
         ax[0].legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
         axRes.legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
 
-        fig.savefig(f"data/{problem.__name__}/{i}_plotErrorOverTime_QI={QI}_M={M}_dt={dt}_rtol={restol}.png", dpi=300, bbox_inches='tight')
+        fig.savefig(f"data/{problem.__name__}/{i}_plotErrorOverTime_QI={QI}_M={M}_dt={dt}_rtol={restol}_eps={eps}.png", dpi=300, bbox_inches='tight')
         plt.close(fig)
 
-        figRes.savefig(f"data/{problem.__name__}/{i}_plotResidualOverTime_QI={QI}_M={M}_dt={dt}_rtol={restol}.png", dpi=300, bbox_inches='tight')
+        figRes.savefig(f"data/{problem.__name__}/{i}_plotResidualOverTime_QI={QI}_M={M}_dt={dt}_rtol={restol}_eps={eps}.png", dpi=300, bbox_inches='tight')
         plt.close(figRes)
 
 

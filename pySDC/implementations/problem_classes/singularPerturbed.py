@@ -220,7 +220,7 @@ class LinearTestSPP(ptype):
 
     dtype_u = mesh
     dtype_f = mesh
-    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
+    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=20, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
         """Initialization routine"""
         super().__init__(init=(nvars, None, np.dtype('float64')))
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
@@ -306,15 +306,15 @@ class LinearTestSPP(ptype):
         # print()
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
-        # elif np.isnan(res):
-        #     self.logger.warning('Newton got nan after %i iterations...' % n)
+        elif np.isnan(res):
+            self.logger.warning('Newton got nan after %i iterations...' % n)
 
-        # if n == self.newton_maxiter:
-        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
-        #     if self.stop_at_maxiter:
-        #         raise ProblemError(msg)
-        #     else:
-        #         self.logger.warning(msg)
+        if n == self.newton_maxiter:
+            msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+            if self.stop_at_maxiter:
+                raise ProblemError(msg)
+            else:
+                self.logger.warning(msg)
 
         me = self.dtype_u(self.init)
         me[:] = u[:]

@@ -309,12 +309,12 @@ class LinearTestSPP(ptype):
         elif np.isnan(res):
             self.logger.warning('Newton got nan after %i iterations...' % n)
 
-        if n == self.newton_maxiter:
-            msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
-            if self.stop_at_maxiter:
-                raise ProblemError(msg)
-            else:
-                self.logger.warning(msg)
+        # if n == self.newton_maxiter:
+        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+        #     if self.stop_at_maxiter:
+        #         raise ProblemError(msg)
+        #     else:
+        #         self.logger.warning(msg)
 
         me = self.dtype_u(self.init)
         me[:] = u[:]

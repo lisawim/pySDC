@@ -25,10 +25,10 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        # LinearTestSPP,
+        LinearTestSPP,
         # LinearTestDAEEmbedded,
-        DiscontinuousTestSPP,
-        DiscontinuousTestDAEEmbedded
+        # DiscontinuousTestSPP,
+        # DiscontinuousTestDAEEmbedded
     ]
     sweepers = [generic_implicit, genericImplicitEmbedded]
 
@@ -44,7 +44,7 @@ def main():
     residual_type = 'initial_rel'
 
     # parameters for convergence
-    maxiter = 25
+    maxiter = 14#25
 
     # hook class to be used
     hook_class = {
@@ -64,36 +64,40 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    eps_list = [10 ** (-m) for m in range(1, 10)]
+    eps_list = [10 ** (-m) for m in range(2, 12)]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitEmbedded': [0.0],
     }
 
-    t0 = 1.0
+    t0 = 0.0
     Tend = 1.0
-    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
-    # dtValues = Tend / nSteps
-    dtValues = np.logspace(-2.5, 0.0, num=30)
+    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
+    # dtValues = (Tend - t0) / nSteps
+    dtValues = np.logspace(-2.5, 0.0, num=40)
 
     colors = [
+        'lightsalmon',
         'lightcoral',
         'indianred',
         'firebrick',
         'brown',
-        'darkred',
         'maroon',
         'lightgray',
+        'darkgray',
         'gray',
         'dimgray',
     ]
+    colors = list(reversed(colors))
 
     fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
+    figIter, axIter = plt.subplots(1, 1, figsize=(9.5, 9.5))
     for problem, sweeper in zip(problems, sweepers):
         epsilons = epsValues[sweeper.__name__]
 
         for i, eps in enumerate(epsilons):
             errorsDiff, errorsAlg = [], []
+            nIters = []
 
             for dt in dtValues:
                 print(eps, dt)
@@ -101,9 +105,12 @@ def main():
                     'newton_tol': newton_tol,
                 }
                 if not eps == 0.0:
-                    problem_params = {'eps': eps}
+                    problem_params = {
+                        'eps': eps,
+                        'newton_tol': newton_tol,
+                    }
 
-                restol = 2e-7 if not eps == 0.0 else 1e-9
+                restol = 1e-6#2e-7 if not eps == 0.0 else 1e-9
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -129,15 +136,17 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=t0+dt,  # Tend,
+                    Tend=t0+dt,#Tend,
                     exact_event_time_avail=None,
                 )
 
                 errDiffValues = np.array(get_sorted(stats, type='e_global_post_step', sortby='time'))
                 errAlgValues = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time'))
+                nIter = np.mean(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
 
                 errorsDiff.append(max(errDiffValues[:, 1]))
                 errorsAlg.append(max(errAlgValues[:, 1]))
+                nIters.append(nIter)
 
             color = colors[i] if not eps == 0.0 else 'k'
             ax[0].loglog(
@@ -158,6 +167,16 @@ def main():
                 markersize=10.0,
                 linewidth=4.0,
                 solid_capstyle='round',
+            )
+            axIter.semilogx(
+                dtValues,
+                nIters,
+                color=color,
+                marker='*',
+                markersize=10.0,
+                linewidth=4.0,
+                solid_capstyle='round',
+                label=rf'$\varepsilon=${eps}',
             )
 
     p = 2 * M - 1
@@ -182,8 +201,20 @@ def main():
     ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
+    axIter.tick_params(axis='both', which='major', labelsize=14)
+    axIter.set_xlabel(r'$\Delta t$', fontsize=20)
+    axIter.set_xscale('log', base=10)
+    axIter.minorticks_off()
+    axIter.set_ylim(1, maxiter + 5)
+
+    axIter.set_ylabel(r"(Mean) number of SDC iterations", fontsize=20)
+    axIter.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
+
     fig.savefig(f"data/{problems[0].__name__}/plotOrderAccuracy_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
+
+    figIter.savefig(f"data/{problems[0].__name__}/plotIterations_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    plt.close(figIter)
 
 
 if __name__ == "__main__":

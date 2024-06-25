@@ -184,6 +184,167 @@ class LinearTestSPPMinion(ptype):
         return me
 
 
+class SPPchatGPT(ptype):
+    r"""
+    Example implementing the singular perturbation problem of the form
+
+    .. math::
+        \frac{d}{dt} y = -y + t + 1,
+
+    .. math::
+        \varepsilon \frac{d}{dt} z = -z + y
+
+    for :math:`0 < \varepsilon \ll 1`. The linear system at each node is solved
+    by Newton's method.
+
+    Parameters
+    ----------
+    nvars : int
+        Number of unknowns in the problem.
+    newton_tol : float
+        Tolerance for Newton's method to terminate.
+    newton_maxiter : int
+        Maximum number of iterations for Newton's method.
+    stop_at_maxiter : bool, optional
+        Indicates that the Newton solver should stop if maximum number of iterations are executed.
+    stop_at_nan : bool, optional
+        Indicates that the Newton solver should stop if ``nan`` values arise.
+    eps : float, optional
+        Perturbation parameter :math:`\varepsilon`.
+
+    Attributes
+    ----------
+    A : np.2darray
+        2-by-2 coefficient matrix of the right-hand side of the linear system.
+    """
+
+    dtype_u = mesh
+    dtype_f = mesh
+    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
+        """Initialization routine"""
+        super().__init__(init=(nvars, None, np.dtype('float64')))
+        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
+        self.nvars = nvars
+        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['rhs'] = WorkCounter()
+
+        self.A = np.zeros((2, 2))
+        self.A[0, :] = [-1, 0]
+        self.A[1, :] = [1 / self.eps, -1 / self.eps]
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the right-hand side of the problem.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains two components).
+        """
+
+        b = np.array([t + 1, 0])
+        f = self.dtype_f(self.init)
+        f[:] = self.A.dot(u) + b
+        self.work_counters['rhs']()
+        return f
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver.
+
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the nonlinear system.
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (required here for the BC).
+
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
+        """
+
+        u = self.dtype_u(u0)
+        Id = np.identity(2)
+
+        b = np.array([t + 1, 0])
+
+        # start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            g = u - factor * (self.A.dot(u) + b)- rhs
+
+            # if g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+
+            if res < self.newton_tol:
+                break
+
+            # assemble dg
+            dg = Id - factor * self.A
+
+            # newton update: u1 = u0 - g/dg
+            u -= np.linalg.solve(dg, g)
+
+            n += 1
+            self.work_counters['newton']()
+        # print(n, res)
+        # print()
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+        elif np.isnan(res):
+            self.logger.warning('Newton got nan after %i iterations...' % n)
+
+        # if n == self.newton_maxiter:
+        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+        #     if self.stop_at_maxiter:
+        #         raise ProblemError(msg)
+        #     else:
+        #         self.logger.warning(msg)
+
+        me = self.dtype_u(self.init)
+        me[:] = u[:]
+
+        return me
+
+    def u_exact(self, t, u_init=None, t_init=None):
+        r"""
+        Routine to approximate the exact solution at time t by ``SciPy`` or give initial conditions when called at :math:`t=0`.
+
+        Parameters
+        ----------
+        t : float
+            Current time.
+        u_init : pySDC.problem.vanderpol.dtype_u
+            Initial conditions for getting the exact solution.
+        t_init : float
+            The starting time.
+
+        Returns
+        -------
+        me : dtype_u
+            Approximate exact solution.
+        """
+
+        me = self.dtype_u(self.init)
+        me[:] = (t, t - self.eps + self.eps * np.exp(-t / self.eps))
+        return me
+
+
 class LinearTestSPP(ptype):
     r"""
     Example implementing the singular perturbation problem of the form
@@ -318,6 +479,7 @@ class LinearTestSPP(ptype):
 
         me = self.dtype_u(self.init)
         me[:] = u[:]
+        # me[:] = np.linalg.solve(np.identity(2) - factor * self.A, rhs)
 
         return me
 
@@ -347,7 +509,8 @@ class LinearTestSPP(ptype):
 
             me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='Radau')  # , max_step=1e-5)
         else:
-            me[:] = (np.exp(2 * self.lamb_diff * t), self.lamb_diff / self.lamb_alg * np.exp(2 * self.lamb_diff * t))
+            me[:] = (np.exp(2 * self.lamb_diff * t), (self.lamb_diff / self.lamb_alg) * np.exp(2 * self.lamb_diff * t))
+
         return me
 
 

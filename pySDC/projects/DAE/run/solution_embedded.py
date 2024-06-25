@@ -2,10 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
+from pySDC.implementations.problem_classes.singularPerturbed import SPPchatGPT, LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
+from pySDC.implementations.problem_classes.TestEquation_0D import testequation0d
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEEmbedded, LinearTestDAEMinionEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import chatGPTDAEEmbedded, chatGPTDAEConstrained, LinearTestDAEEmbedded, LinearTestDAEMinionEmbedded
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
@@ -17,8 +18,11 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        LinearTestSPP,
-        LinearTestDAEEmbedded,
+        SPPchatGPT,
+        chatGPTDAEEmbedded,
+        # testequation0d,
+        # LinearTestSPP,
+        # LinearTestDAEEmbedded,
         # DiscontinuousTestSPP,
         # DiscontinuousTestDAEEmbedded,
         # LinearTestSPPMinion,
@@ -28,10 +32,10 @@ def main():
     
     # parameters for convergence
     restol = 1e-13
-    maxiter = 60
+    maxiter = 30#12
 
     # sweeper params
-    M = 4
+    M = 3
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
 
@@ -46,9 +50,9 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-14
+    newton_tol = 1e-12
 
-    eps_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
+    eps_list = [1.0, 0.1, 0.01]#[1e-6]#[1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
     # eps_list = [0.05, 0.02, 0.01, 0.005, 0.002, 0.001]#[0.01775, 0.0176, 0.016, 0.014, 0.012, 0.01]#[0.003, 0.00093, 0.0009, 0.0005, 0.0001, 1e-5]
     epsValues = {
         'generic_implicit': eps_list,
@@ -56,8 +60,8 @@ def main():
     }
     
     t0 = 0.0
-    dt = 1e-2
-    Tend = 1.0#2 * np.pi
+    dt = 1e-3
+    Tend = 0.1#1.0#2 * np.pi
 
     colors = [
         'lightsalmon',
@@ -80,7 +84,12 @@ def main():
                 'newton_tol': newton_tol,
             }
             if not eps == 0.0:
-                problem_params = {'eps': eps}
+                # problem_params = {'eps': eps}
+                problem_params = {
+                    'eps': eps,
+                    # 'u0': 1.0,
+                    # 'lambdas': np.array([1, 1 / eps]),
+                }
 
             description, controller_params, controller = generateDescription(
                 dt=dt,
@@ -127,7 +136,7 @@ def main():
                 # uLast = np.concatenate((uSecond, u4), axis=1)
 
             color = colors[i] if not eps == 0.0 else 'k'
-            ax.plot(t, u[:, 0], color=color, linewidth=4.0, linestyle='dashed', dash_capstyle='round')
+            # ax.plot(t, u[:, 0], color=color, linewidth=4.0, linestyle='dashed', dash_capstyle='round', label=rf'$y$ - $\varepsilon=${eps}')
             ax.plot(t, u[:, -1], color=color, linewidth=4.0, solid_capstyle='round', label=rf'$\varepsilon=${eps}')
             # axAll[0, 0].plot(t, uLast[:, 0], color=color, linewidth=4.0, solid_capstyle='round', label=rf'$\varepsilon=${eps}')
             # axAll[0, 1].plot(t, uLast[:, 1], color=color, linewidth=4.0, solid_capstyle='round')
@@ -138,7 +147,7 @@ def main():
     ax.set_xlabel(r'$t$', fontsize=20)
     ax.set_ylabel(r'$z$', fontsize=20)
     # ax.set_ylim(-1.5, 1.5)
-    ax.legend(frameon=False, fontsize=12, loc='lower right', ncols=2)
+    ax.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
     ax.minorticks_off()
 
     # axAll[0, 0].set_ylabel(r"$u_1$", fontsize=20)

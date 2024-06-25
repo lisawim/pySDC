@@ -31,7 +31,7 @@ def main():
     QI = 'LU'
 
     # parameters for convergence
-    nSweeps = 12
+    nSweeps = 20
     residual_type = 'initial_rel'
 
     # hook class to be used
@@ -48,11 +48,11 @@ def main():
     newton_tolerances = [1e-12]#[10 ** (-m) for m in range(7, 13)]
 
     # epsValues = [1e-11, 1e-10, 1e-9, 
-    epsValues = [1e-8, 1e-7, 1e-6]
+    epsValues = [1e-6]
 
     t0 = 0.0
     Tend = 1.0
-    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])#, 500, 1000])
+    nSteps = np.array([100, 200])#np.array([2, 5, 10, 20, 50, 100, 200])#, 500, 1000])
     dtValues = (Tend - t0) / nSteps
 
     colors = [
@@ -87,7 +87,7 @@ def main():
                         'newton_tol': 1e-12,
                     }
 
-                restol = 5e-12#1e-11
+                restol = 1e-13#1e-11
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -113,7 +113,7 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=Tend,
+                    Tend=4*dt,#Tend,
                     exact_event_time_avail=None,
                 )
 
@@ -162,7 +162,7 @@ def main():
                 if not ax_wrapper == axRes:
                     ax_wrapper.set_ylim(1e-16, 1e1)
                 else:
-                    ax_wrapper.set_ylim(1e-11, 1e-1)
+                    ax_wrapper.set_ylim(1e-13, 1e-1)
                 ax_wrapper.set_yscale('log', base=10)
                 ax_wrapper.minorticks_off()
 

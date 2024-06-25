@@ -44,10 +44,10 @@ def testSweepEqualMatrix():
 
     t0 = 0.0
     Tend = 1.0
-    nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
-    dtValues = (Tend - t0) / nSteps
-    # dtValues = np.logspace(-2.5, 0.0, num=40)
-    epsValues = [1e-10]#[10 ** (-m) for m in range(1, 11)]
+    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
+    # dtValues = (Tend - t0) / nSteps
+    dtValues = np.logspace(-2.5, 0.0, num=40)
+    epsValues = [10 ** (-m) for m in range(2, 12)]
     spectralRadius, maxNorm = np.zeros((len(epsValues), len(dtValues))), np.zeros((len(epsValues), len(dtValues)))
     maxNormLastRow = np.zeros((len(epsValues), len(dtValues)))
     cond = np.zeros((len(epsValues), len(dtValues)))
@@ -142,7 +142,7 @@ def testSweepEqualMatrix():
         spectralRadius,
         description['problem_class'].__name__,
         'Spectral radius',
-        1.0,
+        0.3,#1.0,
         f'plotSpectralRadius_QI={QI}_M={nNodes}.png',
     )
 
@@ -174,7 +174,7 @@ def testSweepEqualMatrix():
         cond,
         description['problem_class'].__name__,
         rf'Condition number $\kappa(I-C)$',
-        None,
+        np.amax(cond) + 1,
         f'plotCondition_{nSweeps}sweeps_QI={QI}_M={nNodes}.png',
     )
 
@@ -192,6 +192,8 @@ def plotQuantity(dtValues, epsValues, quantity, prob_cls_name, quantity_label, y
         'gray',
         'dimgray',
     ]
+    colors = list(reversed(colors))
+
     plt.figure(figsize=(9.5, 9.5))
     for e, eps in enumerate(epsValues):
         plt.semilogx(

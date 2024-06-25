@@ -14,7 +14,6 @@ from pySDC.projects.DAE.problems.TestDAEs import (
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
-from pySDC.projects.DAE.run.costs import get_restol
 
 from pySDC.implementations.hooks.log_work import LogWork
 from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation
@@ -26,8 +25,8 @@ from pySDC.helpers.stats_helper import get_sorted
 def main():
     problems = [
         LinearTestSPP,
-        LinearTestDAEEmbedded,
-        LinearTestDAEConstrained,
+        # LinearTestDAEEmbedded,
+        # LinearTestDAEConstrained,
         # LinearTestSPPMinion,
         # LinearTestDAEMinionEmbedded,
         # LinearTestDAEMinionConstrained,
@@ -35,7 +34,7 @@ def main():
         # DiscontinuousTestDAEEmbedded,
         # DiscontinuousTestDAEConstrained,
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded, genericImplicitConstrained]
+    sweepers = [generic_implicit]#, genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
     M = 3
@@ -44,7 +43,7 @@ def main():
     residual_type = 'initial_rel'
 
     # parameters for convergence
-    nSweeps = 6
+    nSweeps = 14#7
 
     # hook class to be used
     hook_class = [LogWork]
@@ -59,7 +58,7 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    eps_list = [10 ** (-m) for m in range(1, 11)]
+    eps_list = [10 ** (-m) for m in range(2, 12)]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitEmbedded': [0.0],
@@ -68,9 +67,9 @@ def main():
 
     t0 = 0.0
     Tend = 1.0
-    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
-    dtValues = Tend / nSteps
-    # dtValues = np.logspace(-2.5, 0.0, num=40)
+    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    # dtValues = Tend / nSteps
+    dtValues = np.logspace(-2.5, 0.0, num=40)
 
     colors = [
         'lightsalmon',
@@ -84,6 +83,7 @@ def main():
         'gray',
         'dimgray',
     ]
+    colors = list(reversed(colors))
 
     fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
     for problem, sweeper in zip(problems, sweepers):
@@ -96,7 +96,7 @@ def main():
                 print(dt, eps)
                 if not eps == 0.0:
                     problem_params = {
-                        'newton_tol': 5e-7,
+                        'newton_tol': 1e-12,
                         'eps': eps
                     }
                 else:
@@ -104,7 +104,7 @@ def main():
                         'newton_tol': 1e-12,
                     }
 
-                restol = 5e-7 if not eps == 0.0 else 1e-10
+                restol = 1.5e-11 if not eps == 0.0 else 1e-10
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -130,7 +130,7 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=Tend,
+                    Tend=t0+dt,#Tend,
                     exact_event_time_avail=None,
                 )
 

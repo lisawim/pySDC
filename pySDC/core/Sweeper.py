@@ -78,6 +78,9 @@ class sweeper(object):
 
         self.parallelizable = False
 
+        self.residual_comp = None
+        self.residual_comp_scaled = None
+
     def get_Qdelta_implicit(self, coll, qd_type):
         def rho(x):
             return max(abs(np.linalg.eigvals(np.eye(m) - np.diag([x[i] for i in range(m)]).dot(coll.Qmat[1:, 1:]))))
@@ -491,6 +494,8 @@ class sweeper(object):
                 res[m] += L.tau[m]
             # use abs function from data type here
             res_norm.append(abs(res[m]))
+        
+        self.residual_comp = self.get_max_values_list(res)
 
         # TODO: can this be combined with ``integrate()`` with a separate function ?!
         res_initial = []
@@ -502,7 +507,7 @@ class sweeper(object):
 
         res_initial_norm = []
         for m in range(self.coll.num_nodes):
-            res_initial[m] += L.u[0] - L.u[0] 
+            res_initial[m] += L.u[0] - L.u[0]  # only makes sense if 'spread' is used!
             res_initial_norm.append(abs(res_initial[m]))
 
         # find maximal residual over the nodes
@@ -526,6 +531,30 @@ class sweeper(object):
         L.status.updated = False
 
         return None
+    
+    def get_max_values_list(self, original_list):
+        """
+        Computes the maximum values in a list along all sublists.
+
+        Parameters
+        ----------
+        original_list : list
+            List with sublists, where all subslists have the same length.
+        """
+
+        # Determine the length of the sublists
+        sublists_length = len(original_list[0])
+        
+        # Initialize a list to hold the maximum values for each position
+        max_values = [float('-inf')] * sublists_length
+        
+        # Iterate over each sublist and update the maximum values for each position
+        for sublist in original_list:
+            for i in range(sublists_length):
+                if sublist[i] > max_values[i]:
+                    max_values[i] = sublist[i]
+        
+        return max_values
 
     def compute_end_point(self):
         """

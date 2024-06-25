@@ -13,6 +13,7 @@ from pySDC.implementations.problem_classes.GeneralizedFisher_1D_FD_implicit impo
 from pySDC.implementations.problem_classes.HeatEquation_ND_FD import heatNd_unforced
 from pySDC.implementations.problem_classes.Van_der_Pol_implicit import vanderpol
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
+from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 
 ID = namedtuple('ID', ['setup', 'qd_type', 'param'])
 
@@ -34,6 +35,7 @@ def main():
     # initialize controller parameters
     controller_params = dict()
     controller_params['logger_level'] = 30
+    controller_params['hook_class'] = [LogGlobalErrorPostStep]
 
     # set up list of Q-delta types and setups
     qd_list = ['LU', 'IE', 'IEpar', 'Qpar', 'MIN', 'MIN3', 'MIN_GT']
@@ -137,6 +139,9 @@ def main():
 
                 # call main function to get things done...
                 uend, stats = controller.run(u0=uinit, t0=0, Tend=level_params['dt'])
+
+                err = max(np.array(get_sorted(stats, type='e_global_post_step', sortby='time'))[:, 1])
+                print(f"Error is {err}")
 
                 # filter statistics by type (number of iterations)
                 iter_counts = get_sorted(stats, type='niter', sortby='time')

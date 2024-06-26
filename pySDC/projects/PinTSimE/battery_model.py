@@ -61,6 +61,8 @@ def generateDescription(
     max_restarts=None,
     tol_event=1e-10,
     alpha=1.0,
+    residual_type=None,
+    e_tol=None,
 ):
     r"""
     Generate a description for the battery models for a controller run.
@@ -98,6 +100,8 @@ def generateDescription(
         Tolerance for event detection to terminate.
     alpha : float, optional
         Factor that indicates how the new step size in the Switch Estimator is reduced.
+    residual_type : str, optional
+        Chosen between relative or absolute residual to compute.
 
     Returns
     -------
@@ -110,6 +114,8 @@ def generateDescription(
     # initialize level parameters
     level_params = {
         'restol': -1 if use_adaptivity else restol,
+        'residual_type': residual_type if residual_type is not None else 'full_abs',
+        'e_tol': -1 if e_tol is None else e_tol,
         'dt': dt,
     }
     if use_adaptivity:
@@ -121,6 +127,7 @@ def generateDescription(
         'num_nodes': num_nodes,
         'QI': QI,
         'initial_guess': 'spread',
+        # 'skip_residual_computation': ('IT_DOWN', 'IT_UP', 'IT_COARSE', 'IT_FINE'),
     }
 
     # initialize step parameters

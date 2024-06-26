@@ -82,7 +82,7 @@ class LogGlobalErrorPostStepAlgebraicVariable(Hooks):
         )
 
 
-class LogGlobalErrorPostIterDiff(hooks):
+class LogGlobalErrorPostIterDiff(Hooks):
     """
     Logs the global error in the differential variable and its derivative after each iteration.
     """
@@ -108,7 +108,7 @@ class LogGlobalErrorPostIterDiff(hooks):
         )
 
 
-class LogGlobalErrorPostIterAlg(hooks):
+class LogGlobalErrorPostIterAlg(Hooks):
     """
     Logs the global error in the algebraic variable and its derivative after each iteration.
     """

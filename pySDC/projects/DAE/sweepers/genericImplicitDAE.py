@@ -2,7 +2,7 @@ import numpy as np
 np.printoptions(precision=30)
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.core.Errors import ParameterError
+from pySDC.core.errors import ParameterError
 
 
 class genericImplicitConstrained(generic_implicit):
@@ -40,7 +40,7 @@ class genericImplicitConstrained(generic_implicit):
         super().__init__(params)
 
         # get QI matrix
-        self.QI = self.get_Qdelta_implicit(self.coll, qd_type=self.params.QI)
+        self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
 
     def integrate(self):
         """
@@ -88,7 +88,7 @@ class genericImplicitConstrained(generic_implicit):
                 self.params.QI = "MIN-SR-S"
             else:
                 self.params.QI = 'MIN-SR-FLEX' + str(k)
-            self.QI = self.get_Qdelta_implicit(self.coll, qd_type=self.params.QI)
+            self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
 
         # gather all terms which are known already (e.g. from the previous iteration)
         # this corresponds to u0 + QF(u^k) - QdF(u^k) + tau
@@ -116,11 +116,11 @@ class genericImplicitConstrained(generic_implicit):
             # implicit solve with prefactor stemming from the diagonal of Qd
             alpha = L.dt * self.QI[m + 1, m + 1]
             if alpha == 0:
-                L.u[m + 1][:] = rhs[:]
+                L.u[m + 1] = rhs
             else:
-                L.u[m + 1][:] = P.solve_system(rhs, alpha, L.u[m + 1][:], L.time + L.dt * self.coll.nodes[m])
+                L.u[m + 1] = P.solve_system(rhs, alpha, L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
             # update function values
-            L.f[m + 1][:] = P.eval_f(L.u[m + 1][:], L.time + L.dt * self.coll.nodes[m])
+            L.f[m + 1] = P.eval_f(L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
 
         # indicate presence of new values at this level
         L.status.updated = True
@@ -239,7 +239,7 @@ class genericImplicitEmbedded(generic_implicit):
         super().__init__(params)
 
         # get QI matrix
-        self.QI = self.get_Qdelta_implicit(self.coll, qd_type=self.params.QI)
+        self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
 
     def update_nodes(self):
         """
@@ -265,7 +265,7 @@ class genericImplicitEmbedded(generic_implicit):
                 self.params.QI = "MIN-SR-S"
             else:
                 self.params.QI = 'MIN-SR-FLEX' + str(k)
-            self.QI = self.get_Qdelta_implicit(self.coll, qd_type=self.params.QI)
+            self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
 
         # gather all terms which are known already (e.g. from the previous iteration)
         # this corresponds to u0 + QF(u^k) - QdF(u^k) + tau
@@ -292,12 +292,12 @@ class genericImplicitEmbedded(generic_implicit):
             # implicit solve with prefactor stemming from the diagonal of Qd
             alpha = L.dt * self.QI[m + 1, m + 1]
             if alpha == 0:
-                L.u[m + 1][:] = rhs[:]
+                L.u[m + 1] = rhs
             else:
-                L.u[m + 1][:] = P.solve_system(rhs, alpha, L.u[m + 1][:], L.time + L.dt * self.coll.nodes[m])
+                L.u[m + 1] = P.solve_system(rhs, alpha, L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
             # update function values
-            L.f[m + 1][:] = P.eval_f(L.u[m + 1][:], L.time + L.dt * self.coll.nodes[m])
-        print(L.u[-1])
+            L.f[m + 1] = P.eval_f(L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
+
         # indicate presence of new values at this level
         L.status.updated = True
 

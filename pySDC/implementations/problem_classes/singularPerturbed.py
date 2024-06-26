@@ -1,11 +1,11 @@
 import numpy as np
 
-from pySDC.core.Problem import ptype, WorkCounter
+from pySDC.core.problem import Problem, WorkCounter
 from pySDC.implementations.datatype_classes.mesh import mesh
-from pySDC.core.Errors import ProblemError
+from pySDC.core.errors import ProblemError
 
 
-class LinearTestSPPMinion(ptype):
+class LinearTestSPPMinion(Problem):
     r"""
     Example implementing the singular perturbation problem of the form
 
@@ -184,7 +184,7 @@ class LinearTestSPPMinion(ptype):
         return me
 
 
-class SPPchatGPT(ptype):
+class SPPchatGPT(Problem):
     r"""
     Example implementing the singular perturbation problem of the form
 
@@ -345,7 +345,7 @@ class SPPchatGPT(ptype):
         return me
 
 
-class LinearTestSPP(ptype):
+class LinearTestSPP(Problem):
     r"""
     Example implementing the singular perturbation problem of the form
 
@@ -514,7 +514,7 @@ class LinearTestSPP(ptype):
         return me
 
 
-class DiscontinuousTestSPP(ptype):
+class DiscontinuousTestSPP(Problem):
     dtype_u = mesh
     dtype_f = mesh
     def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
@@ -691,7 +691,7 @@ class DiscontinuousTestSPP(ptype):
         return solve_ivp(eval_rhs, (t_init, t), u_init.flatten(), **kwargs).y[:, -1].reshape(u_shape)
 
 
-class VanDerPol(ptype):
+class VanDerPol(Problem):
     r"""
     Example implementing the nonlinear Van der Pol oscillator as a first-order system
 
@@ -851,7 +851,7 @@ class VanDerPol(ptype):
         return me
 
 
-class StiffPendulum(ptype):
+class StiffPendulum(Problem):
     r"""
     Example implementing the stiff mechanical system of a pendulum of the form
 
@@ -1039,7 +1039,7 @@ class StiffPendulum(ptype):
         return me
 
 
-class CosineProblem(ptype):
+class CosineProblem(Problem):
     r"""
     Example implementing the cosine problem also known as the Prothero-Robinson example [1]_ of the form
 

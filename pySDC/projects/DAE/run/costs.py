@@ -40,7 +40,7 @@ def main():
     M = 3
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
-    residual_type = 'increment'
+    conv_type = 'increment'
 
     # parameters for convergence
     nSweeps = 6
@@ -74,7 +74,7 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    eps_list = [10 ** (-m) for m in range(6, 12)]#[10 ** (-m) for m in range(1, 11)]
+    eps_list = [10 ** (-m) for m in range(2, 12)]#[10 ** (-m) for m in range(1, 11)]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitConstrained': [0.0],
@@ -120,7 +120,14 @@ def main():
                         'newton_tol': 1e-12,
                     }
 
-                restol = 1e-12#1.5e-11 if not eps == 0.0 else 1e-10
+                if not conv_type == 'increment':
+                    residual_type = conv_type
+                    restol = 1e-13
+                    e_tol = -1
+                else:
+                    residual_type = None
+                    restol = -1
+                    e_tol = 1e-12
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -139,6 +146,7 @@ def main():
                     tol_event=tol_event,
                     alpha=alpha,
                     residual_type=residual_type,
+                    e_tol=e_tol,
                 )
 
                 stats, _ = controllerRun(
@@ -216,7 +224,7 @@ def main():
     ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/{problems[0].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}_{conv_type}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 

@@ -2,7 +2,7 @@ import numpy as np
 
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
-from pySDC.core.Errors import ProblemError
+from pySDC.core.errors import ProblemError
 
 
 class DiscontinuousTestDAE(ptype_dae):

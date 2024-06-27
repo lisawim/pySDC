@@ -220,8 +220,8 @@ def main():
         ax[ind].set_ylim(1e-15, 1e-1)
         ax[ind].minorticks_off()
 
-    ax[0].set_ylabel(r"$||e_{diff}||_\infty$", fontsize=20)
-    ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
+    ax[0].set_ylabel(r"$||e_{y}||_\infty$", fontsize=20)
+    ax[1].set_ylabel(r"$||e_{z}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
 
     fig.savefig(f"data/{problems[0].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}_{conv_type}.png", dpi=300, bbox_inches='tight')

@@ -2,11 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import SPPchatGPT, LinearTestSPP,LinearTestSPPMinion, DiscontinuousTestSPP
+from pySDC.implementations.problem_classes.singularPerturbed import SPPchatGPT, LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
 from pySDC.implementations.problem_classes.TestEquation_0D import testequation0d
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
 from pySDC.projects.DAE.problems.TestDAEs import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
     LinearTestDAEEmbedded,
     LinearTestDAEConstrained,
     LinearTestDAEMinionEmbedded,
@@ -15,10 +17,8 @@ from pySDC.projects.DAE.problems.TestDAEs import (
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
-from pySDC.projects.DAE.run.quantitiesAlongIterations import nestedListIntoSingleList
 
-from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogResidualComponentsPostIter
-from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg
+from pySDC.implementations.hooks.log_solution import LogSolution
 
 from pySDC.helpers.stats_helper import get_sorted
 
@@ -27,9 +27,11 @@ def main():
     problems = [
         # testequation0d,
         # SPPchatGPT,
-        LinearTestSPP,
-        # LinearTestDAEEmbedded,
-        # LinearTestDAEConstrained,
+        # chatGPTDAEEmbedded,
+        # chatGPTDAEConstrained,
+        # LinearTestSPP,
+        LinearTestDAEEmbedded,
+        LinearTestDAEConstrained,
         # LinearTestSPPMinion,
         # LinearTestDAEMinionEmbedded,
         # LinearTestDAEMinionConstrained,
@@ -37,27 +39,20 @@ def main():
         # DiscontinuousTestDAEEmbedded,
         # DiscontinuousTestDAEConstrained,
     ]
-    sweepers = [generic_implicit]#, genericImplicitEmbedded, genericImplicitConstrained]
+    # sweepers = [generic_implicit]
+    sweepers = [genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
-    M = 3
+    M = 6
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
 
     # parameters for convergence
-    nSweeps = 20#7
-    residual_type = 'initial_rel'
+    nSweeps = 25#7
+    conv_type = 'initial_rel'#'increment'
 
     # hook class to be used
-    hook_class = {
-        'generic_implicit': [LogResidualComponentsPostIter],
-        'genericImplicitEmbedded': [
-            LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg
-        ],
-        'genericImplicitConstrained': [
-            LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg
-        ],
-    }
+    hook_class = [LogSolution]
 
     # no special treatment
     use_A = False
@@ -69,8 +64,7 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    epsList = [10 ** (-m) for m in range(2, 12)]#[10 ** (-m) for m in range(1, 11)]
-    # epsList = list(reversed(epsList))
+    epsList = [10 ** (-m) for m in range(5, 12)]
     epsValues = {
         'generic_implicit': epsList,
         'genericImplicitEmbedded': [0.0],
@@ -96,13 +90,14 @@ def main():
         'dimgray',
     ]
 
-    for i, dt in enumerate(dtValues):
-        fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
+    fig, ax = plt.subplots(1, 1, figsize=(9.5, 9.5))
+    for problem, sweeper in zip(problems, sweepers):
+        epsilons = epsValues[sweeper.__name__]
 
-        for problem, sweeper in zip(problems, sweepers):
-            epsLoop = epsValues[sweeper.__name__]
+        for i, eps in enumerate(epsilons):
+            algConstr = []
 
-            for e, eps in enumerate(epsLoop):
+            for dt in dtValues:
                 print(f"{dt=}, {eps=}")
                 if not eps == 0.0:
                     problem_params = {
@@ -114,8 +109,14 @@ def main():
                         'newton_tol': newton_tol,
                     }
 
-                restol = -1
-                e_tol = -1
+                if not conv_type == 'increment':
+                    residual_type = conv_type
+                    restol = 1e-13
+                    e_tol = -1
+                else:
+                    residual_type = None
+                    restol = -1
+                    e_tol = -1
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -124,7 +125,7 @@ def main():
                     num_nodes=M,
                     quad_type=quad_type,
                     QI=QI,
-                    hook_class=hook_class[sweeper.__name__],
+                    hook_class=hook_class,
                     use_adaptivity=use_A,
                     use_switch_estimator=use_SE,
                     problem_params=problem_params,
@@ -142,14 +143,20 @@ def main():
                     controller_params=controller_params,
                     controller=controller,
                     t0=t0,
-                    Tend=t0+dt,
+                    Tend=Tend,
                     exact_event_time_avail=None,
                 )
 
-                resCompIter = [get_sorted(stats, iter=k, type='residual_comp_post_iter', sortby='time') for k in range(1, nSweeps + 1)]
-                resCompIter = nestedListIntoSingleList(resCompIter)
+                u_val = get_sorted(stats, type='u', sortby='time')
+                t = [me[0] for me in u_val]
+                u = [me[1] for me in u_val]
 
-                color = colors[e] if not eps == 0.0 else 'k'
+                P = controller.MS[0].levels[0].prob
+                g = P.algebraicConstraints(u[-1], t[-1])
+
+                algConstr.append(abs(g))
+
+                color = colors[i] if not eps == 0.0 else 'k'
                 if eps != 0.0:
                     linestyle = 'solid'
                     label=rf'$\varepsilon=${eps}'
@@ -167,50 +174,28 @@ def main():
                     markersize=10.0
                 solid_capstyle = 'round' if linestyle == 'solid' else None
                 dash_capstyle = 'round' if linestyle == 'dashed' else None
+            print(algConstr)
+            ax.loglog(
+                dtValues,
+                algConstr,
+                color=color,
+                marker='*',
+                markersize=10.0,
+                linewidth=4.0,
+                solid_capstyle='round',
+                label=rf'$\varepsilon=${eps}',
+            )
 
-                ax[0].set_title(rf"Residual differential component for $\Delta t=${dt}")
-                ax[0].semilogy(
-                    np.arange(1, len(resCompIter) + 1),
-                    [abs(comp[0]) for comp in resCompIter],
-                    color=color,
-                    marker=marker,
-                    markersize=markersize,
-                    linewidth=4.0,
-                    linestyle=linestyle,
-                    solid_capstyle=solid_capstyle,
-                    dash_capstyle=dash_capstyle,
-                    label=label,
-                )
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.set_xlabel(r'$\Delta t$', fontsize=20)
+    ax.set_ylim(1e-14, 1e1)
+    ax.minorticks_off()
 
-                ax[1].set_title(rf"Residual algebraic component for $\Delta t=${dt}")
-                ax[1].semilogy(
-                    np.arange(1, len(resCompIter) + 1),
-                    [abs(comp[1]) for comp in resCompIter],
-                    color=color,
-                    marker=marker,
-                    markersize=markersize,
-                    linewidth=4.0,
-                    linestyle=linestyle,
-                    solid_capstyle=solid_capstyle,
-                    dash_capstyle=dash_capstyle,
-                    label=label,
-                )
+    ax.set_ylabel(r"$||g(y, z)||_\infty$", fontsize=20)
+    ax.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-        for ax_wrapper in [ax[0], ax[1]]:
-            ax_wrapper.tick_params(axis='both', which='major', labelsize=14)
-            ax_wrapper.set_xlabel(r'Iteration $k$', fontsize=20)
-            ax_wrapper.set_xlim(0, nSweeps + 1)
-            ax_wrapper.set_xticks(np.arange(1, nSweeps + 1))
-            ax_wrapper.set_xticklabels([i for i in np.arange(1, nSweeps + 1)])
-            ax_wrapper.set_ylim(1e-18, 1e0)
-            ax_wrapper.set_yscale('log', base=10)
-            ax_wrapper.minorticks_off()
-
-        ax[0].set_ylabel(r"$||r_{y}^k||_\infty$", fontsize=20)
-        ax[1].set_ylabel(r"$||r_{z}^k||_\infty$", fontsize=20)
-        ax[0].legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
-        fig.savefig(f"data/{problems[0].__name__}/{i}_plotResidualComponentsAlongIterations_QI={QI}_M={M}_dt={dt}.png", dpi=300, bbox_inches='tight')
-        plt.close(fig)
+    fig.savefig(f"data/{problems[0].__name__}/plotSolutionManifold_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    plt.close(fig)
 
 
 if __name__ == "__main__":

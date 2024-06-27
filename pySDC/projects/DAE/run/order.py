@@ -41,10 +41,10 @@ def main():
     M = 3
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
-    residual_type = 'initial_rel'
+    conv_type = 'increment'
 
     # parameters for convergence
-    maxiter = 14#25
+    maxiter = 6
 
     # hook class to be used
     hook_class = {
@@ -110,7 +110,34 @@ def main():
                         'newton_tol': newton_tol,
                     }
 
-                restol = 1e-6#2e-7 if not eps == 0.0 else 1e-9
+                if not conv_type == 'increment':
+                    residual_type = conv_type
+                    restol = 1e-13
+                    e_tol = -1
+                else:
+                    residual_type = None
+                    restol = -1
+                    e_tol = 1e-12
+
+                description, controller_params, controller = generateDescription(
+                    dt=dt,
+                    problem=problem,
+                    sweeper=sweeper,
+                    num_nodes=M,
+                    quad_type=quad_type,
+                    QI=QI,
+                    hook_class=hook_class[sweeper.__name__],
+                    use_adaptivity=use_A,
+                    use_switch_estimator=use_SE,
+                    problem_params=problem_params,
+                    restol=restol,
+                    maxiter=maxiter,
+                    max_restarts=max_restarts,
+                    tol_event=tol_event,
+                    alpha=alpha,
+                    residual_type=residual_type,
+                    e_tol=e_tol,
+                )
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -197,8 +224,8 @@ def main():
         ax[ind].set_ylim(1e-14, 1e1)
         ax[ind].minorticks_off()
 
-    ax[0].set_ylabel(r"$||e_{diff}||_\infty$", fontsize=20)
-    ax[1].set_ylabel(r"$||e_{alg}||_\infty$", fontsize=20)
+    ax[0].set_ylabel(r"$||e_{y}||_\infty$", fontsize=20)
+    ax[1].set_ylabel(r"$||e_{z}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
     axIter.tick_params(axis='both', which='major', labelsize=14)

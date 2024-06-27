@@ -178,6 +178,7 @@ class Sweeper(object):
 
         # get current level and problem description
         L = self.level
+        P = L.prob
 
         # Check if we want to skip the residual computation to gain performance
         # Keep in mind that skipping any residual computation is likely to give incorrect outputs of the residual!
@@ -201,6 +202,20 @@ class Sweeper(object):
             # use abs function from data type here
             res_norm.append(abs(res[m]))
 
+        self.residual_comp = self.get_max_values_list(res)
+
+        res_initial = []
+        for m in range(1, self.coll.num_nodes + 1):
+            # new instance of dtype_u, initialize values with 0
+            res_initial.append(P.dtype_u(P.init, val=0.0))
+            for j in range(1, self.coll.num_nodes + 1):
+                res_initial[-1] += L.dt * self.coll.Qmat[m, j] * P.eval_f(L.u[0], L.time + L.dt * self.coll.nodes[j - 1])
+
+        res_initial_norm = []
+        for m in range(self.coll.num_nodes):
+            res_initial[m] += L.u[0] - L.u[0] 
+            res_initial_norm.append(abs(res_initial[m]))
+
         # find maximal residual over the nodes
         if L.params.residual_type == 'full_abs':
             L.status.residual = max(res_norm)
@@ -210,6 +225,8 @@ class Sweeper(object):
             L.status.residual = max(res_norm) / abs(L.u[0])
         elif L.params.residual_type == 'last_rel':
             L.status.residual = res_norm[-1] / abs(L.u[0])
+        elif L.params.residual_type == 'initial_rel':
+            L.status.residual = max(res_norm) / max(res_initial_norm)
         else:
             raise ParameterError(
                 f'residual_type = {L.params.residual_type} not implemented, choose '
@@ -220,6 +237,30 @@ class Sweeper(object):
         L.status.updated = False
 
         return None
+
+    def get_max_values_list(self, original_list):
+        """
+        Computes the maximum values in a list along all sublists.
+
+        Parameters
+        ----------
+        original_list : list
+            List with sublists, where all subslists have the same length.
+        """
+
+        # Determine the length of the sublists
+        sublists_length = len(original_list[0])
+        
+        # Initialize a list to hold the maximum values for each position
+        max_values = [float('-inf')] * sublists_length
+        
+        # Iterate over each sublist and update the maximum values for each position
+        for sublist in original_list:
+            for i in range(sublists_length):
+                if sublist[i] > max_values[i]:
+                    max_values[i] = sublist[i]
+        
+        return max_values
 
     def compute_end_point(self):
         """

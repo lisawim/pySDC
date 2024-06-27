@@ -44,12 +44,12 @@ def main():
         # SPPchatGPT,
         # chatGPTDAEEmbedded,
         # chatGPTDAEConstrained,
-        LinearTestSPP,
-        LinearTestDAEEmbedded,
-        LinearTestDAEConstrained,
-        # LinearTestSPPMinion,
-        # LinearTestDAEMinionEmbedded,
-        # LinearTestDAEMinionConstrained,
+        # LinearTestSPP,
+        # LinearTestDAEEmbedded,
+        # LinearTestDAEConstrained,
+        LinearTestSPPMinion,
+        LinearTestDAEMinionEmbedded,
+        LinearTestDAEMinionConstrained,
         # DiscontinuousTestSPP,
         # DiscontinuousTestDAEEmbedded,
         # DiscontinuousTestDAEConstrained,
@@ -57,13 +57,13 @@ def main():
     sweepers = [generic_implicit, genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
-    M = 3
+    M = 6
     quad_type = 'RADAU-RIGHT'
     QI = 'LU'
 
     # parameters for convergence
-    nSweeps = 20#7
-    conv_type = 'increment'
+    nSweeps = 25#7
+    conv_type = 'initial_rel'#'increment'
 
     # hook class to be used
     hook_class = {
@@ -86,7 +86,7 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    epsList = [10 ** (-m) for m in range(2, 12)]
+    epsList = [10 ** (-m) for m in range(5, 12)]
     epsValues = {
         'generic_implicit': epsList,
         'genericImplicitEmbedded': [0.0],
@@ -100,9 +100,9 @@ def main():
     # dtValues = np.logspace(-2.5, 0.0, num=7)
 
     colors = [
-        'lightsalmon',
-        'lightcoral',
-        'indianred',
+        # 'lightsalmon',
+        # 'lightcoral',
+        # 'indianred',
         'firebrick',
         'brown',
         'maroon',
@@ -111,7 +111,7 @@ def main():
         'gray',
         'dimgray',
     ]
-    colors = list(reversed(colors))
+    # colors = list(reversed(colors))
 
     for i, dt in enumerate(dtValues):
         fig, ax = plt.subplots(1, 3, figsize=(24.0, 9.0))
@@ -125,8 +125,6 @@ def main():
                     problem_params = {
                         'eps': eps,
                         'newton_tol': newton_tol,
-                        # 'lambdas': np.array([1, 1 / eps]),
-                        # 'u0': 1.0,
                     }
                 else:
                     problem_params = {
@@ -135,12 +133,12 @@ def main():
 
                 if not conv_type == 'increment':
                     residual_type = conv_type
-                    restol = 1e-13#1e-11#5e-12#5e-6#1e-10#5e-7 if not eps == 0.0 else 1e-10
+                    restol = 1e-13
                     e_tol = -1
                 else:
                     residual_type = None
                     restol = -1
-                    e_tol = -1#1e-15
+                    e_tol = -1
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -174,7 +172,7 @@ def main():
                 errDiffIter = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, nSweeps + 1)]
                 errAlgIter = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, nSweeps + 1)]
 
-                if not residual == 'increment':
+                if not conv_type == 'increment':
                     quantityIter = [get_sorted(stats, iter=k, type='residual_post_iteration', sortby='time') for k in range(1, nSweeps + 1)]
                 else:
                     type = 'error_embedded_estimate_post_iteration'
@@ -231,7 +229,10 @@ def main():
                     label=label,
                 )
                 print(eps, quantityIter)
-                ax[2].set_title(rf"Increment for $\Delta t=${dt}")
+                if conv_type == 'increment':
+                    ax[2].set_title(rf"Increment for $\Delta t=${dt}")
+                else:
+                    ax[2].set_title(rf"Residual for $\Delta t=${dt}")
                 ax[2].semilogy(
                     np.arange(1, len(quantityIter) + 1),
                     quantityIter,
@@ -253,14 +254,14 @@ def main():
             # ax_wrapper.set_xticklabels([i for i in np.arange(1, nSweeps + 1)])
             if not ax_wrapper == ax[2]:
                 ax_wrapper.set_ylim(1e-15, 1e0)
-                # ax_wrapper.set_yscale('log', base=10)
+                # ax_wrapper.set_ylim(1e-5, 1e0)
             else:
                 ax_wrapper.set_ylim(1e-15, 1e5)
             ax_wrapper.set_yscale('log', base=10)
             ax_wrapper.minorticks_off()
 
-        ax[0].set_ylabel(r"$||e_{diff}^k||_\infty$", fontsize=20)
-        ax[1].set_ylabel(r"$||e_{alg}^k||_\infty$", fontsize=20)
+        ax[0].set_ylabel(r"$||e_{y}^k||_\infty$", fontsize=20)
+        ax[1].set_ylabel(r"$||e_{z}^k||_\infty$", fontsize=20)
         if conv_type == 'initial_rel':
             ax[2].set_ylabel(r"$||r^k||_\infty/||r^0||_\infty$", fontsize=20)
         elif conv_type == 'increment':

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pySDC.core.Step import step
+from pySDC.core.step import Step
 from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 
@@ -35,7 +35,7 @@ def getManySweepsMatrix(LHS, RHS, nSweeps):
 
 
 def testSweepEqualMatrix():
-    QI = 'LU'
+    QI = 'IE'
     sweeper = generic_implicit
     problem = LinearTestSPP
     nNodes = 3
@@ -86,7 +86,7 @@ def testSweepEqualMatrix():
                 'step_params': step_params,
             }
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -109,9 +109,11 @@ def testSweepEqualMatrix():
 
             C = np.kron(np.identity(nNodes), np.identity(P.A.shape[0])) - dt * np.kron(Q, P.A)
             M = np.linalg.inv(np.kron(np.identity(nNodes), np.identity(P.A.shape[0])) - dt * np.kron(QImat, P.A)).dot(C)
+            sysMatrix = np.kron(np.identity(nNodes), np.identity(P.A.shape[0])) - dt * np.kron(Q, P.A)
 
             # cond[e, d] = np.linalg.norm(C, np.inf) * np.linalg.norm(np.linalg.inv(C), np.inf)
-            cond[e, d] = np.linalg.norm(M, np.inf) * np.linalg.norm(np.linalg.inv(M), np.inf)
+            # cond[e, d] = np.linalg.norm(M, np.inf) * np.linalg.norm(np.linalg.inv(M), np.inf)
+            cond[e, d] = np.linalg.norm(sysMatrix, np.inf) * np.linalg.norm(np.linalg.inv(sysMatrix), np.inf)
 
             # uMatrix = np.linalg.inv(LHS).dot(u0full + RHS.dot(u0full))
             # uSweep = np.array([L.u[m].flatten() for m in range(1, nNodes + 1)]).flatten()
@@ -142,7 +144,7 @@ def testSweepEqualMatrix():
         spectralRadius,
         description['problem_class'].__name__,
         'Spectral radius',
-        0.3,#1.0,
+        (0.0, 1.0),#1.0,
         f'plotSpectralRadius_QI={QI}_M={nNodes}.png',
     )
 
@@ -153,7 +155,7 @@ def testSweepEqualMatrix():
         description['problem_class'].__name__,
         # f'Maximum norm after m={nSweeps} sweeps',
         f'Maximum norm',
-        6.0,
+        (0.0, 6.0),
         f'plotMaximumNorm_{nSweeps}sweeps_QI={QI}_M={nNodes}.png',
     )
 
@@ -164,7 +166,7 @@ def testSweepEqualMatrix():
         description['problem_class'].__name__,
         # rf'Global error transport $||e_N^T K^m||_\infty$ for m={nSweeps}',
         rf'Global error transport $||e_N^T K||_\infty$',
-        3.0,
+        (0.0, 3.0),
         f'plotMaximumNormLastRow_{nSweeps}sweeps_QI={QI}_M={nNodes}.png',
     )
 
@@ -173,13 +175,15 @@ def testSweepEqualMatrix():
         epsValues,
         cond,
         description['problem_class'].__name__,
-        rf'Condition number $\kappa(I-C)$',
-        np.amax(cond) + 1,
+        # rf'Condition number $\kappa(I-C)$',
+        r'Condition number $\kappa(I-\Delta t QA)$',
+        (1e0, 1e14),
         f'plotCondition_{nSweeps}sweeps_QI={QI}_M={nNodes}.png',
+        plot_type='loglog',
     )
 
 
-def plotQuantity(dtValues, epsValues, quantity, prob_cls_name, quantity_label, yLimMax, file_name):
+def plotQuantity(dtValues, epsValues, quantity, prob_cls_name, quantity_label, yLim, file_name, plot_type='semilogx'):
     colors = [
         'lightsalmon',
         'lightcoral',
@@ -192,29 +196,43 @@ def plotQuantity(dtValues, epsValues, quantity, prob_cls_name, quantity_label, y
         'gray',
         'dimgray',
     ]
-    colors = list(reversed(colors))
 
     plt.figure(figsize=(9.5, 9.5))
     for e, eps in enumerate(epsValues):
-        plt.semilogx(
-            dtValues,
-            quantity[e, :],
-            color=colors[e],
-            marker='*',
-            markersize=10.0,
-            linewidth=4.0,
-            solid_capstyle='round',
-            label=rf"$\varepsilon=${eps}",
-        )
+        if plot_type == 'semilogx':
+            plt.semilogx(
+                dtValues,
+                quantity[e, :],
+                color=colors[e],
+                marker='*',
+                markersize=10.0,
+                linewidth=4.0,
+                solid_capstyle='round',
+                label=rf"$\varepsilon=${eps}",
+            )
+        elif plot_type == 'loglog':
+            plt.loglog(
+                dtValues,
+                quantity[e, :],
+                color=colors[e],
+                marker='*',
+                markersize=10.0,
+                linewidth=4.0,
+                solid_capstyle='round',
+                label=rf"$\varepsilon=${eps}",
+            )
 
     plt.tick_params(axis='both', which='major', labelsize=14)
     plt.xlabel(r'$\Delta t$', fontsize=20)
-    if yLimMax is not None:
-        plt.ylim(0, yLimMax)
+    if plot_type == 'loglog':
+        plt.yscale('log', base=10)
+    if yLim is not None:
+        plt.ylim(yLim[0], yLim[-1])
+        
     plt.minorticks_off()
 
     plt.ylabel(quantity_label, fontsize=20)
-    plt.legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
+    plt.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
     plt.savefig(f"data/{prob_cls_name}/{file_name}", dpi=300, bbox_inches='tight')
     plt.close()

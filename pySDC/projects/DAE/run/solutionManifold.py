@@ -2,7 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinionConstrained, LinearTestDAEMinionEmbedded
+from pySDC.projects.DAE.problems.TestDAEs import (
+    LinearTestDAEMinionConstrained,
+    LinearTestDAEMinionEmbedded,
+    LinearTestDAEConstrained,
+    LinearTestDAEEmbedded,
+)
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
@@ -13,15 +18,17 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        LinearTestDAEMinionEmbedded,
-        LinearTestDAEMinionConstrained,
+        LinearTestDAEEmbedded,
+        LinearTestDAEConstrained,
+        # LinearTestDAEMinionEmbedded,
+        # LinearTestDAEMinionConstrained,
     ]
     sweepers = [genericImplicitEmbedded, genericImplicitConstrained]
 
     # sweeper params
-    M = 4
+    M = 3
     quad_type = 'RADAU-RIGHT'
-    QIAll = ['IE', 'LU', 'MIN-SR-S']
+    QIAll = 'LU'
 
     # parameters for convergence
     restol = 1e-13

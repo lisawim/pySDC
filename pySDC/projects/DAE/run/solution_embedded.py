@@ -5,9 +5,20 @@ from pySDC.implementations.sweeper_classes.generic_implicit import generic_impli
 from pySDC.implementations.problem_classes.singularPerturbed import SPPchatGPT, LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
 from pySDC.implementations.problem_classes.TestEquation_0D import testequation0d
 
-from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import chatGPTDAEEmbedded, chatGPTDAEConstrained, LinearTestDAEEmbedded, LinearTestDAEMinionEmbedded
-from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
+    LinearTestDAEMinionEmbedded,
+    LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+)
+from pySDC.projects.DAE.problems.chatGPTDAE import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
+)
+from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 
@@ -18,17 +29,18 @@ from pySDC.helpers.stats_helper import get_sorted
 
 def main():
     problems = [
-        SPPchatGPT,
-        chatGPTDAEEmbedded,
+        # SPPchatGPT,
+        # chatGPTDAEEmbedded,
         # testequation0d,
         # LinearTestSPP,
         # LinearTestDAEEmbedded,
-        # DiscontinuousTestSPP,
+        DiscontinuousTestSPP,
         # DiscontinuousTestDAEEmbedded,
+        DiscontinuousTestDAEConstrained,
         # LinearTestSPPMinion,
         # LinearTestDAEMinionEmbedded,
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded]
+    sweepers = [generic_implicit, genericImplicitConstrained]
     
     # parameters for convergence
     restol = 1e-13
@@ -52,16 +64,17 @@ def main():
     # tolerance for implicit system to be solved
     newton_tol = 1e-12
 
-    eps_list = [1.0, 0.1, 0.01]#[1e-6]#[1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
+    eps_list = [1e-3, 1e-4, 1e-5]#[1e-6]#[1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
     # eps_list = [0.05, 0.02, 0.01, 0.005, 0.002, 0.001]#[0.01775, 0.0176, 0.016, 0.014, 0.012, 0.01]#[0.003, 0.00093, 0.0009, 0.0005, 0.0001, 1e-5]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitEmbedded': [0.0],
+        'genericImplicitConstrained': [0.0],
     }
     
-    t0 = 0.0
-    dt = 1e-3
-    Tend = 0.1#1.0#2 * np.pi
+    t0 = 1.0#0.0
+    dt = 1e-2
+    Tend = 2.0#0.1#1.0#2 * np.pi
 
     colors = [
         'lightsalmon',

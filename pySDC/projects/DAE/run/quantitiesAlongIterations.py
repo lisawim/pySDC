@@ -1,18 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pySDC.core.errors import ParameterError
+
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.implementations.problem_classes.singularPerturbed import SPPchatGPT, LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
-from pySDC.implementations.problem_classes.TestEquation_0D import testequation0d
+from pySDC.implementations.problem_classes.singularPerturbed import (
+    SPPchatGPT,
+    LinearTestSPP,
+    LinearTestSPPMinion,
+    DiscontinuousTestSPP,
+)
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
-from pySDC.projects.DAE.problems.TestDAEs import (
-    chatGPTDAEEmbedded,
-    chatGPTDAEConstrained,
-    LinearTestDAEEmbedded,
-    LinearTestDAEConstrained,
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
     LinearTestDAEMinionEmbedded,
     LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+)
+from pySDC.projects.DAE.problems.chatGPTDAE import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
 )
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 
@@ -44,26 +54,26 @@ def main():
         # SPPchatGPT,
         # chatGPTDAEEmbedded,
         # chatGPTDAEConstrained,
-        # LinearTestSPP,
-        # LinearTestDAEEmbedded,
-        # LinearTestDAEConstrained,
-        LinearTestSPPMinion,
-        LinearTestDAEMinionEmbedded,
-        LinearTestDAEMinionConstrained,
+        LinearTestSPP,
+        LinearTestDAEEmbedded,
+        LinearTestDAEConstrained,
+        # LinearTestSPPMinion,
+        # LinearTestDAEMinionEmbedded,
+        # LinearTestDAEMinionConstrained,
         # DiscontinuousTestSPP,
         # DiscontinuousTestDAEEmbedded,
         # DiscontinuousTestDAEConstrained,
     ]
     sweepers = [generic_implicit, genericImplicitEmbedded, genericImplicitConstrained]
-
+ 
     # sweeper params
-    M = 6
+    M = 3
     quad_type = 'RADAU-RIGHT'
-    QI = 'LU'
+    QI = 'IE'
 
     # parameters for convergence
-    nSweeps = 25#7
-    conv_type = 'initial_rel'#'increment'
+    nSweeps = 24#7
+    conv_type = 'increment'#'initial_rel'
 
     # hook class to be used
     hook_class = {
@@ -84,9 +94,9 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-12
+    lintol = 1e-12
 
-    epsList = [10 ** (-m) for m in range(5, 12)]
+    epsList = [10 ** (-m) for m in range(2, 12)]
     epsValues = {
         'generic_implicit': epsList,
         'genericImplicitEmbedded': [0.0],
@@ -100,9 +110,9 @@ def main():
     # dtValues = np.logspace(-2.5, 0.0, num=7)
 
     colors = [
-        # 'lightsalmon',
-        # 'lightcoral',
-        # 'indianred',
+        'lightsalmon',
+        'lightcoral',
+        'indianred',
         'firebrick',
         'brown',
         'maroon',
@@ -123,22 +133,26 @@ def main():
                 print(f"{dt=}, {eps=}")
                 if not eps == 0.0:
                     problem_params = {
+                        'lintol': lintol,
                         'eps': eps,
-                        'newton_tol': newton_tol,
                     }
                 else:
                     problem_params = {
-                        'newton_tol': newton_tol,
+                        'lintol': lintol,
                     }
 
                 if not conv_type == 'increment':
                     residual_type = conv_type
-                    restol = 1e-13
+                    restol = -1#1e-11
                     e_tol = -1
                 else:
                     residual_type = None
                     restol = -1
-                    e_tol = -1
+                    e_tol = 1e-11
+
+                    log_embed_err_class = LogEmbeddedErrorEstimatePostIter
+                    if log_embed_err_class not in hook_class[sweeper.__name__]:
+                        raise ParameterError(f"{log_embed_err_class.__name__} is not contained in hooks")
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -168,7 +182,7 @@ def main():
                     Tend=t0+dt,
                     exact_event_time_avail=None,
                 )
-
+                print(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time')))
                 errDiffIter = [get_sorted(stats, iter=k, type='e_global_post_iter', sortby='time') for k in range(1, nSweeps + 1)]
                 errAlgIter = [get_sorted(stats, iter=k, type='e_global_algebraic_post_iter', sortby='time') for k in range(1, nSweeps + 1)]
 
@@ -228,7 +242,7 @@ def main():
                     dash_capstyle=dash_capstyle,
                     label=label,
                 )
-                print(eps, quantityIter)
+                # print(eps, errDiffIter)
                 if conv_type == 'increment':
                     ax[2].set_title(rf"Increment for $\Delta t=${dt}")
                 else:

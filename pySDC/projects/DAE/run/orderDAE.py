@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinionEmbedded, LinearTestDAEMinionConstrained
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import LinearTestDAEMinionEmbedded, LinearTestDAEMinionConstrained
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 

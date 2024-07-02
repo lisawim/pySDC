@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pySDC.core.errors import ParameterError
+
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.implementations.problem_classes.singularPerturbed import (
     LinearTestSPP,
@@ -8,10 +10,14 @@ from pySDC.implementations.problem_classes.singularPerturbed import (
     DiscontinuousTestSPP,
 )
 
-from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import (
-    LinearTestDAEEmbedded,
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
     LinearTestDAEMinionEmbedded,
+    LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
 )
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded
 
@@ -19,6 +25,7 @@ from pySDC.projects.PinTSimE.battery_model import generateDescription, controlle
 
 from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation
 from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
+from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedErrorEstimatePostIter
 
 from pySDC.helpers.stats_helper import get_sorted
 
@@ -27,15 +34,17 @@ def main():
     problems = [
         LinearTestSPP,
         # LinearTestDAEEmbedded,
+        # LinearTestDAEConstrained,
         # DiscontinuousTestSPP,
         # DiscontinuousTestDAEEmbedded
     ]
-    sweepers = [generic_implicit, genericImplicitEmbedded]
+    sweepers = [generic_implicit]
+    # sweepers = [genericImplicitEmbedded, genericImplicitConstrained]
 
-    if sweepers[1].__name__.startswith("genericImplicit"):
-        startsWith = True
+    # if sweepers[1].__name__.startswith("genericImplicit"):
+    #     startsWith = True
 
-    assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
+    # assert startsWith, "To store files correctly, set one of the DAE sweeper into list at index 1!"
 
     # sweeper params
     M = 3
@@ -44,13 +53,18 @@ def main():
     conv_type = 'increment'
 
     # parameters for convergence
-    maxiter = 6
+    maxiter = 24#14
 
     # hook class to be used
     hook_class = {
-        'generic_implicit': [LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation],
+        'generic_implicit': [LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation, LogEmbeddedErrorEstimatePostIter],
         'genericImplicitEmbedded': [
-            LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
+            LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable,
+            LogEmbeddedErrorEstimatePostIter,
+        ],
+        'genericImplicitConstrained': [
+            LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable,
+            LogEmbeddedErrorEstimatePostIter,
         ],
     }
 
@@ -62,19 +76,20 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-12
+    lintol = 1e-12
 
     eps_list = [10 ** (-m) for m in range(2, 12)]
     epsValues = {
         'generic_implicit': eps_list,
         'genericImplicitEmbedded': [0.0],
+        'genericImplicitConstrained': [0.0],
     }
 
     t0 = 0.0
     Tend = 1.0
-    # nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
-    # dtValues = (Tend - t0) / nSteps
-    dtValues = np.logspace(-2.5, 0.0, num=40)
+    nSteps = np.array([2, 5, 10, 20, 50, 100, 200, 500, 1000])
+    dtValues = (Tend - t0) / nSteps
+    # dtValues = np.logspace(-2.5, 0.0, num=40)
 
     colors = [
         'lightsalmon',
@@ -88,7 +103,7 @@ def main():
         'gray',
         'dimgray',
     ]
-    colors = list(reversed(colors))
+    # colors = list(reversed(colors))
 
     fig, ax = plt.subplots(1, 2, figsize=(17.0, 9.5))
     figIter, axIter = plt.subplots(1, 1, figsize=(9.5, 9.5))
@@ -101,23 +116,28 @@ def main():
 
             for dt in dtValues:
                 print(eps, dt)
-                problem_params = {
-                    'newton_tol': newton_tol,
-                }
                 if not eps == 0.0:
                     problem_params = {
+                        'lintol': lintol,
                         'eps': eps,
-                        'newton_tol': newton_tol,
+                    }
+                else:
+                    problem_params = {
+                        'lintol': lintol,
                     }
 
                 if not conv_type == 'increment':
                     residual_type = conv_type
-                    restol = 1e-13
+                    restol = 1e-11
                     e_tol = -1
                 else:
                     residual_type = None
                     restol = -1
-                    e_tol = 1e-12
+                    e_tol = 1e-11#1e-11
+
+                    log_embed_err_class = LogEmbeddedErrorEstimatePostIter
+                    if log_embed_err_class not in hook_class[sweeper.__name__]:
+                        raise ParameterError(f"{log_embed_err_class.__name__} is not contained in hooks")
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -139,25 +159,6 @@ def main():
                     e_tol=e_tol,
                 )
 
-                description, controller_params, controller = generateDescription(
-                    dt=dt,
-                    problem=problem,
-                    sweeper=sweeper,
-                    num_nodes=M,
-                    quad_type=quad_type,
-                    QI=QI,
-                    hook_class=hook_class[sweeper.__name__],
-                    use_adaptivity=use_A,
-                    use_switch_estimator=use_SE,
-                    problem_params=problem_params,
-                    restol=restol,
-                    maxiter=maxiter,
-                    max_restarts=max_restarts,
-                    tol_event=tol_event,
-                    alpha=alpha,
-                    residual_type=residual_type,
-                )
-
                 stats, _ = controllerRun(
                     description=description,
                     controller_params=controller_params,
@@ -170,43 +171,67 @@ def main():
                 errDiffValues = np.array(get_sorted(stats, type='e_global_post_step', sortby='time'))
                 errAlgValues = np.array(get_sorted(stats, type='e_global_algebraic_post_step', sortby='time'))
                 nIter = np.mean(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
-
+                print(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time')))
                 errorsDiff.append(max(errDiffValues[:, 1]))
                 errorsAlg.append(max(errAlgValues[:, 1]))
                 nIters.append(nIter)
 
             color = colors[i] if not eps == 0.0 else 'k'
+            if eps != 0.0:
+                linestyle = 'solid'
+                label=rf'$\varepsilon=${eps}'
+                marker=None
+                markersize=None
+            elif eps == 0.0 and sweeper.__name__ == 'genericImplicitEmbedded':
+                linestyle = 'solid'
+                label=rf'$\varepsilon=${eps} -' + r'$\mathtt{SDC-E}$'
+                marker=None
+                markersize=None
+            else:
+                linestyle = 'dashed'
+                label=rf'$\varepsilon=${eps} - ' + r'$\mathtt{SDC-C}$'
+                marker='*'
+                markersize=10.0
+            solid_capstyle = 'round' if linestyle == 'solid' else None
+            dash_capstyle = 'round' if linestyle == 'dashed' else None
             ax[0].loglog(
                 dtValues,
                 errorsDiff,
                 color=color,
-                marker='*',
-                markersize=10.0,
+                marker=marker,
+                markersize=markersize,
                 linewidth=4.0,
-                solid_capstyle='round',
-                label=rf'$\varepsilon=${eps}',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
             ax[1].loglog(
                 dtValues,
                 errorsAlg,
                 color=color,
-                marker='*',
-                markersize=10.0,
+                marker=marker,
+                markersize=markersize,
                 linewidth=4.0,
-                solid_capstyle='round',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
             axIter.semilogx(
                 dtValues,
                 nIters,
                 color=color,
-                marker='*',
-                markersize=10.0,
+                marker=marker,
+                markersize=markersize,
                 linewidth=4.0,
-                solid_capstyle='round',
-                label=rf'$\varepsilon=${eps}',
+                linestyle=linestyle,
+                solid_capstyle=solid_capstyle,
+                dash_capstyle=dash_capstyle,
+                label=label,
             )
 
-    p = 2 * M - 1
+    p = min(maxiter, 2 * M - 1)
     for ind in [0, 1]:
         fac = 10.0 if ind == 0 else 100.0
         orderReference = [fac * (dt) ** p for dt in dtValues]
@@ -237,10 +262,10 @@ def main():
     axIter.set_ylabel(r"(Mean) number of SDC iterations", fontsize=20)
     axIter.legend(frameon=False, fontsize=12, loc='upper left', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/plotOrderAccuracy_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/{problems[0].__name__}/plotOrderAccuracy_{QI=}_{M=}_{conv_type}_{maxiter=}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
-    figIter.savefig(f"data/{problems[0].__name__}/plotIterations_QI={QI}_M={M}.png", dpi=300, bbox_inches='tight')
+    figIter.savefig(f"data/{problems[0].__name__}/plotIterations_{QI=}_{M=}_{conv_type}_{maxiter=}.png", dpi=300, bbox_inches='tight')
     plt.close(figIter)
 
 

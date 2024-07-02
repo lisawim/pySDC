@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEMinionConstrained, LinearTestDAEMinionEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import LinearTestDAEMinionConstrained, LinearTestDAEMinionEmbedded
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 

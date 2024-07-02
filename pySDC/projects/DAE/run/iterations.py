@@ -5,11 +5,17 @@ from pySDC.implementations.sweeper_classes.generic_implicit import generic_impli
 from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import (
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
+    LinearTestDAEMinionEmbedded,
+    LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
     LinearTestDAEEmbedded,
     LinearTestDAEConstrained,
-    LinearTestDAEMinionConstrained,
-    LinearTestDAEMinionEmbedded,
+)
+from pySDC.projects.DAE.problems.chatGPTDAE import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
 )
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 

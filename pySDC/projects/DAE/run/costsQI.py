@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEEmbedded, LinearTestDAEMinionEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import LinearTestDAEMinionEmbedded
+from pySDC.projects.DAE.problems.LinearTestDAE import LinearTestDAEEmbedded
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 

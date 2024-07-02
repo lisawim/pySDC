@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from pySDC.core.Step import step
+from pySDC.core.step import Step
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import (
     genericImplicitEmbedded,
@@ -76,7 +76,7 @@ def plotSingularPerturbed():
     problem = LinearTestSPP
     quad_type = 'RADAU-RIGHT'
     nNodes = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    QI = 'IE'
+    QI = 'LU'
 
     colors = [
         'lightsalmon',
@@ -106,7 +106,7 @@ def plotSingularPerturbed():
 
                     description = generateDescription(dt, M, QI, sweeper, quad_type, problem)
 
-                    S = step(description=description)
+                    S = Step(description=description)
 
                     L = S.levels[0]
                     P = L.prob
@@ -169,8 +169,6 @@ def plotSingularPerturbed():
             plt.close(figSR)
 
 
-
-
 def plotEmbeddedScheme():
     r"""
     Function plots the norm and determinant of the matrix of the system to be solved on each node for
@@ -193,7 +191,7 @@ def plotEmbeddedScheme():
     sweeper = genericImplicitEmbedded
     problem = LinearTestSPP
     M_all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    QI = 'IE'
+    QI = 'MIN-SR-S'
     quad_type = 'RADAU-RIGHT'
     colors = [
         'turquoise',
@@ -231,7 +229,7 @@ def plotEmbeddedScheme():
             for e, dt_loop in enumerate(dt_list):
                 description = generateDescription(dt_loop, M, QI, sweeper, quad_type, problem)
 
-                S = step(description=description)
+                S = Step(description=description)
 
                 L = S.levels[0]
                 P = L.prob
@@ -294,11 +292,11 @@ def plotConstrainedScheme():
     for prob_cls_name in problems:
         Path(f"data/{prob_cls_name}").mkdir(parents=True, exist_ok=True)
 
-    dt_list = np.logspace(-3.0, 2.0, num=50)
+    dt_list = np.logspace(-3.0, 0.0, num=50)
     sweeper = genericImplicitConstrained
     problem = LinearTestSPP
     M_all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    QI = 'IE'
+    QI = 'MIN-SR-S'
     quad_type = 'RADAU-RIGHT'
     colors = [
         'turquoise',
@@ -339,7 +337,7 @@ def plotConstrainedScheme():
             for e, dt_loop in enumerate(dt_list):
                 description = generateDescription(dt_loop, M, QI, sweeper, quad_type, problem)
 
-                S = step(description=description)
+                S = Step(description=description)
 
                 L = S.levels[0]
                 P = L.prob
@@ -371,19 +369,19 @@ def plotConstrainedScheme():
         ax.set_ylabel(r'$\det(J)$', fontsize=16)
 
         ax.set_xscale('log', base=10)
-        ax.set_yscale('symlog', linthresh=1e-4)
+        ax.set_yscale('symlog', linthresh=1e-10)
         ax.set_xlabel(r'$\Delta t$', fontsize=12)
         ax.tick_params(axis='both', which='major', labelsize=12)
         ax.grid(visible=True)
         ax.legend(frameon=False, fontsize=10, loc='upper left', ncol=2)
         ax.minorticks_off()
-        ax.set_ylim(-1e11, 1e11)
+        ax.set_ylim(-1e5, 1e5)
 
         fig.savefig(f"data/{prob_cls_name}/DeterminantJacobianConstrainedScheme_QI={QI}_{quad_type}.png", dpi=300, bbox_inches='tight')
         plt.close(fig)
 
 
 if __name__ == "__main__":
-    # plotConstrainedScheme()
-    # plotEmbeddedScheme()
-    plotSingularPerturbed()
+    plotConstrainedScheme()
+    plotEmbeddedScheme()
+    # plotSingularPerturbed()

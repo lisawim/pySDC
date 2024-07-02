@@ -2,11 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import (
-    LinearTestDAEMinionConstrained,
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
     LinearTestDAEMinionEmbedded,
-    LinearTestDAEConstrained,
+    LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
     LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+)
+from pySDC.projects.DAE.problems.chatGPTDAE import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
 )
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun

@@ -2,9 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import LinearTestDAEEmbedded
-
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded
+from pySDC.projects.DAE.problems.LinearTestDAE import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+)
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
 from pySDC.implementations.hooks.log_solution import LogSolution

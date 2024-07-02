@@ -1,15 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pySDC.core.errors import ParameterError
+
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP, LinearTestSPPMinion, DiscontinuousTestSPP
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
-from pySDC.projects.DAE.problems.TestDAEs import (
-    LinearTestDAEConstrained,
-    LinearTestDAEEmbedded,
-    LinearTestDAEMinionConstrained,
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
     LinearTestDAEMinionEmbedded,
+    LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+)
+from pySDC.projects.DAE.problems.chatGPTDAE import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
 )
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 
@@ -18,6 +26,7 @@ from pySDC.projects.PinTSimE.battery_model import generateDescription, controlle
 from pySDC.implementations.hooks.log_work import LogWork
 from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation
 from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
+from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedErrorEstimatePostIter
 
 from pySDC.helpers.stats_helper import get_sorted
 
@@ -39,11 +48,11 @@ def main():
     # sweeper params
     M = 3
     quad_type = 'RADAU-RIGHT'
-    QI = 'LU'
-    conv_type = 'increment'
+    QI = 'IE'#'LU'
+    conv_type = 'increment'#'increment'
 
     # parameters for convergence
-    nSweeps = 6
+    nSweeps = 24#14
 
     # hook class to be used
     hook_class = {
@@ -72,7 +81,7 @@ def main():
     alpha = 1.0
 
     # tolerance for implicit system to be solved
-    newton_tol = 1e-12
+    lintol = 1e-12
 
     eps_list = [10 ** (-m) for m in range(2, 12)]#[10 ** (-m) for m in range(1, 11)]
     epsValues = {
@@ -83,7 +92,7 @@ def main():
 
     t0 = 0.0
     Tend = 1.0
-    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])  # , 500, 1000])
+    nSteps = np.array([2, 5, 10, 20, 50, 100, 200])#, 500, 1000])
     dtValues = (Tend - t0) / nSteps
     # dtValues = np.logspace(-2.5, 0.0, num=10)#np.logspace(-3.0, -1.1, num=16)
 
@@ -112,22 +121,22 @@ def main():
                 print(eps, dt)
                 if not eps == 0.0:
                     problem_params = {
-                        'newton_tol': 1e-12,
+                        'lintol': lintol,
                         'eps': eps,
                     }
                 else:
                     problem_params = {
-                        'newton_tol': 1e-12,
+                        'lintol': lintol,
                     }
 
                 if not conv_type == 'increment':
                     residual_type = conv_type
-                    restol = 1e-13
+                    restol = 1e-11
                     e_tol = -1
                 else:
                     residual_type = None
                     restol = -1
-                    e_tol = 1e-12
+                    e_tol = 1e-11
 
                 description, controller_params, controller = generateDescription(
                     dt=dt,
@@ -158,10 +167,10 @@ def main():
                     exact_event_time_avail=None,
                 )
 
-                newton = np.array(get_sorted(stats, type='work_newton', sortby='time'))
+                gmres = np.array(get_sorted(stats, type='work_gmres', sortby='time'))
                 rhs = np.array(get_sorted(stats, type='work_rhs', sortby='time'))
 
-                cost = sum(newton[:, 1]) + sum(rhs[:, 1])
+                cost = sum(gmres[:, 1]) + sum(rhs[:, 1])
                 costs.append(cost)
 
                 errDiffValues = np.array(get_sorted(stats, type='e_global_post_step', sortby='time'))
@@ -169,6 +178,9 @@ def main():
 
                 errorsDiff.append(max(errDiffValues[:, 1]))
                 errorsAlg.append(max(errAlgValues[:, 1]))
+
+                nIter = np.mean(np.array(get_sorted(stats, type='niter', recomputed=None, sortby='time'))[:, 1])
+                print(f"Mean number of iterations: {nIter}\n")
 
             color = colors[i] if not eps == 0.0 else 'k'
             if eps != 0.0:
@@ -224,7 +236,7 @@ def main():
     ax[1].set_ylabel(r"$||e_{z}||_\infty$", fontsize=20)
     ax[0].legend(frameon=False, fontsize=12, loc='upper right', ncols=2)
 
-    fig.savefig(f"data/{problems[0].__name__}/plotCosts_{nSweeps}sweeps_QI={QI}_M={M}_{conv_type}.png", dpi=300, bbox_inches='tight')
+    fig.savefig(f"data/{problems[0].__name__}/plotCosts_{nSweeps=}_{QI=}_{M=}_{conv_type}_{lintol=}.png", dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 

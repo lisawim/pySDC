@@ -1,8 +1,11 @@
 import numpy as np
+import scipy.sparse as sp
+from scipy.sparse.linalg import gmres
 
 from pySDC.core.problem import Problem, WorkCounter
 from pySDC.implementations.datatype_classes.mesh import mesh
 from pySDC.core.errors import ProblemError
+from pySDC.projects.DAE.helpers import callbackGMRES
 
 
 class LinearTestSPPMinion(Problem):
@@ -52,6 +55,8 @@ class LinearTestSPPMinion(Problem):
         """Initialization routine"""
         super().__init__(init=(nvars, None, np.dtype('float64')))
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
+        self.nvars = nvars
+
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
@@ -148,7 +153,6 @@ class LinearTestSPPMinion(Problem):
 
         me = self.dtype_u(self.init)
         me[:] = u[:]
-
         return me
 
     def u_exact(self, t, u_init=None, t_init=None):
@@ -381,12 +385,12 @@ class LinearTestSPP(Problem):
 
     dtype_u = mesh
     dtype_f = mesh
-    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=20, stop_at_maxiter=False, stop_at_nan=False, eps=0.001):
+    def __init__(self, nvars=2, lintol=1e-12, liniter=100, eps=0.001):
         """Initialization routine"""
         super().__init__(init=(nvars, None, np.dtype('float64')))
-        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
+        self._makeAttributeAndRegister('lintol', 'liniter', 'eps', localVars=locals())
         self.nvars = nvars
-        self.work_counters['newton'] = WorkCounter()
+        self.work_counters['gmres'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
         self.lamb_diff = -2.0
@@ -395,6 +399,8 @@ class LinearTestSPP(Problem):
         self.A = np.zeros((2, 2))
         self.A[0, :] = [self.lamb_diff, self.lamb_alg]
         self.A[1, :] = [self.lamb_diff / self.eps, -self.lamb_alg / self.eps]
+
+        self.Id = sp.eye(self.nvars)
 
     def eval_f(self, u, t):
         r"""
@@ -420,7 +426,7 @@ class LinearTestSPP(Problem):
 
     def solve_system(self, rhs, factor, u0, t):
         """
-        Simple Newton solver.
+        Simple linear solver.
 
         Parameters
         ----------
@@ -439,48 +445,19 @@ class LinearTestSPP(Problem):
             The solution as mesh.
         """
 
-        u = self.dtype_u(u0)
-        Id = np.identity(2)
-
-        # start newton iteration
-        n = 0
-        res = 99
-        while n < self.newton_maxiter:
-            # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = u - factor * self.A.dot(u) - rhs
-
-            # if g is close to 0, then we are done
-            res = np.linalg.norm(g, np.inf)
-
-            if res < self.newton_tol:
-                break
-
-            # assemble dg
-            dg = Id - factor * self.A
-
-            # newton update: u1 = u0 - g/dg
-            u -= np.linalg.solve(dg, g)
-
-            n += 1
-            self.work_counters['newton']()
-        # print(n, res)
-        # print()
-        if np.isnan(res) and self.stop_at_nan:
-            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
-        elif np.isnan(res):
-            self.logger.warning('Newton got nan after %i iterations...' % n)
-
-        # if n == self.newton_maxiter:
-        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
-        #     if self.stop_at_maxiter:
-        #         raise ProblemError(msg)
-        #     else:
-        #         self.logger.warning(msg)
-
         me = self.dtype_u(self.init)
-        me[:] = u[:]
-        # me[:] = np.linalg.solve(np.identity(2) - factor * self.A, rhs)
+        u, info = gmres(
+            A=self.Id - factor * self.A,
+            b=rhs,
+            x0=u0.flatten(),
+            rtol=self.lintol,
+            maxiter=self.liniter,
+            atol=0,
+            callback=self.work_counters['gmres'],
+            callback_type='pr_norm',
+        )
 
+        me[:] = u[:]
         return me
 
     def u_exact(self, t, u_init=None, t_init=None):

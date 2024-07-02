@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pySDC.core.Step import step
+from pySDC.core.step import Step
 
 from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP
 from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
@@ -86,7 +86,7 @@ def plot_SR_different_QDelta():
                     print()
                     description = generateDescription(dt_loop, M, QI, sweeper)
 
-                    S = step(description=description)
+                    S = Step(description=description)
 
                     L = S.levels[0]
                     P = L.prob
@@ -187,7 +187,7 @@ def plot_SR_different_M():
                     print()
                     description = generateDescription(dt_loop, M, QI, sweeper)
 
-                    S = step(description=description)
+                    S = Step(description=description)
 
                     L = S.levels[0]
                     P = L.prob
@@ -260,7 +260,7 @@ def plotSPPDifferentEpsilon():
 
                     description = generateDescription(x, M, QI, generic_implicit)
 
-                    S = step(description=description)
+                    S = Step(description=description)
 
                     L = S.levels[0]
                     P = L.prob
@@ -340,7 +340,7 @@ def plotSRDifferentEps():
         for e, eps_loop in enumerate(eps_list):
             description = generateDescription(dt, M, QI, sweeper)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -399,7 +399,7 @@ def plotSRIterMatrixDiffEpsM():
         for e, eps_loop in enumerate(eps_list):
             description = generateDescription(dt, M, QI, sweeper, quad_type)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -459,7 +459,7 @@ def plotSplittingIterMatrix():
 
             description = generateDescription(dt, M, QI, generic_implicit)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -535,7 +535,7 @@ def plotMaxNormIterMatrixDiffEpsM():
         for e, eps_loop in enumerate(eps_list):
             description = generateDescription(dt, M, QI, sweeper, quad_type)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -591,7 +591,7 @@ def plotErrPropagationMaxNormDiffEps():
         for e, eps_loop in enumerate(eps_list):
             description = generateDescription(dt, M, QI, sweeper)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -651,7 +651,7 @@ def plotErrPropagationMaxNormDAE():
         for e, M in enumerate(M_all):
             description = generateDescription(dt, M, QI, sweeper)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -716,7 +716,7 @@ def plotSRIterMatrixDAE():
         for e, M in enumerate(M_all):
             description = generateDescription(dt, M, QI, sweeper)
 
-            S = step(description=description)
+            S = Step(description=description)
 
             L = S.levels[0]
             P = L.prob
@@ -782,7 +782,7 @@ def EVDistributionIterMatrixDiffEpsM():
             for m_plot, M in enumerate(M_all):
                 description = generateDescription(dt, M, QI, sweeper, quad_type)
 
-                S = step(description=description)
+                S = Step(description=description)
 
                 L = S.levels[0]
                 P = L.prob
@@ -840,7 +840,7 @@ def EVDistributionJacobianDiffEpsM():
             for m_plot, M in enumerate(M_all):
                 description = generateDescription(dt, M, QI, sweeper, quad_type)
 
-                S = step(description=description)
+                S = Step(description=description)
 
                 L = S.levels[0]
                 P = L.prob
@@ -900,7 +900,7 @@ def EVDistributionPreconditioner():
             for m_plot, M in enumerate(M_all):
                 description = generateDescription(dt, M, QI, sweeper, quad_type)
 
-                S = step(description=description)
+                S = Step(description=description)
 
                 L = S.levels[0]
                 P = L.prob

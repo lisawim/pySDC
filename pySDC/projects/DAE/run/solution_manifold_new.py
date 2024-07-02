@@ -6,13 +6,17 @@ from pySDC.implementations.problem_classes.singularPerturbed import SPPchatGPT, 
 from pySDC.implementations.problem_classes.TestEquation_0D import testequation0d
 
 from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded, genericImplicitConstrained
-from pySDC.projects.DAE.problems.TestDAEs import (
-    chatGPTDAEEmbedded,
-    chatGPTDAEConstrained,
-    LinearTestDAEEmbedded,
-    LinearTestDAEConstrained,
+from pySDC.projects.DAE.problems.LinearTestDAEMinion import (
     LinearTestDAEMinionEmbedded,
     LinearTestDAEMinionConstrained,
+)
+from pySDC.projects.DAE.problems.LinearTestDAE import (
+    LinearTestDAEEmbedded,
+    LinearTestDAEConstrained,
+)
+from pySDC.projects.DAE.problems.chatGPTDAE import (
+    chatGPTDAEEmbedded,
+    chatGPTDAEConstrained,
 )
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAEEmbedded, DiscontinuousTestDAEConstrained
 

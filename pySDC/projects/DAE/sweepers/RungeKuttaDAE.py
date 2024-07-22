@@ -89,7 +89,7 @@ class RungeKuttaDAE(RungeKutta):
         # get current level and problem
         lvl = self.level
         prob = lvl.prob
-
+        print(lvl.time)
         if not self.fully_initialized:
             self.du_init = prob.du_exact(lvl.time)
             self.fully_initialized = True

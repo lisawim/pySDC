@@ -1,11 +1,11 @@
 import numpy as np
+import dill
 import scipy.sparse as sp
 from scipy.sparse.linalg import gmres
 
 from pySDC.core.problem import Problem, WorkCounter
 from pySDC.implementations.datatype_classes.mesh import mesh
 from pySDC.core.errors import ProblemError
-from pySDC.projects.DAE.helpers import callbackGMRES
 
 
 class LinearTestSPPMinion(Problem):
@@ -699,13 +699,17 @@ class VanDerPol(Problem):
     dtype_u = mesh
     dtype_f = mesh
 
-    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=200, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
+    def __init__(self, nvars=2, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True, eps=0.001):
         """Initialization routine"""
-        print(eps)
         super().__init__(init=(nvars, None, np.dtype('float64')))
         self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', 'eps', localVars=locals())
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
+
+        fname = f'/home/lisa/Buw/Programme/Python/Libraries/pySDC/pySDC/projects/DAE/refSol_SciPy_VanDerPol_{eps=}.dat'
+        f = open(fname, 'rb')
+        self.u_ref = dill.load(f)
+        f.close()
 
     def eval_f(self, u, t):
         r"""
@@ -728,7 +732,7 @@ class VanDerPol(Problem):
         f = self.dtype_f(self.init)
         f[:] = (
             z,
-            (z - (y ** 2) * z - y) / self.eps,
+            ((1 - y ** 2) * z - y) / self.eps,
         )
         self.work_counters['rhs']()
         return f
@@ -755,23 +759,24 @@ class VanDerPol(Problem):
         """
 
         u = self.dtype_u(u0)
-        y, z = u[0], u[1]
 
         # start newton iteration
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            # # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = np.array([y - factor * z - rhs[0], z - factor * ((z - (y ** 2) * z - y) / self.eps) - rhs[1]])
+            y, z = u[0], u[1]
+
+            # form the function g(u), such that the solution to the nonlinear problem is a root of g
+            g = np.array([y - factor * (z) - rhs[0], z - factor * ((1 - y ** 2) * z - y) / self.eps - rhs[1]])
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
-            #print(n, res)
             if res < self.newton_tol:
                 break
 
             # assemble dg
             dg = np.array([[1, -factor], [factor * (2 * y * z + 1) / self.eps, 1 + factor * (y**2 - 1) / self.eps]])
+
             # newton update: u1 = u0 - g/dg
             u -= np.linalg.solve(dg, g)
 
@@ -785,12 +790,12 @@ class VanDerPol(Problem):
         elif np.isnan(res):
             self.logger.warning('Newton got nan after %i iterations...' % n)
 
-        # if n == self.newton_maxiter:
-        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
-        #     if self.stop_at_maxiter:
-        #         raise ProblemError(msg)
-        #     else:
-        #         self.logger.warning(msg)
+        if n == self.newton_maxiter:
+            msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+            if self.stop_at_maxiter:
+                raise ProblemError(msg)
+            else:
+                self.logger.warning(msg)
 
         me = self.dtype_u(self.init)
         me[:] = u[:]
@@ -817,14 +822,14 @@ class VanDerPol(Problem):
         """
 
         me = self.dtype_u(self.init)
-
-        if t > 0.0:
-            def eval_rhs(t, u):
-                return self.eval_f(u, t)
-
-            me[:] = self.generate_scipy_reference_solution(eval_rhs, t, u_init, t_init, method='BDF', max_step=1e-5)
+        if 0.0 < t <= 3.0:
+            me[0] = self.u_ref(t)[0]
+            me[1] = self.u_ref(t)[1]
+        elif t == 0.0:
+            me[0] = 2.0
+            me[1] = -2 / 3 + self.eps * 10 / 81 - self.eps ** 2 * 292 / 2187 - self.eps ** 3  * 1814 / 19683
         else:
-            me[:] = (2.0, 0.0)  # (2.0, -0.6666654321121172)
+            raise NotImplementedError("No exact solution available for t > 3.0!")
         return me
 
 

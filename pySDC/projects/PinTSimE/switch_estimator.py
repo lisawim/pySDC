@@ -100,7 +100,7 @@ class SwitchEstimator(ConvergenceController):
             if self.status.switch_detected:
                 self.params.t_interp = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]
                 self.params.t_interp, self.params.state_function = self.adapt_interpolation_info(
-                    L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function, self.params.sweeper_type
+                    L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function
                 )
 
                 # when the state function is already close to zero the event is already resolved well
@@ -331,13 +331,15 @@ class SwitchEstimator(ConvergenceController):
         return t_switch
 
     @staticmethod
-    def adapt_interpolation_info(t, left_is_node, t_interp, state_function, sweeper_type):
+    def adapt_interpolation_info(t, left_is_node, t_interp, state_function):
         """
         Adapts the x- and y-axis for interpolation. For SDC, it is proven whether the left boundary is a
         collocation node or not. In case it is, the first entry of the state function has to be removed,
         because it would otherwise contain double values on starting time and the first node. Otherwise,
         starting time L.time has to be added to t_interp to also take this value in the interpolation
-        into account.
+        into account. For RK methods, we check if the last two nodes does match (in case of RK methods
+        you have at least two one's at the end of the nodes list) and if this is the case, the last node
+        is then removed. The value at this removed node can be removed as well (in ``state_function``).
 
         Parameters
         ----------
@@ -358,29 +360,32 @@ class SwitchEstimator(ConvergenceController):
             Adapted y-values for interpolation containing values of state function.
         """
 
-        # TODO: more reasonable statement(?)
         if not left_is_node:
             t_interp.insert(0, t)
         else:
             if t_interp[-1] == t_interp[-2]:
-                del t_interp[-1]
-                del state_function[-1]
+                t_interp = t_interp[:-1]
+                state_function = state_function[:-1]
 
-            if t_interp[0] == t_interp[1] and state_function[0] == state_function[1]:
-                del state_function[0]
-                del t_interp[0]
-            elif state_function[0] == state_function[1]:
-                del state_function[0]
+            if t_interp[0] == t_interp[1]:
+                if state_function[0] == state_function[1]:
+                    t_interp = t_interp[1:]
+                    state_function = state_function[1:]
+                else:
+                    state_function = state_function[1:]
 
+        # sort t_interp nodes
         li = []
         for i in range(len(t_interp)):
             li.append([t_interp[i], i])
 
+        # get indices of ordered list
         li.sort()
         sort_index = []
         for x in li:
             sort_index.append(x[1])
 
+        # rearrange lists with new ordering
         t_interp = [t_interp[ind] for ind in sort_index]
         state_function = [state_function[ind] for ind in sort_index]
         return t_interp, state_function

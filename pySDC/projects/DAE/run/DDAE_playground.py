@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from pySDC.helpers.stats_helper import get_sorted
-from pySDC.projects.DAE.sweepers.RungeKuttaDAE import BackwardEulerDAE, TrapezoidalRuleDAE, EDIRK4DAE
+from pySDC.projects.DAE.sweepers.RungeKuttaDAE import BackwardEulerDAE
 from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
@@ -83,7 +83,7 @@ def simulateDAE():
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
 
     t0 = 1.0
-    Tend = 5.0
+    Tend = 5.5
 
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)

@@ -281,8 +281,7 @@ def testOrderAccuracyFullyImplicitIndexTwo(sweeper_name):
     level_params = description['level_params']
 
     t0, Tend = 0.0, 2.0
-    # dt_list = np.logspace(-1.7, -1.0, num=7)
-    dt_list = np.logspace(-2.5, -1.0, num=7)
+    dt_list = dt_list = np.logspace(-2.5, -1.0, num=7)
 
     errors = np.zeros(len(dt_list))
     for i, dt in enumerate(dt_list):

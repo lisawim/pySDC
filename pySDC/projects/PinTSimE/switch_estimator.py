@@ -1,11 +1,12 @@
 import numpy as np
-import scipy as sp
 
-from pySDC.core.errors import ParameterError
 from pySDC.core.collocation import CollBase
 from pySDC.core.convergence_controller import ConvergenceController, Status
 from pySDC.implementations.convergence_controller_classes.check_convergence import CheckConvergence
 from qmat.lagrange import LagrangeApproximation
+
+from pySDC.implementations.sweeper_classes.Runge_Kutta import RungeKutta
+from pySDC.projects.DAE.sweepers.RungeKuttaDAE import RungeKuttaDAE
 
 
 class SwitchEstimator(ConvergenceController):
@@ -39,16 +40,16 @@ class SwitchEstimator(ConvergenceController):
             The updated params dictionary.
         """
 
-        # for RK4 sweeper, sweep.coll.nodes now consists of values of ButcherTableau
-        # for this reason, collocation nodes will be generated here
-        coll = CollBase(
-            num_nodes=description['sweeper_params']['num_nodes'],
-            quad_type=description['sweeper_params']['quad_type'],
-        )
+        sweeper_type = 'SDC'
+        sweeper_cls = description['sweeper_class']
+        if any(cls in sweeper_cls.__mro__ for cls in (RungeKutta, RungeKuttaDAE)):
+            sweeper_type = 'RK'
+        elif any(cls_str in [me.__name__ for me in sweeper_cls.__mro__] for cls_str in ('SweeperMPI', 'SweeperDAEMPI')):
+            sweeper_type = 'MPI'
 
         defaults = {
             'control_order': 0,
-            'nodes': coll.nodes,
+            'sweeper_type': sweeper_type,
             'tol_zero': 2.5e-12,
             't_interp': [],
             'state_function': [],
@@ -97,9 +98,9 @@ class SwitchEstimator(ConvergenceController):
             self.status.switch_detected, m_guess, self.params.state_function = L.prob.get_switching_info(L.u, L.time)
 
             if self.status.switch_detected:
-                self.params.t_interp = [L.time + L.dt * self.params.nodes[m] for m in range(len(self.params.nodes))]
+                self.params.t_interp = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]
                 self.params.t_interp, self.params.state_function = self.adapt_interpolation_info(
-                    L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function
+                    L.time, L.sweep.coll.left_is_node, self.params.t_interp, self.params.state_function, self.params.sweeper_type
                 )
 
                 # when the state function is already close to zero the event is already resolved well
@@ -330,7 +331,7 @@ class SwitchEstimator(ConvergenceController):
         return t_switch
 
     @staticmethod
-    def adapt_interpolation_info(t, left_is_node, t_interp, state_function):
+    def adapt_interpolation_info(t, left_is_node, t_interp, state_function, sweeper_type):
         """
         Adapts the x- and y-axis for interpolation. For SDC, it is proven whether the left boundary is a
         collocation node or not. In case it is, the first entry of the state function has to be removed,
@@ -357,11 +358,31 @@ class SwitchEstimator(ConvergenceController):
             Adapted y-values for interpolation containing values of state function.
         """
 
+        # TODO: more reasonable statement(?)
         if not left_is_node:
             t_interp.insert(0, t)
         else:
-            del state_function[0]
+            if t_interp[-1] == t_interp[-2]:
+                del t_interp[-1]
+                del state_function[-1]
 
+            if t_interp[0] == t_interp[1] and state_function[0] == state_function[1]:
+                del state_function[0]
+                del t_interp[0]
+            elif state_function[0] == state_function[1]:
+                del state_function[0]
+
+        li = []
+        for i in range(len(t_interp)):
+            li.append([t_interp[i], i])
+
+        li.sort()
+        sort_index = []
+        for x in li:
+            sort_index.append(x[1])
+
+        t_interp = [t_interp[ind] for ind in sort_index]
+        state_function = [state_function[ind] for ind in sort_index]
         return t_interp, state_function
 
 

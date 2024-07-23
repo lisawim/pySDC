@@ -14,7 +14,7 @@ from pySDC.implementations.hooks.log_solution import LogSolution
 from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
 
 
-def simulateDAE():
+def simulateDAE(use_SE=True):
     r"""
     Main function where things will be done. Here, the problem class ``DiscontinuousTestDAE`` is simulated using
     the ``SemiImplicitDAE`` sweeper, where only the differential variable is integrated using spectral quadrature.
@@ -23,20 +23,20 @@ def simulateDAE():
     """
     # initialize level parameters
     level_params = {
-        'restol': 1e-12,
-        'dt': 0.001,
+        'restol': -1,
+        'dt': 0.01,
     }
 
     # initialize problem parameters
     problem_params = {
-        'newton_tol': 1e-12,
+        'newton_tol': 1e-14,
     }
 
     # initialize sweeper parameters
     sweeper_params = {
         'quad_type': 'RADAU-RIGHT',
         'num_nodes': 3,
-        'QI': 'IE',
+        'QI': 'LU',
         'initial_guess': 'spread',
     }
 
@@ -50,23 +50,24 @@ def simulateDAE():
         LogSolution, LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
     ]
     controller_params = {
-        'logger_level': 30,
+        'logger_level': 15,
         'hook_class': hook_class,
     }
 
     # convergence controllers
     convergence_controllers = {}
     switch_estimator_params = {
-        'tol': 1e-9,
-        'alpha': 0.9,
+        'tol': 1e-12,
+        'alpha': 1.0,
     }
-    convergence_controllers.update({SwitchEstimator: switch_estimator_params})
-    max_restarts = 200
-    restarting_params = {
-        'max_restarts': max_restarts,
-        'crash_after_max_restarts': False,
-    }
-    convergence_controllers.update({BasicRestartingNonMPI: restarting_params})
+    if use_SE:
+        convergence_controllers.update({SwitchEstimator: switch_estimator_params})
+        max_restarts = 200
+        restarting_params = {
+            'max_restarts': max_restarts,
+            'crash_after_max_restarts': False,
+        }
+        convergence_controllers.update({BasicRestartingNonMPI: restarting_params})
 
     # fill description dictionary for easy step instantiation
     description = {
@@ -97,14 +98,21 @@ def simulateDAE():
     print(f"u at end time {Tend}: {uend}")
 
     switches = get_sorted(stats, type='switch', sortby='time', recomputed=False)
-    t_switches = [t[1] for t in switches]
-    t_switch_found = t_switches[-1]
+    if len(switches) >= 1:
+        t_switches = [t[1] for t in switches]
+        t_switch_found = t_switches[-1]
+        event_err = abs(t_switch_exact - t_switch_found)
+        event_found = True
+    else:
+        event_err = None
+        event_found = False
+
+    print(f"Event found? {event_found} -- Event time error: {event_err}")
 
     errDiff = max(np.array(get_sorted(stats, type='e_global_differential_post_step', recomputed=False))[:, 1])
     errAlg = max(np.array(get_sorted(stats, type='e_global_algebraic_post_step', recomputed=False))[:, 1])
     # print(get_sorted(stats, type='e_global_algebraic_post_step', recomputed=False))
 
-    print(f"Event time error: {abs(t_switch_exact - t_switch_found)}")
     print(f"Differential error: {errDiff}")
     print(f"Algebraic error: {errAlg}")
     print("Hallo")

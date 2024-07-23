@@ -195,6 +195,7 @@ class DiscontinuousTestDAE(ptype_dae):
                 break
 
         state_function = [2 * u[m].diff[0] - 100 for m in range(len(u))]
+        print(state_function)
         return switch_detected, m_guess, state_function
 
     def count_switches(self):

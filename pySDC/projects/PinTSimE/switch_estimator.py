@@ -320,7 +320,7 @@ class SwitchEstimator(ConvergenceController):
                 Derivative of interpolation p at time t.
             """
 
-            dt_FD = 1e-10
+            dt_FD = 1e-12#1e-10
             dp = (
                 25 * p(t) - 48 * p(t - dt_FD) + 36 * p(t - 2 * dt_FD) - 16 * p(t - 3 * dt_FD) + 3 * p(t - 4 * dt_FD)
             ) / (12 * dt_FD)
@@ -428,7 +428,7 @@ def newton(x0, p, fprime, newton_tol, newton_maxiter):
         msg = f'Newton did not converge after {n} iterations, error is {res}'
     else:
         msg = f'Newton did converge after {n} iterations, error for root {x0} is {res}'
-    print(msg)
+    # print(msg)
 
     root = x0
     return root

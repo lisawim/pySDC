@@ -4,7 +4,7 @@ from pySDC.implementations.hooks.log_solution import LogSolution
 from pySDC.playgrounds.DAE.log_residual_components import LogResidualComponentsPostStep
 
 from pySDC.helpers.stats_helper import get_sorted
-from pySDC.projects.DAE.run import getEndTime, computeSolution, getColor, getMarker, Plotter
+from pySDC.projects.DAE import getEndTime, computeSolution, getColor, getMarker, Plotter
 
 
 def run():

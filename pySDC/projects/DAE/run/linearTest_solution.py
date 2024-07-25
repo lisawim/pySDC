@@ -3,7 +3,7 @@ import numpy as np
 from pySDC.implementations.hooks.log_solution import LogSolution
 
 from pySDC.helpers.stats_helper import get_sorted
-from pySDC.projects.DAE.run import getEndTime, computeSolution, getColor, getLabel, getMarker, Plotter
+from pySDC.projects.DAE import getEndTime, computeSolution, getColor, getLabel, getMarker, Plotter
 
 
 def run():

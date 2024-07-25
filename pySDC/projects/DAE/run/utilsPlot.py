@@ -73,10 +73,39 @@ class Plotter:
         self._check_subplot_index(subplot_index)
         self.axes[subplot_index].set_ylim(ylim)
 
+    def set_xticks(self, xticks_list, labels=None, subplot_index=None):
+        if labels is None:
+            labels = [str(i) for i in xticks_list]
+
+        if subplot_index is None:
+            for ax in self.axes:
+                ax.set_xticks(xticks_list)
+                ax.set_xticklabels(labels)
+        else:
+            self._check_subplot_index(subplot_index)
+            self.axes[subplot_index].set_xticks(xticks_list)
+            self.axes[subplot_index].set_xticklabels(labels)
+
+    def set_yticks(self, xticks_list, labels=None, subplot_index=None):
+        if labels is None:
+            labels = [str(i) for i in xticks_list]
+
+        self._check_subplot_index(subplot_index)
+        self.axes[subplot_index].set_xticks(xticks_list)
+        self.axes[subplot_index].set_xticklabels(labels)
+
     def set_legend(self, subplot_index=0, **kwargs):
         self._check_subplot_index(subplot_index)
         legend_settings = {**self.default_legend_settings, **kwargs}
         self.axes[subplot_index].legend(**legend_settings)
+
+    def set_grid(self, grid_on=True, subplot_index=None):
+        if subplot_index is None:
+            for ax in self.axes:
+                ax.grid(grid_on)
+        else:
+            self._check_subplot_index(subplot_index)
+            self.axes[subplot_index].grid(grid_on)
 
     def save(self, filename):
         file_path = Path(filename)

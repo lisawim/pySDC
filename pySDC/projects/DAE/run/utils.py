@@ -29,7 +29,7 @@ def getSetup():
 
 
 # < ---- BEGIN NEW STUFF ---- >
-QI_SERIAL = ['IE', 'LU']
+QI_SERIAL = ['IE', 'LU', 'MIN-SR-S', 'MIN-SR-NS', 'MIN-SR-FLEX']
 
 QI_PARALLEL = ['MIN-SR-S', 'MIN-SR-NS', 'MIN-SR-FLEX']
 
@@ -50,10 +50,30 @@ def getEndTime(problemName):
     """
 
     Tprob = {
-        'VAN-DER-POL': 2.0,
+        'VAN-DER-POL': 1.5,
         'LINEAR-TEST': 1.0,
     }
     return Tprob[problemName]
+
+def setupConvergenceControllers(**kwargs):
+    """
+    Returns the dictionary containing the convergence controllers.
+
+    Returns
+    -------
+    convergence_controllers : dict
+        Contains convergence controllers for simulation.
+    """
+    use_adaptivity = kwargs.get('use_adaptivity', False)
+
+    convergence_controllers = {}
+    if use_adaptivity:
+        from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
+        adaptivity_params = {
+            'e_tol': kwargs.get('e_tol_adaptivity', 1e-7),
+        }
+        convergence_controllers.update({Adaptivity: adaptivity_params})
+    return convergence_controllers
 
 def getDescription(dt, **kwargs):
     """
@@ -76,6 +96,8 @@ def getDescription(dt, **kwargs):
         'restol': kwargs.get('restol', -1),
     }
 
+    convergence_controllers = setupConvergenceControllers(**kwargs)
+
     description = {
         'problem_class': None,
         'problem_params': {},
@@ -83,6 +105,7 @@ def getDescription(dt, **kwargs):
         'sweeper_params': {},
         'level_params': level_params,
         'step_params': {},
+        'convergence_controllers': convergence_controllers,
     }
 
     return description
@@ -152,7 +175,7 @@ def setupProblem(problemName, description, problemType, **kwargs):
     return description
 
 
-def setupSweeper(description, nNodes, QI, problemType, useMPI=False, comm=None, **kwargs):
+def setupSweeper(description, nNodes, QI, problemType, useMPI=False, **kwargs):
     r"""
     Updates ``description`` with parameters for the sweeper. Type of sweeper depends on type of
     the problem ``problemType``. Further, either a MPI or a nonMPI version is available.
@@ -194,6 +217,7 @@ def setupSweeper(description, nNodes, QI, problemType, useMPI=False, comm=None, 
         else:
             raise NotImplementedError(f"No sweeper for {problemType} implemented!")
 
+        comm = kwargs.get('comm', None)
         if comm is not None:
             description['sweeper_params'].update({'comm': comm})
             assert (
@@ -269,15 +293,13 @@ def computeSolution(problemName, t0, dt, Tend, nNodes, QI, problemType, useMPI=F
 
     description = setupProblem(problemName, description, problemType, **kwargs)
 
-    comm = kwargs.get('comm', None)
-
-    description = setupSweeper(description, nNodes, QI, problemType, useMPI=useMPI, comm=comm, **kwargs)
+    description = setupSweeper(description, nNodes, QI, problemType, useMPI=useMPI, **kwargs)
 
     computeOneStep = kwargs.get('computeOneStep', False)
     Tend = dt if computeOneStep else Tend
 
     # instantiate controller
-    controller_params = {'logger_level': 30, 'hook_class': hookClass}
+    controller_params = {'logger_level': 30, 'hook_class': hookClass, 'mssdc_jac': False if kwargs.get('use_adaptivity', False) else True}
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
 
     P = controller.MS[0].levels[0].prob

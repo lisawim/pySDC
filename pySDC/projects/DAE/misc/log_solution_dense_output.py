@@ -21,7 +21,9 @@ class LogSolutionDenseOutput(Hooks):
 
         L.sweep.compute_end_point()
 
-        nodes = np.append([L.time], L.sweep.coll.nodes) if not L.sweep.coll.left_is_node else L.sweep.coll.nodes
+        coll_nodes = L.sweep.coll.nodes
+        nodes = [L.time + L.dt * coll_nodes[m] for m in range(len(coll_nodes))]
+        nodes = np.append([L.time], nodes) if not L.sweep.coll.left_is_node else nodes
         u = L.u if not L.sweep.coll.left_is_node else L.u[1:]
 
         self.add_to_stats(
@@ -30,7 +32,7 @@ class LogSolutionDenseOutput(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='log_solution_dense_output',
+            type='u_dense',
             value=u,
         )
 
@@ -40,6 +42,6 @@ class LogSolutionDenseOutput(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='log_nodes_dense_output',
+            type='nodes_dense',
             value=nodes,
         )

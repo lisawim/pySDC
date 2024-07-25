@@ -20,8 +20,9 @@ class DenseOutput:
     def __init__(self, nodes, uValues):
         """Initialization routine"""
 
-        # Extract the end times of each step
-        self.times = np.array([entry[0] for entry in nodes])
+        # Extract the initial time from the first entry in the first sublist of nodes
+        self.t0 = nodes[0][1][0]
+        self.t = np.array([self.t0] + [entry[0] for entry in nodes])
 
         # Extract the stage times and values
         self.nodes = [np.array(entry[1]) for entry in nodes]
@@ -39,12 +40,12 @@ class DenseOutput:
         Returns
         -------
         index : int
-            Index n such that ``times[n] <= t < times[n+1]``.
+            Index n such that ``t[n] <= t < t[n+1]``.
         """
 
-        if t < self.times[0] or t > self.times[-1]:
+        if t < self.t[0] or t > self.t[-1]:
             raise ValueError("t is out of the range of the provided time steps.")
-        return np.searchsorted(self.times, t, side='right') - 1
+        return np.searchsorted(self.t, t, side='right') - 1
 
     def _interpolate(self, t, index):
         """
@@ -61,10 +62,25 @@ class DenseOutput:
             The interpolated solution at time t.
         """
         nodes = self.nodes[index]
-        uValues = self.nodes[index]
+        uValues = self.uValues[index]
 
-        LagrangeInterpolation = LagrangeApproximation(points=nodes, fValues=uValues)
-        return LagrangeInterpolation.__call__(t)
+        uValuesInterp = []
+
+        # Assuming each mesh value has the same dimensionality, so we use the first value's shape to determine dimensions
+        nDim = len(uValues[0])
+
+        # Interpolate each dimension separately
+        for dim in range(nDim):
+            # Extract the values for the current dimension
+            uValuesDim = [value[dim] for value in uValues]
+
+            # Create an LagrangeApproximation object for this dimension
+            sol = LagrangeApproximation(points=nodes, fValues=uValuesDim)
+
+            # Interpolate the value at time t for this dimension
+            uValuesInterp.append(sol.__call__(t))
+
+        return np.array(uValuesInterp)
 
     def __call__(self, t):
         r"""

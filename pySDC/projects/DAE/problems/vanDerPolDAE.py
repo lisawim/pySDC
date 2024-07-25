@@ -20,7 +20,7 @@ class VanDerPolDAE(ptype_dae):
 
     def __init__(self, newton_tol=1e-12):
         """Initialization routine"""
-        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
+        super().__init__(nvars=2, newton_tol=newton_tol)
         self._makeAttributeAndRegister('newton_tol', localVars=locals())
         self.work_counters['rhs'] = WorkCounter()
         self.work_counters['newton'] = WorkCounter()
@@ -138,13 +138,13 @@ class VanDerPolConstrained(VanDerPolDAE):
 
         u = self.dtype_u(u0)
 
-        rhs_diff = rhs.diff[0][0]
+        rhs_diff = rhs.diff[0]
 
         # start newton iteration
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            y, z = u.diff[0][0], u.alg[0][0]
+            y, z = u.diff[0], u.alg[0]
 
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
             # g = np.array([y - factor * (-z) - rhs_diff, y - ((z ** 3) / 3 - z)])

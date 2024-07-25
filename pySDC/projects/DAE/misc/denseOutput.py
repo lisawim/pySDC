@@ -26,7 +26,7 @@ class DenseOutput:
 
         # Extract the stage times and values
         self.nodes = [np.array(entry[1]) for entry in nodes]
-        self.uValues = [[np.array(mesh) for mesh in entry[1]] for entry in uValues]
+        self.uValues = [[mesh for mesh in entry[1]] for entry in uValues]#[[np.array(mesh) for mesh in entry[1]] for entry in uValues]
 
     def _find_time_interval(self, t):
         r"""
@@ -64,23 +64,30 @@ class DenseOutput:
         nodes = self.nodes[index]
         uValues = self.uValues[index]
 
-        uValuesInterp = []
-
         # Assuming each mesh value has the same dimensionality, so we use the first value's shape to determine dimensions
-        nDim = len(uValues[0])
+        uFirstNode = uValues[0]
+        components = [None] if not hasattr(uFirstNode, 'components') else getattr(uFirstNode, 'components')
 
-        # Interpolate each dimension separately
-        for dim in range(nDim):
-            # Extract the values for the current dimension
-            uValuesDim = [value[dim] for value in uValues]
+        # Interpolate each dimension separately along each component
+        ElementsInterp = []
+        for component in components:
+            uValuesComponents = [getattr(value, component) for value in uValues] if component is not None else uValues
+            numSub = len(uValuesComponents[0])
 
-            # Create an LagrangeApproximation object for this dimension
-            sol = LagrangeApproximation(points=nodes, fValues=uValuesDim)
+            SubElementsInterp = []
+            for subIndex in range(numSub):
+                uValuesSub = [subElement[subIndex] for subElement in uValuesComponents]
 
-            # Interpolate the value at time t for this dimension
-            uValuesInterp.append(sol.__call__(t))
+                # Create an LagrangeApproximation object for this dimension
+                sol = LagrangeApproximation(points=nodes, fValues=uValuesSub)
 
-        return np.array(uValuesInterp)
+                # Interpolate the value at time t for this dimension
+                SubElementsInterp.append(sol.__call__(t))
+            ElementsInterp += SubElementsInterp
+
+        ElementsInterp = np.asarray(ElementsInterp)
+        uValuesInterp = self._recover_datatype(ElementsInterp, uFirstNode.shape, type(uFirstNode))
+        return uValuesInterp
 
     def __call__(self, t):
         r"""
@@ -99,3 +106,6 @@ class DenseOutput:
 
         index = self._find_time_interval(t)
         return self._interpolate(t, index)
+
+    def _recover_datatype(self, mesh, shape, type):
+        return mesh.reshape(shape).view(type)

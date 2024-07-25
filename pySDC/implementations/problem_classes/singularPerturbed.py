@@ -706,10 +706,14 @@ class VanDerPol(Problem):
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
-        fname = f'/home/lisa/Buw/Programme/Python/Libraries/pySDC/pySDC/projects/DAE/refSol_SciPy_VanDerPol_{eps=}.dat'
-        f = open(fname, 'rb')
-        self.u_ref = dill.load(f)
-        f.close()
+        if eps in [10 ** (-m) for m in range(1, 12)]:
+            path_to_data = '/home/lisa/Buw/Programme/Python/Libraries/pySDC/pySDC/projects/DAE/data/'
+            fname = path_to_data + f'refSol_SciPy_VanDerPol_{eps=}.dat'
+            f = open(fname, 'rb')
+            self.u_ref = dill.load(f)
+            f.close()
+        else:
+            self.u_ref = 0
 
     def eval_f(self, u, t):
         r"""

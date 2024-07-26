@@ -71,7 +71,7 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
             u_dense = [me[1] for me in get_sorted(stats, type="u_dense", sortby="time")][-1]
 
             assert np.allclose(uend, u[-1], atol=1e-14), f"uend and stored u from hook does not match!"
-            # assert np.allclose(uend, u_dense[-1], atol=1e-14), f"uend and stored u_dense at last node does not match"
+            assert np.allclose(uend, u_dense[-1], atol=1e-14), f"uend and stored u_dense at last node does not match"
 
             # test for "nodes_dense" - node that for 'RADAU-RIGHT' L.time is also stored in nodes!
             nodes_dense = [me[1] for me in get_sorted(stats, type="nodes_dense", sortby="time")][-1]

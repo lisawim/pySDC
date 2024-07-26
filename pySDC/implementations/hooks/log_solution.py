@@ -41,6 +41,13 @@ class LogSolution(Hooks):
             value=L.uend,
         )
 
+        if hasattr(L.sweep, 'comm'):
+            from mpi4py import MPI
+
+            u_dense = L.sweep.comm.allreduce(L.u if not L.sweep.coll.left_is_node else L.u[1:], op=MPI.SUM)
+        else:
+            u_dense = L.u if not L.sweep.coll.left_is_node else L.u[1:]
+
         self.add_to_stats(
             process=step.status.slot,
             time=L.time + L.dt,
@@ -48,7 +55,7 @@ class LogSolution(Hooks):
             iter=step.status.iter,
             sweep=L.status.sweep,
             type='u_dense',
-            value=L.u if not L.sweep.coll.left_is_node else L.u[1:],
+            value=u_dense,
         )
 
         nodes = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]

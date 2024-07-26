@@ -1,4 +1,4 @@
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE import fully_implicit_DAE
 from pySDC.implementations.sweeper_classes.Runge_Kutta import (
     RungeKutta,
     BackwardEuler,

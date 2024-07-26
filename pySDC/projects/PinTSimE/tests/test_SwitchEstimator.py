@@ -332,13 +332,11 @@ def testDetectionDAE(num_nodes):
         Type of quadrature.
     """
 
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+    from pySDC.projects.DAE import fully_implicit_DAE, DiscontinuousTestDAE, LogGlobalErrorPostStepDifferentialVariable
     from pySDC.helpers.stats_helper import get_sorted
     from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
     from pySDC.implementations.hooks.log_solution import LogSolution
     from pySDC.implementations.hooks.log_restarts import LogRestarts
-    from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable
     from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE
 
     problem = DiscontinuousTestDAE

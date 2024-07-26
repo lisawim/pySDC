@@ -1,7 +1,6 @@
 from mpi4py import MPI
 
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE_MPI import SweeperDAEMPI
-from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
+from pySDC.projects.DAE import SweeperDAEMPI, SemiImplicitDAE
 
 
 class SemiImplicitDAEMPI(SweeperDAEMPI, SemiImplicitDAE):

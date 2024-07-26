@@ -9,7 +9,7 @@ def testInitialization(shape):
     """
 
     import numpy as np
-    from pySDC.projects.DAE.misc.DAEMesh import DAEMesh
+    from pySDC.projects.DAE import DAEMesh
 
     init = (shape, None, np.dtype('float64'))
     mesh = DAEMesh(init)
@@ -27,7 +27,7 @@ def testInitializationGivenMesh():
     """
 
     import numpy as np
-    from pySDC.projects.DAE.misc.DAEMesh import DAEMesh
+    from pySDC.projects.DAE import DAEMesh
 
     nvars_1d = 6
     init = (nvars_1d, None, np.dtype('float64'))
@@ -50,7 +50,7 @@ def testArrayUFuncOperator(shape):
     """
 
     import numpy as np
-    from pySDC.projects.DAE.misc.DAEMesh import DAEMesh
+    from pySDC.projects.DAE import DAEMesh
 
     init = (shape, None, np.dtype('float64'))
     mesh = DAEMesh(init)

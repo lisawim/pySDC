@@ -3,14 +3,13 @@ import numpy as np
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.problematicF import problematic_f
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE import fully_implicit_DAE, problematic_f
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.implementations.hooks.log_solution import LogSolution
 
 
-def main():
+def mainFullyImplicitDAE():
     """
     A simple test program to see the fully implicit SDC solver in action
     """
@@ -82,4 +81,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    mainFullyImplicitDAE()

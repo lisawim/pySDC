@@ -23,7 +23,7 @@ def get_sweeper(sweeper_name):
     pySDC.Sweeper.RungeKutta
         The sweeper.
     """
-    import pySDC.projects.DAE.sweepers.RungeKuttaDAE as RK
+    from pySDC.projects.DAE import RungeKuttaDAE as RK
 
     return eval(f'RK.{sweeper_name}')
 
@@ -86,12 +86,12 @@ def testOrderAccuracySemiExplicitIndexOne(sweeper_name):
     part.
     """
 
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-    from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.misc.HookClass_DAE import (
+    from pySDC.projects.DAE import (
+        DiscontinuousTestDAE,
         LogGlobalErrorPostStepDifferentialVariable,
         LogGlobalErrorPostStepAlgebraicVariable,
     )
+    from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
     from pySDC.helpers.stats_helper import get_sorted
 
     expectedOrderDiff = {
@@ -171,12 +171,12 @@ def testOrderAccuracySemiExplicitIndexTwo(sweeper_name):
     Note that order reduction in the algebraic variable is expected.
     """
 
-    from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-    from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.misc.HookClass_DAE import (
+    from pySDC.projects.DAE import (
+        simple_dae_1,
         LogGlobalErrorPostStepDifferentialVariable,
         LogGlobalErrorPostStepAlgebraicVariable,
     )
+    from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
     from pySDC.helpers.stats_helper import get_sorted
 
     expectedOrderDiff = {
@@ -255,7 +255,7 @@ def testOrderAccuracyFullyImplicitIndexTwo(sweeper_name):
     Note that for index two problems order reduction is expected.
     """
 
-    from pySDC.projects.DAE.problems.problematicF import problematic_f
+    from pySDC.projects.DAE import problematic_f
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
     from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 

@@ -3,8 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from pySDC.helpers.stats_helper import get_sorted
-from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+from pySDC.projects.DAE import SemiImplicitDAE, DiscontinuousTestDAE
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
 from pySDC.implementations.hooks.log_solution import LogSolution

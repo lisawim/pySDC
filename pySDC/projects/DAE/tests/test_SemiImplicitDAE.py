@@ -53,9 +53,7 @@ def testPredict(initial_guess):
     In this test the predict function of the sweeper is tested.
     """
 
-    from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-    from pySDC.projects.DAE.misc.DAEMesh import DAEMesh
+    from pySDC.projects.DAE import SemiImplicitDAE, DiscontinuousTestDAE, DAEMesh
     from pySDC.core.step import Step
 
     description, _ = getTestSetup(DiscontinuousTestDAE, SemiImplicitDAE, [])
@@ -111,8 +109,7 @@ def testComputeResidual(residual_type):
     In this test the predict function of the sweeper is tested.
     """
 
-    from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+    from pySDC.projects.DAE import SemiImplicitDAE, DiscontinuousTestDAE
     from pySDC.core.step import Step
     from pySDC.core.errors import ParameterError
 
@@ -169,8 +166,7 @@ def testComputeEndpoint(quad_type):
     In this test the predict function of the sweeper is tested.
     """
 
-    from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+    from pySDC.projects.DAE import SemiImplicitDAE, DiscontinuousTestDAE
     from pySDC.core.step import Step
     from pySDC.core.errors import ParameterError
 
@@ -218,9 +214,7 @@ def testCompareResults(M):
     with the ``SemiImplicitDAE`` version.
     """
 
-    from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+    from pySDC.projects.DAE import SemiImplicitDAE, fully_implicit_DAE, DiscontinuousTestDAE
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
     descrSI, controller_params = getTestSetup(DiscontinuousTestDAE, SemiImplicitDAE, [])
@@ -270,14 +264,14 @@ def testOrderAccuracy(case, M, QI):
     and an index-2 DAE of semi-explicit form.
     """
 
-    from pySDC.projects.DAE.sweepers.SemiImplicitDAE import SemiImplicitDAE
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-    from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-    from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.misc.HookClass_DAE import (
+    from pySDC.projects.DAE import (
+        SemiImplicitDAE,
+        DiscontinuousTestDAE,
+        simple_dae_1,
         LogGlobalErrorPostStepDifferentialVariable,
         LogGlobalErrorPostStepAlgebraicVariable,
     )
+    from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
     from pySDC.helpers.stats_helper import get_sorted
 
     problem = {

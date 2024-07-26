@@ -1,8 +1,7 @@
 from mpi4py import MPI
 from pathlib import Path
 
-from pySDC.projects.DAE.sweepers.SemiImplicitDAEMPI import SemiImplicitDAEMPI
-from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+from pySDC.projects.DAE.sweepers.SemiImplicitDAEMPI import SemiImplicitDAEMPI, DiscontinuousTestDAE
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
 from pySDC.playgrounds.DAE.DiscontinuousTestDAE import plotSolution

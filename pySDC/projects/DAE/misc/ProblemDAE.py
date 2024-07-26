@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import root
 
 from pySDC.core.problem import Problem, WorkCounter
-from pySDC.projects.DAE.misc.DAEMesh import DAEMesh
+from pySDC.projects.DAE import DAEMesh
 
 
 class ptype_dae(Problem):

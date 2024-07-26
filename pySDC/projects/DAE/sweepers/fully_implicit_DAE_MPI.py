@@ -2,7 +2,7 @@ from mpi4py import MPI
 
 from pySDC.core.errors import ParameterError
 from pySDC.implementations.sweeper_classes.generic_implicit_MPI import SweeperMPI, generic_implicit_MPI
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE import fully_implicit_DAE
 
 
 class SweeperDAEMPI(SweeperMPI):

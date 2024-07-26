@@ -2,8 +2,7 @@ import numpy as np
 import warnings
 from scipy.interpolate import interp1d
 
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
-from pySDC.implementations.datatype_classes.mesh import mesh
+from pySDC.projects.DAE import ptype_dae
 
 
 class synchronous_machine_infinite_bus(ptype_dae):

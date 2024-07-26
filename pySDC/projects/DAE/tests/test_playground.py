@@ -4,15 +4,15 @@ import warnings
 
 @pytest.mark.base
 def test_problematic_main():
-    from pySDC.projects.DAE.run.fully_implicit_dae_playground import main
+    from pySDC.projects.DAE import mainFullyImplicitDAE
 
-    main()
+    mainFullyImplicitDAE()
 
 
 @pytest.mark.base
 def test_synch_gen_playground_main():
-    from pySDC.projects.DAE.run.synchronous_machine_playground import main
+    from pySDC.projects.DAE import mainSyncMachine
 
     warnings.filterwarnings('ignore')
-    main()
+    mainSyncMachine()
     warnings.resetwarnings()

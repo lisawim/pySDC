@@ -5,7 +5,7 @@ import numpy as np
 
 @pytest.mark.base
 def test_pendulum_u_exact_main():
-    from pySDC.projects.DAE.problems.pendulum2D import pendulum_2d
+    from pySDC.projects.DAE import pendulum_2d
 
     # initialize problem parameters
     problem_params = dict()
@@ -20,7 +20,7 @@ def test_pendulum_u_exact_main():
 
 @pytest.mark.base
 def test_one_transistor_amplifier_u_exact_main():
-    from pySDC.projects.DAE.problems.transistor_amplifier import one_transistor_amplifier
+    from pySDC.projects.DAE import one_transistor_amplifier
 
     # initialize problem parameters
     problem_params = dict()
@@ -35,7 +35,7 @@ def test_one_transistor_amplifier_u_exact_main():
 
 @pytest.mark.base
 def test_two_transistor_amplifier_u_exact_main():
-    from pySDC.projects.DAE.problems.transistor_amplifier import two_transistor_amplifier
+    from pySDC.projects.DAE import two_transistor_amplifier
 
     # initialize problem parameters
     problem_params = dict()
@@ -53,9 +53,8 @@ def test_two_transistor_amplifier_u_exact_main():
 #
 @pytest.mark.base
 def test_pendulum_main():
-    from pySDC.projects.DAE.problems.pendulum2D import pendulum_2d
+    from pySDC.projects.DAE import fully_implicit_DAE, pendulum_2d
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 
     # initialize level parameters
     level_params = dict()
@@ -111,9 +110,8 @@ def test_pendulum_main():
 
 @pytest.mark.base
 def test_one_transistor_amplifier_main():
-    from pySDC.projects.DAE.problems.transistor_amplifier import one_transistor_amplifier
+    from pySDC.projects.DAE import fully_implicit_DAE, one_transistor_amplifier
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 
     # initialize level parameters
     level_params = dict()
@@ -170,9 +168,8 @@ def test_one_transistor_amplifier_main():
 
 @pytest.mark.base
 def test_two_transistor_amplifier_main():
-    from pySDC.projects.DAE.problems.transistor_amplifier import two_transistor_amplifier
+    from pySDC.projects.DAE import fully_implicit_DAE, two_transistor_amplifier
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 
     # initialize level parameters
     level_params = dict()
@@ -238,9 +235,8 @@ def test_two_transistor_amplifier_main():
 
 @pytest.mark.base
 def test_synchgen_infinite_bus_main():
-    from pySDC.projects.DAE.problems.synchronous_machine import synchronous_machine_infinite_bus
+    from pySDC.projects.DAE import fully_implicit_DAE, synchronous_machine_infinite_bus
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
 
     # initialize level parameters
     level_params = dict()
@@ -319,7 +315,7 @@ def test_DiscontinuousTestDAE_singularity():
     Test if the event occurs at the correct time and proves if the right-hand side has with the correct values at the event.
     """
     import numpy as np
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
+    from pySDC.projects.DAE import DiscontinuousTestDAE
 
     t_event = np.arccosh(50.0)
     disc_test_DAE = DiscontinuousTestDAE()
@@ -368,8 +364,7 @@ def test_DiscontinuousTestDAE_SDC(M):
     Simulates one SDC run for different number of coll.nodes and compares if the error satisfies an approppriate value.
     """
 
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, DiscontinuousTestDAE
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
     # large errors are expected since the simulation domain contains the event
@@ -436,8 +431,7 @@ def test_DiscontinuousTestDAE_SDC_detection(M):
     """
 
     from pySDC.helpers.stats_helper import get_sorted
-    from pySDC.projects.DAE.problems.DiscontinuousTestDAE import DiscontinuousTestDAE
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, DiscontinuousTestDAE
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
     from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
     from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
@@ -527,7 +521,7 @@ def test_WSCC9_evaluation():
     Test for WSCC9 bus test case. The class is written for components :math:`m = 3`, :math:`n = 9`.
     """
 
-    from pySDC.projects.DAE.problems.WSCC9BusSystem import WSCC9BusSystem
+    from pySDC.projects.DAE import WSCC9BusSystem
 
     problem_params = {
         'newton_tol': 1e-10,
@@ -553,8 +547,7 @@ def test_WSCC9_update_YBus():
     Test if YBus is updated at time 0.05. For this SDC performs one time step.
     """
 
-    from pySDC.projects.DAE.problems.WSCC9BusSystem import WSCC9BusSystem, get_initial_Ybus, get_event_Ybus
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, WSCC9BusSystem, get_initial_Ybus, get_event_Ybus
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
     dt = 0.05
@@ -620,8 +613,7 @@ def test_WSCC9_get_switching_info():
     """
 
     from pySDC.helpers.stats_helper import get_sorted
-    from pySDC.projects.DAE.problems.WSCC9BusSystem import WSCC9BusSystem
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, WSCC9BusSystem
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
     dt = 0.75

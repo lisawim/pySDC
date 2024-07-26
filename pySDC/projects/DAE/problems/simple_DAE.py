@@ -1,6 +1,6 @@
 import numpy as np
 
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE import ptype_dae
 
 
 class simple_dae_1(ptype_dae):

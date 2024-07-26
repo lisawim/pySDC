@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from scipy.interpolate import interp1d
 
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE import ptype_dae
 from pySDC.implementations.datatype_classes.mesh import mesh
 
 

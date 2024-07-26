@@ -1,5 +1,5 @@
 from pySDC.core.errors import ParameterError
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+from pySDC.projects.DAE import fully_implicit_DAE
 
 
 class SemiImplicitDAE(fully_implicit_DAE):

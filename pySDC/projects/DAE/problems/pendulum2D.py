@@ -1,4 +1,4 @@
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE import ptype_dae
 
 
 class pendulum_2d(ptype_dae):

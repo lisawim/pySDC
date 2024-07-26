@@ -4,7 +4,7 @@ import numpy as np
 
 @pytest.mark.base
 def test_main():
-    from pySDC.projects.DAE.run.run_convergence_test import setup, run
+    from pySDC.projects.DAE import setup, runSimulation
 
     # get setup data
     description, controller_params, run_params = setup()
@@ -16,7 +16,7 @@ def test_main():
     run_params['dt_list'] = np.logspace(-2, -3, num=num_samples)
     run_params['qd_list'] = ['IE', 'LU']
     run_params['num_nodes_list'] = [3]
-    conv_data = run(description, controller_params, run_params)
+    conv_data = runSimulation(description, controller_params, run_params)
 
     # validate results
     for qd_type in run_params['qd_list']:

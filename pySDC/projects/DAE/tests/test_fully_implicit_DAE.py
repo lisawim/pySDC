@@ -4,8 +4,7 @@ import numpy as np
 
 @pytest.mark.base
 def test_predict_main():
-    from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, simple_dae_1
     from pySDC.core.step import Step
 
     # initialize level parameters
@@ -65,8 +64,7 @@ def test_predict_main():
 
 @pytest.mark.base
 def test_residual_main():
-    from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, simple_dae_1
     from pySDC.core.step import Step
 
     # initialize level parameters
@@ -151,8 +149,7 @@ def test_residual_main():
 
 @pytest.mark.base
 def test_compute_end_point_main():
-    from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-    from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
+    from pySDC.projects.DAE import fully_implicit_DAE, simple_dae_1
     from pySDC.core.step import Step
 
     # initialize level parameters

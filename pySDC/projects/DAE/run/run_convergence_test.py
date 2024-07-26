@@ -3,9 +3,7 @@ import statistics
 import pickle
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.projects.DAE.problems.simple_DAE import simple_dae_1
-from pySDC.projects.DAE.sweepers.fully_implicit_DAE import fully_implicit_DAE
-from pySDC.projects.DAE.misc.HookClass_DAE import LogGlobalErrorPostStepDifferentialVariable
+from pySDC.projects.DAE import fully_implicit_DAE, simple_dae_1, LogGlobalErrorPostStepDifferentialVariable
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.helpers.stats_helper import filter_stats
 
@@ -56,7 +54,7 @@ def setup():
     return description, controller_params, run_params
 
 
-def run(description, controller_params, run_params):
+def runSimulation(description, controller_params, run_params):
     """
     Routine to run simulation
     """
@@ -104,6 +102,6 @@ if __name__ == "__main__":
     Error data is stored in a dictionary and then pickled for use with the loglog_plot.py routine
     """
     description, controller_params, run_params = setup()
-    conv_data = run(description, controller_params, run_params)
+    conv_data = runSimulation(description, controller_params, run_params)
     pickle.dump(conv_data, open("data/dae_conv_data.p", 'wb'))
     print("Done")

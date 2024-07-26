@@ -1,5 +1,5 @@
 import numpy as np
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE import ptype_dae
 from pySDC.core.errors import ParameterError
 
 

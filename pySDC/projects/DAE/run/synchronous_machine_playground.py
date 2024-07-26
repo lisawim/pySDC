@@ -12,7 +12,7 @@ from pySDC.helpers.stats_helper import filter_stats
 from pySDC.implementations.hooks.log_solution import LogSolution
 
 
-def main():
+def mainSyncMachine():
     """
     A testing ground for the synchronous machine model
     """
@@ -114,4 +114,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    mainSyncMachine()

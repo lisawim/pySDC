@@ -26,7 +26,7 @@ class DenseOutput:
 
         # Extract the stage times and values
         self.nodes = [np.array(entry[1]) for entry in nodes]
-        self.uValues = [[mesh for mesh in entry[1]] for entry in uValues]#[[np.array(mesh) for mesh in entry[1]] for entry in uValues]
+        self.uValues = [[mesh for mesh in entry[1]] for entry in uValues]
 
     def _find_time_interval(self, t):
         r"""

@@ -1,7 +1,6 @@
 import numpy as np
 
 from pySDC.implementations.hooks.log_solution import LogSolution
-from pySDC.projects.DAE.misc.log_solution_dense_output import LogSolutionDenseOutput
 from pySDC.projects.DAE import DenseOutput
 
 from pySDC.helpers.stats_helper import get_sorted
@@ -23,7 +22,7 @@ def main():
     eps = 0.0
     # eps = 1e-10
 
-    hook_class = [LogSolution, LogSolutionDenseOutput]
+    hook_class = [LogSolution]
 
     use_adaptivity = True
     e_tol_adaptivity = 100 * np.finfo(float).eps

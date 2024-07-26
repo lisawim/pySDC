@@ -6,19 +6,25 @@ import numpy as np
 
 class LogSolution(Hooks):
     """
-    Store the solution at the end of each step as "u".
+    Store the solution at the end of each step as "u". It is also possible to get the solution
+    on each node as "u_dense" and corresponding collocation nodes as "nodes_dense" at the end
+    of the step.
     """
 
     def post_step(self, step, level_number):
         """
         Record solution at the end of the step
 
-        Args:
-            step (pySDC.Step.step): the current step
-            level_number (int): the current level number
+        Parameters
+        ----------
+        step : pySDC.step.Step
+            Current step.
+        level_number : int
+            Current level number.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
         super().post_step(step, level_number)
 
@@ -35,6 +41,27 @@ class LogSolution(Hooks):
             value=L.uend,
         )
 
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='u_dense',
+            value=L.u if not L.sweep.coll.left_is_node else L.u[1:],
+        )
+
+        nodes = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type='nodes_dense',
+            value=np.append([L.time], nodes) if not L.sweep.coll.left_is_node else nodes,
+        )
+
 
 class LogSolutionAfterIteration(Hooks):
     """
@@ -45,12 +72,16 @@ class LogSolutionAfterIteration(Hooks):
         """
         Record solution at the end of the iteration
 
-        Args:
-            step (pySDC.Step.step): the current step
-            level_number (int): the current level number
+        Parameters
+        ----------
+        step : pySDC.step.Step
+            Current step
+        level_number : int
+            Current level number.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
         super().post_iteration(step, level_number)
 

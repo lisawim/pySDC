@@ -84,38 +84,43 @@ def run_VdP(nNodes, nSteps, quad_type, useMPI=True):
         if rank == 0:
             # test for "u" and "u_dense"
             u = [me[1] for me in get_sorted(stats, type="u", sortby="time")]
-            # print([me[1] for me in get_sorted(stats, type="u_dense", sortby="time")])
             u_dense = [me[1] for me in get_sorted(stats, type="u_dense", sortby="time")][-1]
-            # print(uend, u_dense[-1])
-            assert np.allclose(uend, u[-1], atol=1e-14), f"uend and stored u from hook does not match!"
-            assert np.allclose(uend, u_dense[-1], atol=1e-14), f"uend and stored u_dense at last node does not match"
+
+            assert np.allclose(uend, u[-1], atol=1e-14), "uend and stored u from hook does not match!"
+            assert np.allclose(uend, u_dense[-1], atol=1e-14), "uend and stored u_dense at last node does not match"
 
             # test for "nodes_dense" - node that for 'RADAU-RIGHT' L.time is also stored in nodes!
             nodes_dense = [me[1] for me in get_sorted(stats, type="nodes_dense", sortby="time")][-1]
 
             nodes_sweep = [lvl.time + lvl.dt * lvl.sweep.coll.nodes[m] for m in range(len(lvl.sweep.coll.nodes))]
             nodes_sweep = np.append([lvl.time], nodes_sweep) if not lvl.sweep.coll.left_is_node else nodes_sweep
+
             for m in range(len(nodes_sweep)):
-                assert np.isclose(nodes_dense[m], nodes_sweep[m], atol=1e-14), f"Nodes from sweeper does not match with stored nodes!"
+                assert np.isclose(nodes_dense[m], nodes_sweep[m], atol=1e-14), "Nodes from sweeper does not match with stored nodes!"
+
+            assert len(nodes_dense) == len(u_dense), "Number of nodes does not match with number of u-values at these nodes!"
 
     else:
         # test for "u" and "u_dense"
         u = [me[1] for me in get_sorted(stats, type="u", sortby="time")]
         u_dense = [me[1] for me in get_sorted(stats, type="u_dense", sortby="time")][-1]
 
-        assert np.allclose(uend, u[-1], atol=1e-14), f"uend and stored u from hook does not match!"
-        assert np.allclose(uend, u_dense[-1], atol=1e-14), f"uend and stored u_dense at last node does not match"
+        assert np.allclose(uend, u[-1], atol=1e-14), "uend and stored u from hook does not match!"
+        assert np.allclose(uend, u_dense[-1], atol=1e-14), "uend and stored u_dense at last node does not match"
 
         # test for "nodes_dense" - node that for 'RADAU-RIGHT' L.time is also stored in nodes!
         nodes_dense = [me[1] for me in get_sorted(stats, type="nodes_dense", sortby="time")][-1]
 
         nodes_sweep = [lvl.time + lvl.dt * lvl.sweep.coll.nodes[m] for m in range(len(lvl.sweep.coll.nodes))]
         nodes_sweep = np.append([lvl.time], nodes_sweep) if not lvl.sweep.coll.left_is_node else nodes_sweep
+
         for m in range(len(nodes_sweep)):
-            assert np.isclose(nodes_dense[m], nodes_sweep[m], atol=1e-14), f"Nodes from sweeper does not match with stored nodes!"
+            assert np.isclose(nodes_dense[m], nodes_sweep[m], atol=1e-14), "Nodes from sweeper does not match with stored nodes!"
         
         # Bug when nodes_dense = [me[1] for me in get_sorted(stats, type="nodes_dense", sortby="time")][0] and nodes_sweep are compared with np.allclose?!
         # np.allclose(nodes_dense, nodes_sweep, atol=1e-14, rtol=1e-14), f"Nodes from sweeper does not match with stored nodes!"
+
+        assert len(nodes_dense) == len(u_dense), "Number of nodes does not match with number of u-values at these nodes!"
 
 
 @pytest.mark.base

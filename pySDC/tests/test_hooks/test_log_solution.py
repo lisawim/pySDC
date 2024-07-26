@@ -1,8 +1,23 @@
-import numpy as np
 import pytest
 
 
-def run_VdP(useMPI=True, num_nodes=3, comm=None):
+def run_VdP(nNodes, nSteps, quad_type, useMPI=True):
+    r"""
+    Executes a run to solve numerically the Van der Pol with tests to check the `LogSolution` hook class.
+
+    Parameters
+    ----------
+    nNodes : int or str
+        Number of collocation nodes.
+    nSteps : int or str
+        Number of time steps to be executed.
+    quad_type : str
+        Type of quadrature.
+    useMPI : bool, optional
+        Either use MPI or not. By default ``True``.
+    """
+
+    import numpy as np
     from pySDC.implementations.hooks.log_solution import LogSolution
     from pySDC.implementations.problem_classes.Van_der_Pol_implicit import vanderpol
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
@@ -16,9 +31,8 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
     }
 
     # initialize sweeper parameters
-    num_nodes = comm.Get_size() if comm is not None else num_nodes
     sweeper_params = {
-        'quad_type': 'RADAU-RIGHT',
+        'quad_type': quad_type,
         'QI': 'LU',
     }
 
@@ -40,7 +54,8 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
         sweeper_params.update({'comm': comm, 'num_nodes': comm.Get_size()})
     else:
         from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit as sweeper
-        sweeper_params.update({'num_nodes': num_nodes})
+        nNodes = int(nNodes) if isinstance(nNodes, str) else nNodes
+        sweeper_params.update({'num_nodes': nNodes})
 
     # fill description dictionary for easy step instantiation
     description = {}
@@ -56,8 +71,9 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
     lvl = controller.MS[0].levels[0]
     prob = controller.MS[0].levels[0].prob
 
+    nSteps = int(nSteps) if isinstance(nSteps, str) else nSteps
     t0 = 0.0
-    Tend = 2 * dt
+    Tend = nSteps * dt
 
     uinit = prob.u_exact(t0)
 
@@ -68,8 +84,9 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
         if rank == 0:
             # test for "u" and "u_dense"
             u = [me[1] for me in get_sorted(stats, type="u", sortby="time")]
+            # print([me[1] for me in get_sorted(stats, type="u_dense", sortby="time")])
             u_dense = [me[1] for me in get_sorted(stats, type="u_dense", sortby="time")][-1]
-
+            # print(uend, u_dense[-1])
             assert np.allclose(uend, u[-1], atol=1e-14), f"uend and stored u from hook does not match!"
             assert np.allclose(uend, u_dense[-1], atol=1e-14), f"uend and stored u_dense at last node does not match"
 
@@ -80,6 +97,7 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
             nodes_sweep = np.append([lvl.time], nodes_sweep) if not lvl.sweep.coll.left_is_node else nodes_sweep
             for m in range(len(nodes_sweep)):
                 assert np.isclose(nodes_dense[m], nodes_sweep[m], atol=1e-14), f"Nodes from sweeper does not match with stored nodes!"
+
     else:
         # test for "u" and "u_dense"
         u = [me[1] for me in get_sorted(stats, type="u", sortby="time")]
@@ -101,13 +119,21 @@ def run_VdP(useMPI=True, num_nodes=3, comm=None):
 
 
 @pytest.mark.base
-@pytest.mark.parametrize("num_nodes", [2, 3])
-def test_log_solution_nonMPI(num_nodes, useMPI=False):
-    run_VdP(useMPI=useMPI, num_nodes=num_nodes)
+@pytest.mark.parametrize("nNodes", [2, 3])
+@pytest.mark.parametrize("nSteps", [2, 4, 6, 8])
+@pytest.mark.parametrize("quad_type", ['RADAU-RIGHT', 'LOBATTO'])
+def test_log_solution_nonMPI(nNodes, nSteps, quad_type, useMPI=False):
+    """Non-MPI test."""
+    run_VdP(nNodes=nNodes, nSteps=nSteps, quad_type=quad_type, useMPI=useMPI)
+
 
 @pytest.mark.mpi4py
-@pytest.mark.parametrize("num_nodes", [2, 3])
-def test_log_solution_MPI(num_nodes):
+@pytest.mark.parametrize("nNodes", [2, 3])
+@pytest.mark.parametrize("nSteps", [2, 4, 6, 8])
+@pytest.mark.parametrize("quad_type", ['RADAU-RIGHT', 'LOBATTO'])
+def test_log_solution_MPI(nNodes, nSteps, quad_type):
+    """MPI test."""
+
     import os
     import subprocess
 
@@ -116,17 +142,17 @@ def test_log_solution_MPI(num_nodes):
     # my_env['PYTHONPATH'] = '../../..:.'
     my_env['COVERAGE_PROCESS_START'] = 'pyproject.toml'
 
-    cmd = f"mpirun -np {num_nodes} python {__file__}".split()
+    cmd = f"mpirun -np {nNodes} python {__file__} {nNodes} {nSteps} {quad_type}".split()
 
     p = subprocess.Popen(cmd, env=my_env, cwd=".")
     p.wait()
     assert p.returncode == 0, 'ERROR: did not get return code 0, got %s with %2i processes' % (
         p.returncode,
-        num_nodes,
+        nNodes,
     )
 
 
 if __name__ == '__main__':
     import sys
 
-    run_VdP(sys.argv[-1])
+    run_VdP(sys.argv[1], sys.argv[2], sys.argv[3])

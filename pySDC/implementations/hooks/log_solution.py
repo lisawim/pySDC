@@ -42,11 +42,36 @@ class LogSolution(Hooks):
         )
 
         if hasattr(L.sweep, 'comm'):
-            from mpi4py import MPI
+            comm = L.sweep.comm
+            size = comm.Get_size()
 
-            u_dense = L.sweep.comm.allreduce(L.u if not L.sweep.coll.left_is_node else L.u[1:], op=MPI.SUM)
+            uTmp = L.u if not L.sweep.coll.left_is_node else L.u[1:]
+
+            # Determine the shape of arrays to handle None values
+            shape = max((me.shape for me in uTmp if me is not None), default=(0,))
+            placeholder = np.zeros(shape)
+
+            # Replace None values with placeholder
+            u = [me if me is not None else placeholder for me in uTmp]
+
+            # Flatten the list to a single array for Allgather
+            uFlat = np.concatenate(u)
+
+            # Prepare the buffer to receive data from all processes
+            recvBuf = np.empty(size * len(uFlat), dtype='d')
+
+            # Use Allgather to collect data from all processes
+            comm.Allgather(uFlat, recvBuf)
+
+            # Reshape and combine data from all processes
+            recvBuf = recvBuf.reshape(size, -1, shape[0])
+
+            # Sum the collected arrays along the first axis
+            uDense = np.sum(recvBuf, axis=0)
+            uDense = [me.view(type(L.u[0])) for me in uDense]
+
         else:
-            u_dense = L.u if not L.sweep.coll.left_is_node else L.u[1:]
+            uDense = L.u if not L.sweep.coll.left_is_node else L.u[1:]
 
         self.add_to_stats(
             process=step.status.slot,
@@ -55,7 +80,7 @@ class LogSolution(Hooks):
             iter=step.status.iter,
             sweep=L.status.sweep,
             type='u_dense',
-            value=u_dense,
+            value=uDense,
         )
 
         nodes = [L.time + L.dt * L.sweep.coll.nodes[m] for m in range(len(L.sweep.coll.nodes))]

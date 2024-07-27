@@ -152,9 +152,9 @@ def setupProblem(problemName, description, problemType, **kwargs):
         if problemType == 'SPP':
             from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP as problem
         elif problemType == 'embeddedDAE':
-            from pySDC.projects.DAE.problems.LinearTestDAE import LinearTestDAEEmbedded as problem
+            from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEEmbedded as problem
         elif problemType == 'constrainedDAE':
-            from pySDC.projects.DAE.problems.LinearTestDAE import LinearTestDAEConstrained as problem
+            from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEConstrained as problem
         else:
             raise NotImplementedError(f"{problemType} is not implemented!")
 

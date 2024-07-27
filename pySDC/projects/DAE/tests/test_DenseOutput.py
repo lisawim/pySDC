@@ -234,3 +234,25 @@ def test_find_time_interval(case):
 
     with pytest.raises(ValueError):
         index_outside = sol._find_time_interval(t_outside)
+
+
+@pytest.mark.base
+def test_recover_datatype():
+    """Checks if datatype will be recovered. Here: Test for MeshDAE."""
+
+    import numpy as np
+    from pySDC.projects.DAE.misc.meshDAE import MeshDAE
+    from pySDC.projects.DAE import DenseOutput
+
+    case = 0
+    nodes, uValues, _, _, _ = getRandomArrays(case)
+
+    sol = DenseOutput(nodes=nodes, uValues=uValues)
+    uValues = sol.uValues
+
+    # convert list to array object
+    uValues = np.asarray(uValues)
+
+    # recover datatype - which should be a MeshDAE object
+    uRecoverMeshDAE = sol._recover_datatype(uValues, uValues.shape, MeshDAE)
+    assert type(uRecoverMeshDAE) == MeshDAE, "Method _recover_datatype does not recover the datatype MeshDAE!"

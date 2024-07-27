@@ -17,7 +17,7 @@ def main():
 
     t0 = 0.0
     dt = 1e-2
-    Tend = 0.7#0.804
+    Tend = 0.5
 
     eps = 0.0
     # eps = 1e-10
@@ -48,7 +48,7 @@ def main():
 
     # choose evaluation interval
     t_eval = [t0 + i * dt for i in range(int(Tend / dt) + 1)]
-    u_eval = [sol.__call__(t_item) for t_item in t_eval]
+    u_eval = [sol(t_item) for t_item in t_eval]
 
     # Usual logged solution serves as reference
     u_ref_val = get_sorted(solutionStats, type='u', sortby='time')

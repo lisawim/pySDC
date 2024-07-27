@@ -59,7 +59,7 @@ class DiscontinuousTestDAE(ptype_dae):
 
     def __init__(self, newton_tol=1e-12):
         """Initialization routine"""
-        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
+        super().__init__(nvars=2, newton_tol=newton_tol)
 
         self.t_switch_exact = np.arccosh(50)
         self.t_switch = None

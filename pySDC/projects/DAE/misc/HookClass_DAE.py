@@ -39,7 +39,7 @@ class LogGlobalErrorPostStepDifferentialVariable(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='e_global_post_step',
+            type='e_global_differential_post_step',
             value=e_global_differential,
         )
 

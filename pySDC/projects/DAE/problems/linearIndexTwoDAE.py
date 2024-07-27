@@ -2,10 +2,10 @@ import numpy as np
 
 from pySDC.core.problem import WorkCounter
 from pySDC.core.errors import ProblemError
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
 
-class LinearIndexTwoDAE(ptype_dae):
+class LinearIndexTwoDAE(ProblemDAE):
     def __init__(self, newton_tol=1e-10):
         """Initialization routine"""
         super().__init__(nvars=3, newton_tol=newton_tol)

@@ -1,11 +1,11 @@
 import numpy as np
 
 from pySDC.core.problem import WorkCounter
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 from pySDC.core.errors import ProblemError
 
 
-class chatGPTDAE(ptype_dae):
+class chatGPTDAE(ProblemDAE):
     def __init__(self, newton_tol=1e-12):
         """Initialization routine"""
         super().__init__(nvars=(1, 1), newton_tol=newton_tol)

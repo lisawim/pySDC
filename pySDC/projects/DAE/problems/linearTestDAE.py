@@ -3,10 +3,10 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import gmres
 
 from pySDC.core.problem import WorkCounter
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
 
-class LinearTestDAE(ptype_dae):
+class LinearTestDAE(ProblemDAE):
     """
     Semi-explicit linear DAE of index one. It reads
 

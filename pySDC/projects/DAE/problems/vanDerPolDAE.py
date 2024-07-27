@@ -1,11 +1,11 @@
 import numpy as np
 
 from pySDC.core.problem import WorkCounter
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 from pySDC.core.errors import ProblemError
 
 
-class VanDerPolDAE(ptype_dae):
+class VanDerPolDAE(ProblemDAE):
     r"""
     This class implements the nonlinear Van der Pol equation of the form
 
@@ -47,8 +47,6 @@ class VanDerPolDAE(ptype_dae):
         dy = du.diff[0]
 
         f = self.dtype_f(self.init)
-        # f.diff[:] = dy + z
-        # f.alg[:] = y - ((z ** 3) / 3 - z)
         f.diff[0] = dy - z
         f.alg[0] = z - y ** 2 * z - y
         return f
@@ -109,8 +107,6 @@ class VanDerPolConstrained(VanDerPolDAE):
         y, z = u.diff[0], u.alg[0]
 
         f = self.dtype_f(self.init)
-        # f.diff[0] = -z
-        # f.alg[0] = y - ((z ** 3) / 3 - z)
         f.diff[0] = z
         f.alg[0] = z - y ** 2 * z - y
         return f
@@ -147,7 +143,6 @@ class VanDerPolConstrained(VanDerPolDAE):
             y, z = u.diff[0], u.alg[0]
 
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            # g = np.array([y - factor * (-z) - rhs_diff, y - ((z ** 3) / 3 - z)])
             g = np.array([y - factor * z - rhs_diff, z - y ** 2 * z - y])
 
             # if g is close to 0, then we are done
@@ -155,11 +150,10 @@ class VanDerPolConstrained(VanDerPolDAE):
             if res < self.newton_tol:
                 break
 
-            # dg = np.array([[1, -factor * (-1)], [1, -z ** 2 + 1]])
             dg = np.array([[1, -factor], [-2 * y * z - 1, 1 - y ** 2]])
 
             # newton update: u1 = u0 - g/dg
-            dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))
+            dx = np.linalg.solve(dg, g)
 
             u.diff[0] -= dx[0]
             u.alg[0] -= dx[1]
@@ -219,7 +213,6 @@ class VanDerPolEmbedded(VanDerPolConstrained):
             y, z = u.diff[0][0], u.alg[0][0]
 
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            # g = np.array([y - factor * (-z) - rhs_diff, -factor * (y - ((z ** 3) / 3 - z)) - rhs_alg])
             g = np.array([y - factor * z - rhs_diff, -factor * (z - y ** 2 * z - y) - rhs_alg])
 
             # if g is close to 0, then we are done
@@ -227,7 +220,6 @@ class VanDerPolEmbedded(VanDerPolConstrained):
             if res < self.newton_tol:
                 break
 
-            # dg = np.array([[1, -factor * (-1)], [-factor, factor * (z ** 2 - 1)]])
             dg = np.array([[1, -factor], [factor * (2 * y * z + 1), factor * (y ** 2 - 1)]])
 
             # newton update: u1 = u0 - g/dg

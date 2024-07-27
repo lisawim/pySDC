@@ -58,13 +58,14 @@ def run_VdP(nNodes, nSteps, quad_type, useMPI=True):
         sweeper_params.update({'num_nodes': nNodes})
 
     # fill description dictionary for easy step instantiation
-    description = {}
-    description['problem_class'] = vanderpol
-    description['problem_params'] = problem_params
-    description['sweeper_class'] = sweeper
-    description['sweeper_params'] = sweeper_params
-    description['level_params'] = level_params
-    description['step_params'] = step_params
+    description = {
+        'problem_class': vanderpol,
+        'problem_params': problem_params,
+        'sweeper_class': sweeper,
+        'sweeper_params': sweeper_params,
+        'level_params': level_params,
+        'step_params': step_params,
+    }
 
     # instantiate controller
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)

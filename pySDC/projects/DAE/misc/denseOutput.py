@@ -20,13 +20,9 @@ class DenseOutput:
     def __init__(self, nodes, uValues):
         """Initialization routine"""
 
-        # Extract the initial time from the first entry in the first sublist of nodes
-        self.t0 = nodes[0][1][0]
-        self.t = np.array([self.t0] + [entry[0] for entry in nodes])
-
         # Extract the stage times and values
         self.nodes = [np.array(entry[1]) for entry in nodes]
-        self.uValues = [[mesh for mesh in entry[1]] for entry in uValues]
+        self.uValues = [me[1] for me in uValues]
 
     def _find_time_interval(self, t):
         r"""
@@ -43,24 +39,27 @@ class DenseOutput:
             Index n such that ``t[n] <= t < t[n+1]``.
         """
 
-        if t < self.t[0] or t > self.t[-1]:
-            raise ValueError("t is out of the range of the provided time steps.")
-        return np.searchsorted(self.t, t, side='right') - 1
+        for index, tau in enumerate(self.nodes):
+            if tau[0] <= t <= tau[-1]:
+                return index
+        raise ValueError(f"t={t} is out of the range of the provided stage times.")
+
 
     def _interpolate(self, t, index):
-        """
-        Interpolate the solution at time t for the interval corresponding to the index.
+        r"""
+        Interpolate the solution at time :math:`t` for the interval corresponding to the index.
 
         Parameters:
-        - t: float
+        t : float
             The time at which to interpolate the solution.
-        - index: int
+        index : int
             The index of the time interval to use for interpolation.
         
         Returns:
-        - y: array-like
+        uValuesInterp : array-like
             The interpolated solution at time t.
         """
+
         nodes = self.nodes[index]
         uValues = self.uValues[index]
 

@@ -1,6 +1,83 @@
 import pytest
 
 
+def getRandomArrays(case):
+    """
+    Returns random arrays and values for test.
+
+    Parameters
+    ----------
+    case : int
+        Index of test case.
+
+    Returns
+    -------
+    nodesRandom : array-like
+        Random array for ``nodes``.
+    uValues : array-like
+        Random array for ``uValues``.
+    t_search : float
+        Random time to search for.
+    t_outside : float
+        Random time outside the range.
+    index_expected : int
+        Index expected for ``t_search`` to be find in ``nodesRandom``.
+    """
+
+    import numpy as np
+
+    nodesRandom = {
+        0: [
+            (0.1, np.array([0., 0.0155051, 0.0644949, 0.1])),
+            (0.2, np.array([0.1, 0.1155051, 0.1644949, 0.2])),
+            (0.30000000000000004, np.array([0.2, 0.2155051, 0.2644949, 0.3])),
+            (0.4, np.array([0.3, 0.3155051, 0.3644949, 0.4])),
+        ],
+        1: [(0.1, np.array([0.        , 0.00571042, 0.0276843 , 0.05835904, 0.08602401,
+            0.1       ])), (0.2, np.array([0.1       , 0.10571042, 0.1276843 , 0.15835904, 0.18602401,
+            0.2       ])), (0.30000000000000004, np.array([0.2       , 0.20571042, 0.2276843 , 0.25835904, 0.28602401,
+            0.3       ])), (0.4, np.array([0.3       , 0.30571042, 0.3276843 , 0.35835904, 0.38602401,
+            0.4       ]))],
+    }
+    uValuesRandom = {
+        0: [
+            (0.1, [np.array([[2., 0.],[-0.66666667, 0.]]), np.array([[1.98961804, 0.], [-0.67249088, 0.]]), np.array([[1.95620197, 0.], [-0.69203802, 0.]]), np.array([[1.93136107, 0.], [-0.70741795, 0. ]])]),
+            (0.2, [np.array([[1.93136107, 0.], [-0.70741795, 0.]]), np.array([[1.92033747, 0.], [-0.71449207, 0.]]), np.array([[1.8847591, 0. ],[-0.73845028,0.]]), np.array([[1.85820566, 0.], [-0.75754586, 0.]])]),
+            (0.30000000000000004, [np.array([[1.85820566, 0.], [-0.75754586, 0.]]), np.array([[1.84639076, 0.], [-0.76640475, 0.]]), np.array([[1.80811795, 0.], [-0.79677676, 0. ]]), np.array([[1.77939743, 0.], [-0.82141634, 0.]])]),
+            (0.4, [np.array([[1.77939743, 0.], [-0.82141634, 0.]]), np.array([[ 1.76657061, 0.], [-0.8329848, 0.]]), np.array([[1.72480267, 0.], [-0.87334246, 0.]]), np.array([[1.693209, 0.], [-0.90693533, 0.]])])
+        ],
+        1: [(0.1, [np.array([[ 2.        ,  0.        ],
+            [-0.66666667,  0.        ]]), np.array([[ 1.99618699,  0.        ],
+            [-0.66879257,  0.        ]]), np.array([[ 1.98139946,  0.        ],
+            [-0.67718302,  0.        ]]), np.array([[ 1.96044015,  0.        ],
+            [-0.68948845,  0.        ]]), np.array([[ 1.94120451,  0.        ],
+            [-0.70123256,  0.        ]]), np.array([[ 1.93136107,  0.        ],
+            [-0.70741795,  0.        ]])]), (0.2, [np.array([[ 1.93136107,  0.        ],
+            [-0.70741795,  0.        ]]), np.array([[ 1.92731407,  0.        ],
+            [-0.70999669,  0.        ]]), np.array([[ 1.91160132,  0.        ],
+            [-0.72021219,  0.        ]]), np.array([[ 1.88928009,  0.        ],
+            [-0.73530604,  0.        ]]), np.array([[ 1.86873896,  0.        ],
+            [-0.74983949,  0.        ]]), np.array([[ 1.85820566,  0.        ],
+            [-0.75754586,  0.        ]])]), (0.30000000000000004, [np.array([[ 1.85820566,  0.        ],
+            [-0.75754586,  0.        ]]), np.array([[ 1.85387058,  0.        ],
+            [-0.76076949,  0.        ]]), np.array([[ 1.83701379,  0.        ],
+            [-0.77360338,  0.        ]]), np.array([[ 1.81299382,  0.        ],
+            [-0.79275739,  0.        ]]), np.array([[ 1.79080725,  0.        ],
+            [-0.81142495,  0.        ]]), np.array([[ 1.77939743,  0.        ],
+            [-0.82141634,  0.        ]])]), (0.4, [np.array([[ 1.77939743,  0.        ],
+            [-0.82141634,  0.        ]]), np.array([[ 1.77469484,  0.        ],
+            [-0.82561542,  0.        ]]), np.array([[ 1.75636993,  0.        ],
+            [-0.8424502 ,  0.        ]]), np.array([[ 1.73014338,  0.        ],
+            [-0.86793757,  0.        ]]), np.array([[ 1.70578767,  0.        ],
+            [-0.89321743,  0.        ]]), np.array([[ 1.69320901,  0.        ],
+            [-0.90693532,  0.        ]])])],
+    }
+    t_search = {0: 0.32, 1: 0.19}
+    t_outside = {0: 0.43, 1: 0.6}
+    index_expected = {0: 3, 1: 1}
+    return nodesRandom[case], uValuesRandom[case], t_search[case], t_outside[case], index_expected[case]
+
+
 def runSimulation(t0, dt, Tend, quad_type, problemType):
     r"""
     Executes a run to solve numerically the Van der Pol with tests to check the ``DenseOutput`` class.
@@ -137,3 +214,23 @@ def test_interpolate(quad_type, problemType):
 
         for i in range(uex.shape[0]):
             assert np.allclose(u_eval[i, :], uex[i, :], atol=1e-7), f"For index {i} error is too large!"
+
+
+@pytest.mark.base
+@pytest.mark.parametrize("case", [0, 1])
+def test_find_time_interval(case):
+    """
+    Test to check _find_time_interval for some random arrays.
+    """
+
+    from pySDC.projects.DAE import DenseOutput
+
+    nodes, uValues, t_search, t_outside, index_expected = getRandomArrays(case)
+
+    sol = DenseOutput(nodes=nodes, uValues=uValues)
+    
+    index = sol._find_time_interval(t_search)
+    assert index == index_expected, f"Found index wrong! Got {index}, expected {index_expected}!"
+
+    with pytest.raises(ValueError):
+        index_outside = sol._find_time_interval(t_outside)

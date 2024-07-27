@@ -1,11 +1,11 @@
 import numpy as np
 
-from pySDC.core.problem import WorkCounter
 from pySDC.core.errors import ProblemError
-from pySDC.projects.DAE.misc.ProblemDAE import ptype_dae
+from pySDC.core.problem import WorkCounter
+from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
 
-class pendulum_2d(ptype_dae):
+class Pendulum2D(ProblemDAE):
     r"""
     Example implementing the well known 2D pendulum as a first order differential-algebraic equation (DAE) of index 3.
     The DAE system is given by the equations
@@ -118,7 +118,7 @@ class pendulum_2d(ptype_dae):
         return me
 
 
-class pendulum_2dIntegralFormulation(pendulum_2d):
+class Pendulum2DIntegralFormulation(Pendulum2D):
     def __init__(self, nvars=5, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
         """Initialization routine"""
         super().__init__()
@@ -242,7 +242,7 @@ class pendulum_2dIntegralFormulation(pendulum_2d):
         return me
 
 
-class pendulum_2dIntegralFormulation2(pendulum_2dIntegralFormulation):
+class Pendulum2DIntegralFormulation2(Pendulum2DIntegralFormulation):
 
     def solve_system(self, rhs, factor, u0, t):
         """

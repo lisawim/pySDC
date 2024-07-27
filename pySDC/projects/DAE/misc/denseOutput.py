@@ -82,7 +82,7 @@ class DenseOutput:
                 sol = LagrangeApproximation(points=nodes, fValues=uValuesSub)
 
                 # Interpolate the value at time t for this dimension
-                SubElementsInterp.append(sol.__call__(t))
+                SubElementsInterp.append(sol(t))
             ElementsInterp += SubElementsInterp
 
         ElementsInterp = np.asarray(ElementsInterp)

@@ -301,7 +301,7 @@ def computeSolution(problemName, t0, dt, Tend, nNodes, QI, problemType, useMPI=F
     Tend = dt if computeOneStep else Tend
 
     # instantiate controller
-    controller_params = {'logger_level': 15, 'hook_class': hookClass, 'mssdc_jac': False if kwargs.get('use_adaptivity', False) else True}
+    controller_params = {'logger_level': 30, 'hook_class': hookClass, 'mssdc_jac': False if kwargs.get('use_adaptivity', False) else True}
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
 
     P = controller.MS[0].levels[0].prob

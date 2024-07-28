@@ -63,6 +63,11 @@ class DenseOutput:
         nodes = self.nodes[index]
         uValues = self.uValues[index]
 
+        # Check if t is exactly one of the nodes
+        if t in nodes:
+            exact_index = np.where(nodes == t)[0][0]
+            return uValues[exact_index]
+
         # Assuming each mesh value has the same dimensionality, so we use the first value's shape to determine dimensions
         uFirstNode = uValues[0]
         components = [None] if not hasattr(uFirstNode, 'components') else getattr(uFirstNode, 'components')

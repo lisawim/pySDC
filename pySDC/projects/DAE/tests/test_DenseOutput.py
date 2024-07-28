@@ -99,7 +99,6 @@ def runSimulation(t0, dt, Tend, quad_type, problemType):
 
     from pySDC.implementations.hooks.log_solution import LogSolution
     from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-    from pySDC.implementations.convergence_controller_classes.adaptivity import Adaptivity
 
     if problemType == 'ODE':
         from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit as sweeper
@@ -115,7 +114,7 @@ def runSimulation(t0, dt, Tend, quad_type, problemType):
     # initialize level parameters
     level_params = {
         'dt': dt,
-        'restol': -1,
+        'restol': 1e-12,
     }
 
     # initialize sweeper parameters
@@ -128,16 +127,9 @@ def runSimulation(t0, dt, Tend, quad_type, problemType):
     problem_params = {
         'newton_tol': 1e-12,
     }
-    if problemType == 'ODE':
-        problem_params.update({'epsilon': 1e-1})
 
     # initialize step parameters
-    step_params = {'maxiter': 8}
-
-    adaptivity_params = {
-        'e_tol': 1e-12,
-    }
-    convergence_controllers = {Adaptivity: adaptivity_params}
+    step_params = {'maxiter': 5}
 
     # fill description dictionary for easy step instantiation
     description = {
@@ -147,11 +139,10 @@ def runSimulation(t0, dt, Tend, quad_type, problemType):
         'sweeper_params': sweeper_params,
         'level_params': level_params,
         'step_params': step_params,
-        'convergence_controllers': convergence_controllers,
     }
 
     # instantiate controller
-    controller_params = {'logger_level': 30, 'hook_class': [LogSolution], 'mssdc_jac': False}
+    controller_params = {'logger_level': 30, 'hook_class': [LogSolution]}
     controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
 
     prob = controller.MS[0].levels[0].prob
@@ -169,8 +160,7 @@ def runSimulation(t0, dt, Tend, quad_type, problemType):
 def test_interpolate(quad_type, problemType):
     r"""
     Interpolation in ``DenseOutput`` is tested by evaluating the polynomials at ``t_eval``.
-    The interpolated values are then compared with the reference error. It seems like ``'LOBATTO'``
-    does provide less accurate results in stiff components.
+    The interpolated values are then compared with the reference error.
     """
 
     import numpy as np
@@ -193,7 +183,7 @@ def test_interpolate(quad_type, problemType):
         nodes_dense = get_sorted(solutionStats, type='nodes_dense', sortby='time', recomputed=False)
         sol = DenseOutput(nodes_dense, u_dense)
 
-        t_eval = [t0 + i * dt for i in range(int(Tend / dt) + 1)]
+        t_eval = [t0 + i * 0.05 * dt for i in range(int(Tend / (dt * 0.05)) + 1)]
         u_eval = [sol(t_item) for t_item in t_eval]
 
         if problemType == 'ODE':
@@ -213,7 +203,7 @@ def test_interpolate(quad_type, problemType):
             uex = np.column_stack((np.column_stack((x1ex, x2ex)), zex))
 
         for i in range(uex.shape[0]):
-            assert np.allclose(u_eval[i, :], uex[i, :], atol=1e-7), f"For index {i} error is too large!"
+            assert np.allclose(u_eval[i, :], uex[i, :], atol=1e-14), f"For index {i} error is too large!"
 
 
 @pytest.mark.base

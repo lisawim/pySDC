@@ -17,7 +17,7 @@ STRATEGY_NAMES = [
     'AdaptivityPolynomialError',
     'kAdaptivity',
 ]
-STRATEGY_NAMES_NONMPIONLY = ['adaptiveHR', 'HotRod']
+STRATEGY_NAMES_NONMPIONLY = ['HotRod']
 STRATEGY_NAMES_MPIONLY = ['ARK']
 LOGGER_LEVEL = 30
 
@@ -66,7 +66,7 @@ def single_test(strategy_name, useMPI, num_procs):
     if strategy_name in ['ARK']:
         from pySDC.projects.Resilience.Schroedinger import run_Schroedinger as prob
     else:
-        from pySDC.projects.Resilience.vdp import run_vdp as prob
+        from pySDC.projects.Resilience.Lorenz import run_Lorenz as prob
     controller_params = {'logger_level': LOGGER_LEVEL}
     custom_description = strategy.get_custom_description(problem=prob, num_procs=num_procs)
 
@@ -81,6 +81,7 @@ def single_test(strategy_name, useMPI, num_procs):
         use_MPI=useMPI,
         custom_controller_params=controller_params,
         comm=comm,
+        Tend=1.0,
     )
 
     # things we want to test

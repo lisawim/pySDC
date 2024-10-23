@@ -61,7 +61,7 @@ class nonlinearschroedinger_imex(IMEX_Laplacian_MPIFFT):
 
     def u_exact(self, t, **kwargs):
         r"""
-        Routine to compute the exact solution at time :math:`t`, see (1.3) https://arxiv.org/pdf/nlin/0702010.pdf for details
+        Routine to compute the exact solution at time :math:`t`, see (39) from https://doi.org/10.1007/BF01017105 for details
 
         Parameters
         ----------
@@ -118,6 +118,8 @@ class nonlinearschroedinger_fully_implicit(nonlinearschroedinger_imex):
     dtype_f = mesh
 
     def __init__(self, lintol=1e-9, liniter=99, **kwargs):
+        assert kwargs.get('useGPU', False) is False
+
         super().__init__(**kwargs)
         self._makeAttributeAndRegister('liniter', 'lintol', localVars=locals(), readOnly=False)
 

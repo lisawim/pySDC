@@ -1,3 +1,6 @@
+import logging
+
+
 class FrozenClass(object):
     """
     Helper class to freeze a class, i.e. to avoid adding more attributes
@@ -12,7 +15,7 @@ class FrozenClass(object):
 
     def __setattr__(self, key, value):
         """
-        Function called when setting arttributes
+        Function called when setting attributes
 
         Args:
             key: the attribute
@@ -32,7 +35,7 @@ class FrozenClass(object):
         if key in self.attrs:
             return None
         else:
-            super().__getattr__(key)
+            super().__getattribute__(key)
 
     @classmethod
     def add_attr(cls, key, raise_error_if_exists=False):
@@ -43,9 +46,15 @@ class FrozenClass(object):
             key (str): The key to add
             raise_error_if_exists (bool): Raise an error if the attribute already exists in the class
         """
-        if key in cls.attrs and raise_error_if_exists:
-            raise TypeError(f'Attribute {key!r} already exists in {cls.__name__}!')
-        cls.attrs += [key]
+        logger = logging.getLogger(cls.__name__)
+        if key in cls.attrs:
+            if raise_error_if_exists:
+                raise TypeError(f'Attribute {key!r} already exists in {cls.__name__}!')
+            else:
+                logger.debug(f'Skip adding attribute {key!r} because it already exists in {cls.__name__}!')
+        else:
+            cls.attrs += [key]
+            logger.debug(f'Added attribute {key!r} to {cls.__name__}')
 
     def _freeze(self):
         """

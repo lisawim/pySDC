@@ -7,7 +7,7 @@ from mpi4py_fft import newDistArray
 
 class allencahn_imex(IMEX_Laplacian_MPIFFT):
     r"""
-    Example implementing the :math:`N`-dimensional Allen-Cahn equation with periodic boundary conditions :math:`u \in [0, 1]^2`
+    Example implementing the :math:`2`-dimensional Allen-Cahn equation with periodic boundary conditions :math:`u \in [0, 1]^2`
 
     .. math::
         \frac{\partial u}{\partial t} = \Delta u - \frac{2}{\varepsilon^2} u (1 - u) (1 - 2u)
@@ -20,7 +20,7 @@ class allencahn_imex(IMEX_Laplacian_MPIFFT):
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{(x_i-0.5)^2 + (y_j-0.5)^2}}{\sqrt{2}\varepsilon}\right),
 
     for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is treated
-    *semi-implicitly*, i.e., the linear part is solved with Fast-Fourier Tranform (FFT) and the nonlinear part in the right-hand
+    *semi-implicitly*, i.e., the linear part is solved with Fast-Fourier Transform (FFT) and the nonlinear part in the right-hand
     side will be treated explicitly using ``mpi4py-fft`` [1]_ to solve them.
 
     Parameters
@@ -113,7 +113,7 @@ class allencahn_imex(IMEX_Laplacian_MPIFFT):
         self.work_counters['rhs']()
         return f
 
-    def u_exact(self, t):
+    def u_exact(self, t, **kwargs):
         r"""
         Routine to compute the exact solution at time :math:`t`.
 
@@ -153,7 +153,9 @@ class allencahn_imex(IMEX_Laplacian_MPIFFT):
                         # build radius
                         r2 = (self.X[0] + i - L + 0.5) ** 2 + (self.X[1] + j - L + 0.5) ** 2
                         # add this blob, shifted by 1 to avoid issues with adding up negative contributions
-                        tmp += self.xp.tanh((rand_radii[i, j] - np.sqrt(r2)) / (np.sqrt(2) * self.eps)) + 1
+                        tmp += self.xp.tanh((rand_radii[i, j] - self.xp.sqrt(r2)) / (np.sqrt(2) * self.eps)) + 1
+            else:
+                raise NotImplementedError
             # normalize to [0,1]
             tmp *= 0.5
             assert self.xp.all(tmp <= 1.0)
@@ -183,8 +185,8 @@ class allencahn_imex_timeforcing(allencahn_imex):
         u({\bf x}, 0) = \tanh\left(\frac{r - \sqrt{(x_i-0.5)^2 + (y_j-0.5)^2}}{\sqrt{2}\varepsilon}\right),
 
     for :math:`i, j=0,..,N-1`, where :math:`N` is the number of spatial grid points. For time-stepping, the problem is treated
-    *semi-implicitly*, i.e., the linear part is solved with Fast-Fourier Tranform (FFT) and the nonlinear part in the right-hand
-    side will be treated explicitly using ``mpi4py-fft`` [1]_ to solve them.
+    *semi-implicitly*, i.e., the linear part is solved with Fast-Fourier Transform (FFT) using ``mpi4py-fft`` [1]_ and the nonlinear part in the right-hand
+    side will be treated explicitly.
     """
 
     def eval_f(self, u, t):
@@ -230,7 +232,7 @@ class allencahn_imex_timeforcing(allencahn_imex):
             if self.comm is not None:
                 Ht_global = self.comm.allreduce(sendobj=Ht_local, op=MPI.SUM)
             else:
-                Ht_global = Rt_local
+                Ht_global = Ht_local
 
             # add/substract time-dependent driving force
             if Ht_global != 0.0:
@@ -258,7 +260,7 @@ class allencahn_imex_timeforcing(allencahn_imex):
             if self.comm is not None:
                 Ht_global = self.comm.allreduce(sendobj=Ht_local, op=MPI.SUM)
             else:
-                Ht_global = Rt_local
+                Ht_global = Ht_local
 
             # add/substract time-dependent driving force
             if Ht_global != 0.0:

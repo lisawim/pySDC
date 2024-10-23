@@ -51,6 +51,16 @@ which can be found in the folder `etc/`. Use these as e.g.
 conda env create -f etc/environment-base.yml
 ```
 
+If you want to install the developer version using `pip` directly from the GitHub repository, use this:
+
+```
+# optionally use venv
+python3 -m venv name_of_pySDC_env
+. ./name_of_pySDC_env/bin/activate
+# drop @5.5.0 if you want to install the develop version
+pip install git+https://github.com/Parallel-in-Time/pySDC@5.5.0
+```
+
 To check your installation, run
 
 ``` bash
@@ -92,7 +102,8 @@ The current software release can be cited using Zenodo:
 
 `pySDC` code was originally developed by [Robert Speck (@pancetta)](https://github.com/pancetta),
 and is now maintained and developed by a small community of scientists interested in SDC methods.
-Checkout the [Changelog](./CHANGELOG.md) to see pySDC's evolution since 2016.
+Checkout the [Changelog](./CHANGELOG.md) to see pySDC's evolution since 2016. It has a
+software management plan (SWP), too, see [here](https://smw.dsw.elixir-europe.org/wizard/projects/c3dda921-b7b0-4f4d-b5dc-778b9780552d).
 
 Any contribution is dearly welcome! If you want to contribute, please take the time to read our [Contribution Guidelines](./CONTRIBUTING.md)
 (and don't forget to take a peek at our nice [Code of Conduct](./CODE_OF_CONDUCT.md) :wink:).

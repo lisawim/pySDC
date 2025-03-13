@@ -1,3 +1,5 @@
+import time
+
 from pySDC.core.sweeper import Sweeper
 
 
@@ -22,6 +24,8 @@ class generic_implicit(Sweeper):
 
         # call parent's initialization routine
         super().__init__(params)
+
+        self.elapsed_time_update_coeffs = 0.0
 
         # get QI matrix
         self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
@@ -65,7 +69,6 @@ class generic_implicit(Sweeper):
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
 
-        # update the MIN-SR-FLEX preconditioner
         self.updateVariableCoeffs(L.status.sweep)
 
         # gather all terms which are known already (e.g. from the previous iteration)

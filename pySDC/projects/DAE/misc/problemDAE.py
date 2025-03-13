@@ -28,9 +28,9 @@ class ProblemDAE(Problem):
     dtype_u = MeshDAE
     dtype_f = MeshDAE
 
-    def __init__(self, nvars, newton_tol):
+    def __init__(self, nvars, newton_tol, **kwargs):
         """Initialization routine"""
-        super().__init__((nvars, None, np.dtype('float64')))
+        Problem.__init__(self, (nvars, None, np.dtype('float64')), **kwargs)
         self._makeAttributeAndRegister('nvars', 'newton_tol', localVars=locals(), readOnly=True)
 
         self.work_counters['newton'] = WorkCounter()
@@ -67,10 +67,11 @@ class ProblemDAE(Problem):
 
         opt = root(
             implSysFlatten,
-            u0,
+            u0.flatten(),
             method='hybr',
             tol=self.newton_tol,
         )
+
         me[:] = opt.x.reshape(me.shape)
         self.work_counters['newton'].niter += opt.nfev
         return me

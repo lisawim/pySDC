@@ -39,7 +39,7 @@ class LogGlobalErrorPostStepDifferentialVariable(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='e_global_differential_post_step',
+            type="e_global_differential_post_step",
             value=e_global_differential,
         )
 
@@ -69,15 +69,15 @@ class LogGlobalErrorPostStepAlgebraicVariable(Hooks):
         L.sweep.compute_end_point()
 
         upde = P.u_exact(step.time + step.dt)
-        e_global_algebraic = abs(upde.alg - L.uend.alg)
-
+        e_global_algebraic = abs(upde[:].alg - L.uend[:].alg)
+        # print(L.time + L.dt, e_global_algebraic)
         self.add_to_stats(
             process=step.status.slot,
             time=L.time + L.dt,
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='e_global_algebraic_post_step',
+            type="e_global_algebraic_post_step",
             value=e_global_algebraic,
         )
 
@@ -86,6 +86,7 @@ class LogGlobalErrorPostIterDiff(Hooks):
     """
     Logs the global error in the differential variable and its derivative after each iteration.
     """
+
     def post_iteration(self, step, level_number):
         super().post_iteration(step, level_number)
 
@@ -103,7 +104,7 @@ class LogGlobalErrorPostIterDiff(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='e_global_post_iter',
+            type="e_global_differential_post_iteration",
             value=e_global,
         )
 
@@ -112,6 +113,7 @@ class LogGlobalErrorPostIterAlg(Hooks):
     """
     Logs the global error in the algebraic variable and its derivative after each iteration.
     """
+
     def post_iteration(self, step, level_number):
         super().post_iteration(step, level_number)
 
@@ -121,7 +123,34 @@ class LogGlobalErrorPostIterAlg(Hooks):
         L.sweep.compute_end_point()
 
         upde = P.u_exact(step.time + step.dt)
-        e_global_algebraic = abs(upde.alg - L.uend.alg)
+        e_global_algebraic = abs(upde[:].alg - L.uend[:].alg)
+        # print(L.time + L.dt, step.status.iter, e_global_algebraic)
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_algebraic_post_iteration",
+            value=e_global_algebraic,
+        )
+
+
+class LogGlobalErrorPostSweepDiff(Hooks):
+    """
+    Logs the global error in the differential variable and its derivative after each sweep.
+    """
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global = abs(upde.diff - L.uend.diff)
 
         self.add_to_stats(
             process=step.status.slot,
@@ -129,6 +158,33 @@ class LogGlobalErrorPostIterAlg(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type='e_global_algebraic_post_iter',
+            type="e_global_differential_post_sweep",
+            value=e_global,
+        )
+
+
+class LogGlobalErrorPostSweepAlg(Hooks):
+    """
+    Logs the global error in the algebraic variable and its derivative after each sweep.
+    """
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_algebraic = abs(upde[:].alg - L.uend[:].alg)
+        # print(L.time + L.dt, step.status.iter, e_global_algebraic)
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_algebraic_post_sweep",
             value=e_global_algebraic,
         )

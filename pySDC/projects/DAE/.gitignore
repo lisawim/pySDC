@@ -1,0 +1,10 @@
+# Pictures in generalö
+*.png
+
+# All data generated
+data/
+run/data/
+plotting/data/
+
+# Scripts for cluster
+run/scripts/

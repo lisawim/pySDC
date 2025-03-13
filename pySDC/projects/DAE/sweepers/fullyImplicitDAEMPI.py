@@ -174,6 +174,8 @@ class FullyImplicitDAEMPI(SweeperDAEMPI, generic_implicit_MPI, FullyImplicitDAE)
         # only if the level has been touched before
         assert L.status.unlocked
 
+        self.updateVariableCoeffs(L.status.sweep)
+
         integral = self.integrate()
         integral -= L.dt * self.QI[self.rank + 1, self.rank + 1] * L.f[self.rank + 1]
         integral += L.u[0]

@@ -10,7 +10,7 @@ def testInitialization(shape):
 
     import numpy as np
     from pySDC.projects.DAE.misc.meshDAE import MeshDAE
-
+    print(shape)
     init = (shape, None, np.dtype('float64'))
     mesh = MeshDAE(init)
 

@@ -90,7 +90,9 @@ class chatGPTDAEConstrained(chatGPTDAE):
     def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=50, stop_at_maxiter=False, stop_at_nan=False):
         """Initialization routine"""
         super().__init__()
-        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
+        self._makeAttributeAndRegister(
+            'newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals()
+        )
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
@@ -168,7 +170,7 @@ class chatGPTDAEConstrained(chatGPTDAE):
 
             n += 1
             self.work_counters['newton']()
-        # print()
+
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         # elif np.isnan(res):
@@ -195,7 +197,9 @@ class chatGPTDAEEmbedded(chatGPTDAEConstrained):
     def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=50, stop_at_maxiter=False, stop_at_nan=False):
         """Initialization routine"""
         super().__init__()
-        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
+        self._makeAttributeAndRegister(
+            'newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals()
+        )
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 

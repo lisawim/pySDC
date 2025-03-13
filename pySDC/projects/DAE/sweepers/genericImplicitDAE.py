@@ -1,5 +1,6 @@
 import numpy as np
 np.printoptions(precision=30)
+import time
 
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
 from pySDC.core.errors import ParameterError
@@ -38,6 +39,8 @@ class genericImplicitConstrained(generic_implicit):
 
         # call parent's initialization routine
         super().__init__(params)
+
+        self.elapsed_time_update_coeffs = 0.0
 
         # get QI matrix
         self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
@@ -78,17 +81,10 @@ class genericImplicitConstrained(generic_implicit):
         # only if the level has been touched before
         assert L.status.unlocked
 
+        self.updateVariableCoeffs(L.status.sweep)
+
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
-
-        # update the MIN-SR-FLEX preconditioner
-        if self.params.QI.startswith('MIN-SR-FLEX'):
-            k = L.status.sweep
-            if k > M:
-                self.params.QI = "MIN-SR-S"
-            else:
-                self.params.QI = 'MIN-SR-FLEX' + str(k)
-            self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
 
         # gather all terms which are known already (e.g. from the previous iteration)
         # this corresponds to u0 + QF(u^k) - QdF(u^k) + tau
@@ -258,14 +254,7 @@ class genericImplicitEmbedded(generic_implicit):
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
 
-        # update the MIN-SR-FLEX preconditioner
-        if self.params.QI.startswith('MIN-SR-FLEX'):
-            k = L.status.sweep
-            if k > M:
-                self.params.QI = "MIN-SR-S"
-            else:
-                self.params.QI = 'MIN-SR-FLEX' + str(k)
-            self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
+        self.updateVariableCoeffs(L.status.sweep)
 
         # gather all terms which are known already (e.g. from the previous iteration)
         # this corresponds to u0 + QF(u^k) - QdF(u^k) + tau

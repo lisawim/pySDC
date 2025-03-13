@@ -225,7 +225,7 @@ class RungeKutta(Sweeper):
         Returns:
             mesh: Full right hand side as a mesh
         """
-        if type(f).__name__ in ['mesh', 'cupy_mesh']:
+        if type(f).__name__ in ['mesh', 'cupy_mesh', 'MeshDAE']:
             return f
         elif type(f).__name__ in ['imex_mesh', 'imex_cupy_mesh']:
             return f.impl + f.expl
@@ -566,6 +566,16 @@ class DIRK43_2(RungeKutta):
     """
 
     generator = RK_SCHEMES["DIRK43"]()
+    nodes, weights, matrix = generator.genCoeffs()
+
+
+class SDIRK3(RungeKutta):
+    """
+    L-stable Diagonally Implicit RK method with four stages of order 3.
+    Taken from [here](https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods).
+    """
+
+    generator = RK_SCHEMES["SDIRK3"]()
     nodes, weights, matrix = generator.genCoeffs()
 
 

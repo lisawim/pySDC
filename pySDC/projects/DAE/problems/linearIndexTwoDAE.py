@@ -35,7 +35,7 @@ class LinearIndexTwoDAE(ProblemDAE):
 
         # taken from Minion et al. (2011), SI-SDC-DAE paper
         f = self.dtype_f(self.init)
-        f.diff[0] = dx1 - x1,
+        f.diff[0] = (dx1 - x1,)
         f.diff[1] = dx2 - 2 * x1 + 1e5 * x2 - z - (1e5 + 1) * np.exp(t)
         f.alg[0] = x1 + x2
         self.work_counters['rhs']()
@@ -66,7 +66,9 @@ class LinearIndexTwoDAEIntegralFormulation(LinearIndexTwoDAE):
     def __init__(self, nvars=3, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
         """Initialization routine"""
         super().__init__()
-        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
+        self._makeAttributeAndRegister(
+            'newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals()
+        )
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 

@@ -630,15 +630,15 @@ def plotCondNumberDiffEpsM():
 
 
 def EVDistributionIterMatrixDiffEpsM():
-    dt = 0.1
+    dt = 0.01
     eps_list = [10 ** (-k) for k in range(13)]
     sweeper = generic_implicit
-    M_all = [2, 3, 4, 5]#, 6, 7, 8, 9, 10, 11, 12]
-    QI_all = ['IE']
+    M_all = range(2, 65, 4)#[2, 3, 4, 5]#, 6, 7, 8, 9, 10, 11, 12]
+    QI_all = ['LU']
     quad_type = 'RADAU-RIGHT'
     colors = ['turquoise', 'deepskyblue', 'purple', 'firebrick', 'limegreen', 'orange', 'plum', 'salmon', 'forestgreen', 'midnightblue', 'gold']
     marker = ['o', '*', 'D', 's', '^', '<', '>', 'd', '8', 'p', 'P']
-    lambda_d = 1
+    lambda_d = -2
     lambda_a = 1
 
     a = np.cos(np.linspace(0, 2 * np.pi, 200))

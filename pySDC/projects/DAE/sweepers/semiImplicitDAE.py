@@ -135,6 +135,8 @@ class SemiImplicitDAE(FullyImplicitDAE):
         assert L.status.unlocked
         M = self.coll.num_nodes
 
+        self.updateVariableCoeffs(L.status.sweep)
+
         integral = self.integrate()
         # build the rest of the known solution u_0 + del_t(Q - Q_del)U_k
         for m in range(1, M + 1):

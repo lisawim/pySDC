@@ -20,7 +20,7 @@ class VanDerPolDAE(ProblemDAE):
 
     def __init__(self, newton_tol=1e-12):
         """Initialization routine"""
-        super().__init__(nvars=2, newton_tol=newton_tol)
+        super().__init__(nvars=(1, 1), newton_tol=newton_tol)
         self._makeAttributeAndRegister('newton_tol', localVars=locals())
         self.work_counters['rhs'] = WorkCounter()
         self.work_counters['newton'] = WorkCounter()
@@ -48,7 +48,7 @@ class VanDerPolDAE(ProblemDAE):
 
         f = self.dtype_f(self.init)
         f.diff[0] = dy - z
-        f.alg[0] = z - y ** 2 * z - y
+        f.alg[0] = z - y**2 * z - y
         return f
 
     def u_exact(self, t, **kwargs):
@@ -68,11 +68,11 @@ class VanDerPolDAE(ProblemDAE):
         me = self.dtype_u(self.init)
         # print(type(sp.special.lambertw(np.exp(2 * t))))
         if t > 0.0:
-            me.diff[0] = 0.0#1j * sp.special.lambertw(np.exp(2 * t))
-            me.alg[0] = 0.0#sp.integrate.quad(1j * sp.special.lambertw(np.exp(2 * t)), 0, t)[0]
+            me.diff[0] = 0.0  # 1j * sp.special.lambertw(np.exp(2 * t))
+            me.alg[0] = 0.0  # sp.integrate.quad(1j * sp.special.lambertw(np.exp(2 * t)), 0, t)[0]
         elif t == 0.0:
-            me.diff[0] = 2.0#-2/3#-1j * sp.special.lambertw(np.exp(2 * t))
-            me.alg[0] = -2 / 3#1.0#sp.integrate.quad(-1j * sp.special.lambertw(np.exp(2 * t)), -t, 0)[0]
+            me.diff[0] = 2.0  # -2/3#-1j * sp.special.lambertw(np.exp(2 * t))
+            me.alg[0] = -2 / 3  # 1.0#sp.integrate.quad(-1j * sp.special.lambertw(np.exp(2 * t)), -t, 0)[0]
         return me
 
 
@@ -80,6 +80,7 @@ class VanDerPolConstrained(VanDerPolDAE):
     r"""
     For this class no quadrature is used for the algebraic constraints, i.e., system for algebraic constraints is solved directly.
     """
+
     def __init__(self, nvars=(1, 1), newton_tol=1e-12, newton_maxiter=100):
         """Initialization routine"""
         super().__init__()
@@ -108,7 +109,7 @@ class VanDerPolConstrained(VanDerPolDAE):
 
         f = self.dtype_f(self.init)
         f.diff[0] = z
-        f.alg[0] = z - y ** 2 * z - y
+        f.alg[0] = z - y**2 * z - y
         return f
 
     def solve_system(self, rhs, factor, u0, t):
@@ -143,14 +144,14 @@ class VanDerPolConstrained(VanDerPolDAE):
             y, z = u.diff[0], u.alg[0]
 
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = np.array([y - factor * z - rhs_diff, z - y ** 2 * z - y])
+            g = np.array([y - factor * z - rhs_diff, z - y**2 * z - y])
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
-            dg = np.array([[1, -factor], [-2 * y * z - 1, 1 - y ** 2]])
+            dg = np.array([[1, -factor], [-2 * y * z - 1, 1 - y**2]])
 
             # newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g)
@@ -204,26 +205,26 @@ class VanDerPolEmbedded(VanDerPolConstrained):
 
         u = self.dtype_u(u0)
 
-        rhs_diff, rhs_alg = rhs.diff[0][0], rhs.alg[0][0]
+        rhs_diff, rhs_alg = rhs.diff[0], rhs.alg[0]
 
         # start newton iteration
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            y, z = u.diff[0][0], u.alg[0][0]
+            y, z = u.diff[0], u.alg[0]
 
             # form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = np.array([y - factor * z - rhs_diff, -factor * (z - y ** 2 * z - y) - rhs_alg])
+            g = np.array([y - factor * z - rhs_diff, -factor * (z - y**2 * z - y) - rhs_alg])
 
             # if g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
-            dg = np.array([[1, -factor], [factor * (2 * y * z + 1), factor * (y ** 2 - 1)]])
+            dg = np.array([[1, -factor], [factor * (2 * y * z + 1), factor * (y**2 - 1)]])
 
             # newton update: u1 = u0 - g/dg
-            dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))
+            dx = np.linalg.solve(dg, g)  # .reshape(u.shape).view(type(u))
 
             u.diff[0] -= dx[0]
             u.alg[0] -= dx[1]

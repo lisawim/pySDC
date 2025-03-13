@@ -146,7 +146,7 @@ class RungeKuttaDAE(RungeKutta):
             for j in range(1, m + 1):
                 u_approx += lvl.dt * self.QI[m + 1, j] * lvl.f[j][:]
 
-            finit = lvl.f[m].flatten()
+            finit = lvl.f[m]
             lvl.f[m + 1][:] = prob.solve_system(
                 FullyImplicitDAE.F,
                 u_approx,

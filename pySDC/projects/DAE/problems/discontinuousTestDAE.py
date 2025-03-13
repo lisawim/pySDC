@@ -1,5 +1,6 @@
 import numpy as np
 
+from pySDC.core.errors import ProblemError
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
@@ -208,7 +209,9 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
     def __init__(self, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
         """Initialization routine"""
         super().__init__()
-        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
+        self._makeAttributeAndRegister(
+            'newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals()
+        )
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
@@ -288,7 +291,7 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
                 dg = np.array([[1, -factor], [2 * y[0], -2 * z[0]]])
 
             # newton update: u1 = u0 - g/dg
-            dx = np.linalg.solve(dg, g)#.reshape(u.shape).view(type(u))
+            dx = np.linalg.solve(dg, g)  # .reshape(u.shape).view(type(u))
 
             u.diff[0] -= dx[0]
             u.alg[0] -= dx[1]

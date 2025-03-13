@@ -27,12 +27,12 @@ class DenseOutput:
     def _find_time_interval(self, t):
         r"""
         Find the interval :math:`[t_n, t_{n+1}]` that contains :math:`t`.
-        
+
         Parameters
         ----------
         t : float
             The time at which to find the solution.
-        
+
         Returns
         -------
         index : int
@@ -44,18 +44,19 @@ class DenseOutput:
                 return index
         raise ValueError(f"t={t} is out of the range of the provided stage times.")
 
-
     def _interpolate(self, t, index):
         r"""
         Interpolate the solution at time :math:`t` for the interval corresponding to the index.
 
-        Parameters:
+        Parameters
+        ----------
         t : float
             The time at which to interpolate the solution.
         index : int
             The index of the time interval to use for interpolation.
-        
-        Returns:
+
+        Returns
+        -------
         uValuesInterp : array-like
             The interpolated solution at time t.
         """

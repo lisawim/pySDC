@@ -157,15 +157,6 @@ class genericImplicitConstrained(generic_implicit):
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
 
-        # update the MIN-SR-FLEX preconditioner
-        if self.params.QI.startswith('MIN-SR-FLEX'):
-            k = L.status.sweep
-            if k > M:
-                self.params.QI = "MIN-SR-S"
-            else:
-                self.params.QI = 'MIN-SR-FLEX' + str(k)
-            self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
-
         # gather all terms which are known already (e.g. from the previous iteration)
         # this corresponds to u0 + QF(u^k) - QdF(u^k) + tau
 
@@ -324,15 +315,6 @@ class genericImplicitEmbedded(generic_implicit):
 
         # get number of collocation nodes for easier access
         M = self.coll.num_nodes
-
-        # update the MIN-SR-FLEX preconditioner
-        if self.params.QI.startswith('MIN-SR-FLEX'):
-            k = L.status.sweep
-            if k > M:
-                self.params.QI = "MIN-SR-S"
-            else:
-                self.params.QI = 'MIN-SR-FLEX' + str(k)
-            self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
 
         # gather all terms which are known already (e.g. from the previous iteration)
         # this corresponds to u0 + QF(u^k) - QdF(u^k) + tau

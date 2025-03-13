@@ -122,7 +122,9 @@ class Pendulum2DIntegralFormulation(Pendulum2D):
     def __init__(self, nvars=5, newton_tol=1e-12, newton_maxiter=100, stop_at_maxiter=False, stop_at_nan=True):
         """Initialization routine"""
         super().__init__()
-        self._makeAttributeAndRegister('newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals())
+        self._makeAttributeAndRegister(
+            'newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals()
+        )
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
@@ -151,7 +153,7 @@ class Pendulum2DIntegralFormulation(Pendulum2D):
         f.diff[1] = v2
         f.diff[2] = -lamb * q1
         f.diff[3] = -lamb * q2 - self.g
-        f.alg[0] = q1 ** 2 + q2 ** 2 - 1
+        f.alg[0] = q1**2 + q2**2 - 1
         return f
 
     def solve_system(self, rhs, factor, u0, t):

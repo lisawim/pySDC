@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import optimize
 
 from pySDC.core.errors import ParameterError
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
@@ -73,6 +72,8 @@ class FullyImplicitDAE(generic_implicit):
         assert L.status.unlocked
 
         M = self.coll.num_nodes
+
+        self.updateVariableCoeffs(L.status.sweep)
 
         # get QU^k where U = u'
         integral = self.integrate()
@@ -258,3 +259,49 @@ class FullyImplicitDAE(generic_implicit):
 
         sys = P.eval_f(local_u_approx, local_du_approx, t)
         return sys
+
+
+class FullyImplicitDAEMinion(FullyImplicitDAE):
+    def update_nodes(self):
+        r"""
+        Updates values of ``u`` and ``f`` at collocation nodes. This correspond to a single iteration of the
+        preconditioned Richardson iteration in **"ordinary"** SDC.
+        """
+
+        L = self.level
+        P = L.prob
+
+        # only if the level has been touched before
+        assert L.status.unlocked
+
+        M = self.coll.num_nodes
+
+        # get QU^k where U = u'
+        integral = self.integrate()
+        # build the rest of the known solution u_0 + del_t(Q - Q_del)U_k
+        for m in range(1, M + 1):
+            for j in range(1, M + 1):
+                integral[m - 1] -= L.dt * self.QI[m, j] * L.f[j]
+            integral[m - 1] += L.u[0]
+
+        # do the sweep
+        for m in range(1, M + 1):
+            # add the known components from current sweep del_t*Q_del*U_k+1
+            u_approx = P.dtype_u(integral[m - 1])
+            for j in range(1, m):
+                u_approx += L.dt * self.QI[m, j] * L.f[j]
+
+            # update gradient (recall L.f is being used to store the gradient)
+            L.f[m] = P.solve_system(
+                self.F, u_approx, L.dt * self.QI[m, m], L.f[m], L.time + L.dt * self.coll.nodes[m - 1]
+            )
+
+        # Update solution approximation
+        integral = self.integrate()
+        for m in range(M):
+            L.u[m + 1] = L.u[0] + integral[m]
+
+        # indicate presence of new values at this level
+        L.status.updated = True
+
+        return None    

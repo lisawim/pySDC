@@ -1,4 +1,5 @@
 import numpy as np
+import dill
 
 from pySDC.implementations.hooks.log_solution import LogSolution
 
@@ -13,8 +14,8 @@ if __name__ == "__main__":
     QI = "RadauIIA7"
 
     t0 = 0.0
-    dt = 1e-5
-    Tend = 0.02
+    dt = 1e-7
+    Tend = 0.021
 
     hook_class = [LogSolution]
 
@@ -33,3 +34,13 @@ if __name__ == "__main__":
         eps=eps,
         **kwargs,
     )
+
+    u_val = get_sorted(solution_stats, type="u", sortby="time")
+    t = np.array([round(me[0], 13) for me in u_val])
+    y = np.array([me[1].diff[0] for me in u_val])
+    z = np.array([me[1].alg[0] for me in u_val])
+
+    results = {t_item: (y_item, z_item) for t_item, y_item, z_item in zip(t, y, z)}
+
+    with open(f"refSol_SciPy_michaelisMentenDAE_RadauIIA7_{dt=}.dat", "wb") as f:
+        dill.dump(results, f)

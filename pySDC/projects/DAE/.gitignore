@@ -5,6 +5,10 @@
 data/
 run/data/
 plotting/data/
+run/*.dat
 
 # Scripts for cluster
 run/scripts/
+
+# Environment
+../../../pysdc/

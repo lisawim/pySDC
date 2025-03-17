@@ -150,7 +150,7 @@ def iterations_along_nodes():
 
 
 def iterations_along_step_sizes():
-    QI_list = QI_SERIAL + QI_PARALLEL
+    QI_list = QI_PARALLEL  # QI_SERIAL + QI_PARALLEL
     num_nodes = 3
 
     # problem_name = "LINEAR-TEST"
@@ -160,9 +160,9 @@ def iterations_along_step_sizes():
     kwargs = {"solver_type": solver_type}
 
     t0 = 0.0
-    dt_list = [10 ** (-m) for m in range(2, 8)]
+    dt_list = [1e-2]  # [10 ** (-m) for m in range(2, 8)]
 
-    case = 6
+    case = 4  # 6
 
     problems = get_problem_cases(k=case, problem_name=problem_name)
 
@@ -209,7 +209,7 @@ def iterations_along_step_sizes():
                     plot_type="semilogy",
                 )
 
-    finalize_plot(dt, case, problem_name, QI_list, iter_plotter, appendix="along_step_sizes")
+    # finalize_plot(dt, case, problem_name, QI_list, iter_plotter, appendix="along_step_sizes")
 
 
 if __name__ == "__main__":

@@ -24,9 +24,14 @@ if __name__ == "__main__":
 
     QI_coefficients = compute_QI_coefficients(Q_coefficients, QI_list)
 
+    num = 3000
+
     for QI in QI_list:
         print(f"\n{QI}:\n")
-        for _ in range(200):
+
+        sum = 0
+        i=0
+        for _ in range(num):
             Qmat = Q_coefficients[num_nodes]["matrix"]
             QImat = QI_coefficients[QI][num_nodes]["matrix"]
 
@@ -34,4 +39,14 @@ if __name__ == "__main__":
 
             x = random_unit_vector(num_nodes)
             val = x.T.dot(K_stiff.dot(x))
-            print(val)
+            # print(val)
+
+            sum += abs(val)
+
+            i+= 1
+
+        print("Count:", i)
+
+        mean = sum / num
+        print(f"Mean for {QI}: {mean}")
+        print()

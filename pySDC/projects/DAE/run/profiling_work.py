@@ -9,75 +9,49 @@ from pySDC.projects.DAE.run.wallclocktime_error import compute_work_vs_error
 from pySDC.projects.DAE import Plotter
 
 
-EXCLUDED_FUNCTIONS = [
-    "__init__",
-    "__generate_hierarchy",
-    "_call_with_frames_removed",
-    "exec_module",
-    "_load_unlocked",
-    "_find_and_load_unlocked",
-    "_find_and_load",
-    "<module>",
-    "compute_work_vs_error",
-    "run_serial_test",
-    "run_parallel_test",
-    "computeSolution",
-    "run",
-    "pfasst",
-    "check_support_sve",
-    "<method 'read' of '_io.BufferedReader' objects",
-    "<built-in method _imp.create_dynamic>",
-    "create_module",
-    "get_data",
-    "module_from_spec",
-    "_handle_fromlist",
-    "get_code",
-    "function Unpickler.find_class at 0x75ca8a4a2a70>",
-    "find_class",
-    "function Unpickler.load at 0x75ca8a4a2b90>",
-    "load",
-    "<built-in method builtins.__import__>",
-    "<built-in method builtins.exec>",
-    "<method 'disable' of '_lsprof.Profiler' objects>",  # Internal profiler function
-]
-
-EXCLUDED_PATTERNS = [
-    r".*profiling.*",  # Matches any function containing "profiling"
-    r".*helper_function.*",  # Matches functions like "helper_function_1", "helper_function_XYZ"
-    r"<function Unpickler.*>",
-    r"<.*built-in.*>",
-    r"_call*",
-    r"_find*",
-    r"_load*",
-    r".*load.*",
-    r".*__init__.*",
-    r".*exec_module.*",
-]
-
 INCLUDED_FUNCTIONS = [
-    "solve_system",
-    "u_exact",
-    "integrate",
-    "update_nodes",
+    # "solve_system",
+    # "u_exact",
+    # "integrate",
+    # "update_nodes",
+    # "run",
+    "run (controller_nonMPI.py:85)",
+    "pfasst (controller_nonMPI.py:293)",
+    "update_nodes (genericImplicitDAE.py:70)",
+    "update_nodes (genericImplicitDAE.py:240)",
+    "update_nodes (genericImplicitDAEMPI.py:36)",
+    "update_nodes (genericImplicitDAEMPI.py:159)",
+    "integrate (genericImplicitDAE.py:48)",
+    "integrate (genericImplicitDAEMPI.py:9)",
+    "integrate (genericImplicitDAEMPI.py:132)",
+    "it_check (controller_nonMPI.py:475)",
+    "it_fine (controller_nonMPI.py:541)",
+    "post_step (log_errors.py:97)",
+    "log_global_error (log_errors.py:15)",
+    "post_step (log_embedded_error_estimate.py:30)",
+    "log_error (log_embedded_error_estimate.py:9)",
+    "genericImplicitEmbedded (genericImplicitDAE.py:196)",
+    "genericImplicitConstrained (genericImplicitDAE.py:9)",
 ]
 
 
-def finalize_plot(dt, k, num_nodes, profiling_plotter, problem_name, QI, size, yticks, problem_type_label):
-    fontsize = 34 if QI == "MIN-SR-S" else 18
+def finalize_plot(dt, k, num_nodes, profiling_plotter, problem_name, QI, size, xticks, yticks, problem_type_label):
+    fontsize = 34 if QI == "MIN-SR-S" else 22
     if QI == "MIN-SR-S":
         for r in range(size):
             profiling_plotter.set_title(f"{QI}-{problem_type_label} - Rank {r}", subplot_index=r, fontsize=24)
 
-            profiling_plotter.set_xlabel("Cumulative Execution Time (seconds)", subplot_index=r)
-            profiling_plotter.set_ylabel("Function", subplot_index=r)
+            profiling_plotter.set_xlabel("Cumulative Execution Time (seconds)", subplot_index=r, fontsize=fontsize)
+            profiling_plotter.set_ylabel("Function", subplot_index=r, fontsize=fontsize)
 
     else:
         profiling_plotter.set_title(f"{QI}-{problem_type_label}", subplot_index=0, fontsize=24)
 
-        profiling_plotter.set_xlabel("Cumulative Execution Time (seconds)", subplot_index=0)
-        profiling_plotter.set_ylabel("Function", subplot_index=0)
+        profiling_plotter.set_xlabel("Cumulative Execution Time (seconds)", subplot_index=0, fontsize=fontsize)
+        profiling_plotter.set_ylabel("Function", subplot_index=0, fontsize=fontsize)
 
-    profiling_plotter.set_yticks(range(len(yticks)), labels=yticks, fontsize=fontsize)
+    profiling_plotter.set_xlim((0.0, 0.1))
+    profiling_plotter.set_tick_params(labelsize=fontsize)
 
     if QI == "MIN-SR-S":
         profiling_plotter.adjust_layout(num_subplots=size)
@@ -103,9 +77,9 @@ if __name__ == "__main__":
 
     problem_type_labels = {10: r"$\mathtt{SDC-E}$", 11: r"$\mathtt{SDC-C}$", 12: r"$\mathtt{FI-SDC}$", 13: r"$\mathtt{SI-SDC}$"}
 
-    case = 11
+    case = 10
 
-    dt_list = [1e-6]
+    dt_list = [1e-2]
 
     for QI in QI_list:
         is_parallel = QI == "MIN-SR-S"  # Parallel flag
@@ -144,7 +118,7 @@ if __name__ == "__main__":
 
                 if os.path.exists(profile_filename):
                     file_size = os.path.getsize(profile_filename)
-                    print(f"✔ Found: {profile_filename} ({file_size} bytes)")
+                    # print(f"✔ Found: {profile_filename} ({file_size} bytes)")
                 else:
                     print(f"❌ Missing: {profile_filename}")
 
@@ -177,22 +151,14 @@ if __name__ == "__main__":
         df = pd.DataFrame(data, columns=["QI", "Rank", "Function", "Cumulative Time"])
         df = df.sort_values(by=["QI", "Rank", "Cumulative Time"], ascending=[True, True, False])
 
-        print("\n==== Available Functions Before Filtering ====")
-        print(df["Function"].unique())  # Print all unique functions before filtering
-        print("\n============================================\n")
+        # print("\n==== Available Functions Before Filtering ====")
+        # print(df["Function"].unique())  # Print all unique functions before filtering
+        # print("\n============================================\n")
 
         # ✅ If INCLUDED_FUNCTIONS is set, use only these functions
         if INCLUDED_FUNCTIONS:
             df = df[df["Function"].isin(INCLUDED_FUNCTIONS)]
-            print(f"\n✅ Using ONLY selected functions: {INCLUDED_FUNCTIONS}\n")
-        # else:
-        #     # ✅ Otherwise, apply exclusion filters
-        #     df = df[~df["Function"].isin(EXCLUDED_FUNCTIONS)]
-            
-        #     pattern = "|".join(EXCLUDED_PATTERNS)
-        #     df = df[~df["Function"].str.match(pattern, na=False, case=False)]
-
-        #     print("\n✅ Exclusion applied: Removing unwanted functions & patterns\n")
+            # print(f"\n✅ Using ONLY selected functions: {INCLUDED_FUNCTIONS}\n")
 
         for QI in QI_list:
             is_parallel = QI == "MIN-SR-S"
@@ -222,6 +188,17 @@ if __name__ == "__main__":
                     subplot_index=subplot_index,
                 )
 
-            finalize_plot(dt_list[-1], case, num_nodes, profiling_plotter, problem_name, QI, size, df_rank["Function"], problem_type_labels[case])
+            finalize_plot(
+                dt_list[-1],
+                case,
+                num_nodes,
+                profiling_plotter,
+                problem_name,
+                QI,
+                size,
+                df_rank["Cumulative Time"],
+                df_rank["Function"],
+                problem_type_labels[case],
+            )
 
     MPI.Finalize()

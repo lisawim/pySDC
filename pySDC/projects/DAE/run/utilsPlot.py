@@ -391,6 +391,23 @@ class Plotter:
             else:
                 ax.set_ylim(min_y, max_y)
 
+    def set_tick_params(self, subplot_index=None, axis='both', which='major', labelsize=None, **kwargs):
+        """
+        Update tick parameters for all subplots or a specific subplot.
+
+        Parameters:
+        - subplot_index (int or None): If None, applies to all subplots. Otherwise, applies to a specific subplot.
+        - axis (str): 'x', 'y', or 'both'. Default is 'both'.
+        - which (str): 'major' or 'minor' ticks. Default is 'major'.
+        - labelsize (int or None): Size of tick labels.
+        - **kwargs: Additional arguments for tick_params (e.g., length, width).
+        """
+        axes = self.axes if subplot_index is None else [self.axes[subplot_index]]
+        
+        for ax in axes:
+            ax.tick_params(axis=axis, which=which, labelsize=labelsize, **kwargs)
+
+
     def set_xticks(self, xticks_list=None, labels=None, subplot_index=None, clear_labels=False, fontsize=20):
         """
         Set custom xticks and labels or optionally remove only the labels while keeping the ticks.

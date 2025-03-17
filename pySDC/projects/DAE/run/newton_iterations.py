@@ -34,8 +34,6 @@ def finalize_plot(k, num_nodes, problem_name, QI_list, iter_plotter):
 
         iter_plotter.set_title(rf"$Q_\Delta=${QI}", subplot_index=q, fontsize=20)
 
-        iter_plotter.set_yscale(scale="log")
-
     iter_plotter.set_ylabel("number of Newton iterations", subplot_index=None)
 
     iter_plotter.sync_ylim(min_y_set=1e0)
@@ -111,7 +109,7 @@ def newton_iterations_along_step_sizes():
                     markersize,
                     linestyle,
                     problem_label,
-                    plot_type="semilogy",
+                    plot_type="loglog",
                 )
 
     finalize_plot(case, num_nodes, problem_name, QI_list, iter_plotter)

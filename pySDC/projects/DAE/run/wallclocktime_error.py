@@ -1,6 +1,7 @@
 from mpi4py import MPI
 import numpy as np
 
+from pySDC.implementations.hooks.log_work import LogWork
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 
 from pySDC.projects.DAE.run.error import get_error_label, get_problem_cases, plot_result
@@ -51,6 +52,12 @@ def run_parallel_test(t0, QI, dt_list, num_nodes, problem_name, problem_type, ho
         err.append(max(err_values))
 
         if rank == 0:
+            num_iter = np.sum([me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")])
+            print(f"Number of iterations: {num_iter}")
+
+            newton_iter = np.sum([me[1] for me in get_sorted(solution_stats, type="work_newton", sortby="time")])
+            print(f"Number of Newton iterations: {newton_iter}")
+
             print(f"For {dt=} error is {max(err_values)}")
 
         timing_run = get_sorted(solution_stats, type="timing_run")[0][1]
@@ -86,6 +93,12 @@ def run_serial_test(t0, QI, dt_list, num_nodes, problem_name, problem_type, hook
 
             timing_run = np.array(get_sorted(solution_stats, type="timing_run", sortby="time"))
             time.append(timing_run[0][1])
+
+            num_iter = np.sum([me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")])
+            print(f"Number of iterations: {num_iter}")
+
+            newton_iter = np.sum([me[1] for me in get_sorted(solution_stats, type="work_newton", sortby="time")])
+            print(f"Number of Newton iterations: {newton_iter}")
 
             print(f"For {dt=} error is {max(err_values)}")
 
@@ -152,14 +165,12 @@ def compute_work_vs_error(case, comm, num_nodes, rank, problem_name, QI_list, do
     if dt_list is None:
         dt_list = choose_time_step_sizes(problem_name)
 
-    print(dt_list)
-
     solver_type = "newton"
     kwargs = {"e_tol": 1e-13, "solver_type": solver_type}
 
     problems = get_problem_cases(k=case, problem_name=problem_name)
 
-    hook_class = [LogGlobalErrorPostStep]
+    hook_class = [LogGlobalErrorPostStep, LogWork]
 
     results = []
 
@@ -187,13 +198,13 @@ def compute_work_vs_error(case, comm, num_nodes, rank, problem_name, QI_list, do
                     results.append((q, time, err, problem_type, i, QI, eps))
                     print(f"{QI}: For {problem_type} with {eps=} the runtimes are: {time}\n")
 
-                if rank == 0 and serial_times and parallel_times_min_sr_s:
-                    smallest_speedup_min_sr_s, largest_speedup_min_sr_s = compute_speedup_factors(serial_times, parallel_times_min_sr_s)
-                    print(f"MIN-SR-S: For {problem_type} with {eps=}: Smallest speedup {smallest_speedup_min_sr_s:.2f}, Largest speedup {largest_speedup_min_sr_s:.2f}")
+                # if rank == 0 and serial_times and parallel_times_min_sr_s:
+                #     smallest_speedup_min_sr_s, largest_speedup_min_sr_s = compute_speedup_factors(serial_times, parallel_times_min_sr_s)
+                #     print(f"MIN-SR-S: For {problem_type} with {eps=}: Smallest speedup {smallest_speedup_min_sr_s:.2f}, Largest speedup {largest_speedup_min_sr_s:.2f}")
 
-                if rank == 0 and serial_times and parallel_times_min_sr_flex:
-                    smallest_speedup_min_sr_flex, largest_speedup_min_sr_flex = compute_speedup_factors(serial_times, parallel_times_min_sr_flex)
-                    print(f"MIN-SR-FLEX: For {problem_type} with {eps=}: Smallest speedup {smallest_speedup_min_sr_flex:.2f}, Largest speedup {largest_speedup_min_sr_flex:.2f}")
+                # if rank == 0 and serial_times and parallel_times_min_sr_flex:
+                #     smallest_speedup_min_sr_flex, largest_speedup_min_sr_flex = compute_speedup_factors(serial_times, parallel_times_min_sr_flex)
+                #     print(f"MIN-SR-FLEX: For {problem_type} with {eps=}: Smallest speedup {smallest_speedup_min_sr_flex:.2f}, Largest speedup {largest_speedup_min_sr_flex:.2f}")
 
                 comm.Barrier()
 
@@ -219,8 +230,10 @@ if __name__ == "__main__":
     QI_list = ["IE", "LU", "MIN-SR-S"]
     num_nodes = size
 
-    case = 6
+    case = 4  # 6
 
-    compute_work_vs_error(case, comm, num_nodes, rank, problem_name, QI_list)
+    dt_list = [1e-2, 1e-3, 1e-4, 1e-5]
+
+    compute_work_vs_error(case, comm, num_nodes, rank, problem_name, QI_list, dt_list=dt_list)
 
     MPI.Finalize()

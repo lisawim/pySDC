@@ -1,6 +1,7 @@
 import numpy as np
 import dill
 from pathlib import Path
+from scipy.spatial import cKDTree
 
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
@@ -31,12 +32,26 @@ class MichaelisMentenDAE(ProblemDAE):
         if not path_to_data.exists():
             path_to_data = Path("/beegfs/wimmer/Python/pySDC/lib/python3.9/site-packages/pySDC/projects/DAE/problems/")
 
-        fname = path_to_data / f"refSol_SciPy_michaelisMentenDAE.dat"
+        # fname = path_to_data / f"refSol_SciPy_michaelisMentenDAE.dat"
+        fname = path_to_data / "refSol_SciPy_michaelisMentenDAE_RadauIIA7_dt=1e-07.dat"
         with open(fname, "rb") as f:
-            self.u_ref = dill.load(f)
+            # self.u_ref = dill.load(f)
+            self.ref_dict = dill.load(f)
+
+            # Build the KDTree with sorted keys
+            self.keys_sorted = np.array(sorted(self.ref_dict.keys())).reshape(-1, 1)
+            self.tree = cKDTree(self.keys_sorted)
+
+        # for key, value in self.u_ref.items():
+        #     print(F"Key: {key} -- value: {value}")
 
         self.kappa = 1
         self.lamb = 0.375
+
+    def get_nearest_key_scipy(self, query_t):
+        dist, idx = self.tree.query([[query_t]])  # Find nearest neighbor
+        keys_sorted = self.keys_sorted
+        return keys_sorted[idx[0], 0]
 
     def g(self, factor, u, t, rhs):
         s0, c0 = u.diff[0], u.alg[0]
@@ -181,15 +196,36 @@ class MichaelisMentenDAE(ProblemDAE):
 
         me = self.dtype_u(self.init)
         if 0.0 < t <= 2.0:
-            try:
-                me.diff[0] = self.u_ref(t)[0]
-                me.alg[0] = self.u_ref(t)[1]
-            except ValueError:  # for cluster
-                me.diff[0] = self.u_ref(t)[0][0]
-                me.alg[0] = self.u_ref(t)[0][1]
+
+            assert t <= 0.021
+
+            
+            nearest_key = self.get_nearest_key_scipy(query_t=t)
+            u_ref = self.ref_dict[nearest_key]
+
+            me.diff[0] = u_ref[0]
+            me.alg[0] = u_ref[1]
+            # try:
+                # me.diff[0] = self.u_ref(t)[0]
+                # me.alg[0] = self.u_ref(t)[1]
+            # except ValueError:  # for cluster
+            #     me.diff[0] = self.u_ref(t)[0][0]
+            #     me.alg[0] = self.u_ref(t)[0][1]
         elif t == 0.0:
             me.diff[0] = 1.0
             me.alg[0] = 1.0
+        return me
+
+    def du_exact(self, t):
+
+        assert t == 0.0, f"ERROR: Only initial condition at time 0.0 available!"
+
+        u0 = self.u_exact(t)
+        s0, c0 = u0.diff[0], u0.alg[0]
+
+        me = self.dtype_u(self.init)
+        me.diff[0] = -s0 + (s0 + self.kappa - self.lamb) * c0
+        me.alg[0] = s0 - (s0 + self.kappa) * c0
         return me
 
 
@@ -350,7 +386,7 @@ class MichaelisMentenConstrained(MichaelisMentenDAE):
 
             n += 1
             self.work_counters['newton']()
-
+        # print(n, res)
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         elif np.isnan(res):
@@ -436,7 +472,6 @@ class MichaelisMentenEmbedded(MichaelisMentenConstrained):
             # If g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
-                print(res)
                 break
 
             # Inverse of dg
@@ -450,7 +485,7 @@ class MichaelisMentenEmbedded(MichaelisMentenConstrained):
 
             n += 1
             self.work_counters['newton']()
-
+        # print(n, res)
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
         elif np.isnan(res):

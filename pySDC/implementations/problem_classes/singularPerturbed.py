@@ -1299,7 +1299,7 @@ class MichaelisMentenSPP(Problem):
         self.work_counters['newton'] = WorkCounter()
         self.work_counters['rhs'] = WorkCounter()
 
-        path_to_data = Path("/home/lisa/Buw/Programme/Python/Libraries/pySDC/pySDC/projects/DAE/data/")
+        path_to_data = Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/")
         if not path_to_data.exists():
             path_to_data = Path("/beegfs/wimmer/Python/pySDC/lib/python3.9/site-packages/pySDC/implementations/problem_classes/")
 

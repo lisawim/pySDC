@@ -114,7 +114,8 @@ if __name__ == "__main__":
         profiler = cProfile.Profile()
         profiler.enable()
 
-        compute_work_vs_error(case, comm, num_nodes, rank, problem_name, [QI], do_plotting=False, dt_list=dt_list)
+        # compute_work_vs_error(case, comm, num_nodes, rank, problem_name, [QI], do_plotting=False, dt_list=dt_list)
+        print(f"Hello from {rank=}")
 
         profiler.disable()
 

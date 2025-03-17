@@ -4,7 +4,6 @@ import importlib
 from pySDC.helpers.stats_helper import get_sorted
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-from pySDC.implementations.convergence_controller_classes.update_QDelta import UpdateQDelta
 
 SDC_METHODS = ['IE', 'LU', 'MIN-SR-NS', 'MIN-SR-S', 'MIN-SR-FLEX', 'MIN', 'MIN3', 'Picard']
 RK_METHODS = ["BE", "DIRK43", "EDIRK4", "DIRK", "DIRK5", "DIRK5_2", "ESDIRK53", "SDIRK3"]
@@ -724,13 +723,6 @@ def setupConvergenceControllers(dt, QI, **kwargs):
             "crash_after_max_restarts": False,
         }
         convergence_controllers.update({BasicRestartingNonMPI: restarting_params})
-
-    # if QI == "MIN-SR-FLEX":
-    #     update_qdelta_params = {
-    #         "change_using_sweeps": kwargs.get("change_using_sweeps", False),
-    #         "change_using_iters": kwargs.get("change_using_iters", True),
-    #     }
-    #     convergence_controllers.update({UpdateQDelta: update_qdelta_params})
 
     return convergence_controllers
 

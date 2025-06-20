@@ -2,5 +2,3 @@ data/
 plotting/data/
 run/data/
 run/scripts/
-../../../requirements.txt
-../../../venvs/

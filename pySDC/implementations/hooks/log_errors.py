@@ -66,7 +66,7 @@ class LogError(Hooks):
         L = step.levels[level_number]
 
         L.sweep.compute_end_point()
-
+        print(f"Process: {step.status.slot}")
         value = abs(L.prob.u_exact(t=L.time + L.dt, u_init=L.u[0] * 1.0, t_init=L.time) - L.uend)
 
         self.add_to_stats(

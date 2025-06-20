@@ -3,11 +3,15 @@ import numpy as np
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE import computeSolution, getColor, getEndTime, getLabel, get_linestyle, getMarker, Plotter
 from pySDC.projects.DAE.run.error import get_problem_cases, get_error_label, plot_result
+from pySDC.projects.DAE.run.wallclocktime_error import choose_time_step_sizes
 
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+# from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.projects.DAE.misc.hooksEpsEmbedding import LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation
+from pySDC.projects.DAE.misc.hooksDAE import LogGlobalErrorPostStepDifferentialVariable, LogGlobalErrorPostStepAlgebraicVariable
+        
 
 
-def finalize_plot(k: int, plotter, num_nodes, problem_name, QI_list):
+def finalize_plot(k: int, plotter, num_nodes, problem_name, QI_list, var_str):
     r"""
     Finalizes the plot with labels, titles, limits for y-axis and scaling, and legend. The plot is
     then stored with fixed filename. 
@@ -33,43 +37,62 @@ def finalize_plot(k: int, plotter, num_nodes, problem_name, QI_list):
     for q, QI in enumerate(QI_list):
         plotter.set_title(rf"$Q_\Delta=${QI}", subplot_index=q, fontsize=24)
 
-        plotter.set_ylabel(err_label, subplot_index=q)
+        y_label = f" in {var_str}" if var_str != "" else ""
+        plotter.set_ylabel(f"{err_label}" + y_label, subplot_index=q)
 
         plotter.set_xscale(scale="log", subplot_index=q)
 
-        plotter.set_ylim((1e-15, 1e1), scale="log", subplot_index=q)
+        plotter.set_ylim((1e-15, 1e5), scale="log", subplot_index=q)
 
-    plotter.set_shared_legend(loc="lower center", bbox_to_anchor=(0.5, -0.1), ncol=6, fontsize=22)
+    if len(QI_list) == 1 and k in [5, 9, 14]:
+        ncol = 2
+        bbox_pos = -0.3
+    else:
+        ncol = 6
+        bbox_pos = -0.1
+    plotter.set_shared_legend(loc="lower center", bbox_to_anchor=(0.5, bbox_pos), ncol=ncol, fontsize=22)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"order_{num_nodes=}_case{k}.png"
+    plotter.adjust_layout(num_subplots=len(QI_list))
+
+    plotter.set_grid()
+
+    filename = "data" + "/" + f"{problem_name}" + "/" + f"order_{var_str}_{num_nodes=}_case{k}.png"
     plotter.save(filename)
 
 
 """Main routine"""
 if __name__ == "__main__":
-    problem_name = "LINEAR-TEST"
-    # problem_name = "MICHAELIS-MENTEN"
+    # problem_name = "LINEAR-TEST"
+    problem_name = "MICHAELIS-MENTEN"
+    # problem_name = "DPR"
+    # problem_name = "ANDREWS-SQUEEZER"
 
-    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-FLEX"]
+    QI_list = ["IE"]#["IE", "LU", "MIN-SR-S"]
     num_nodes = 3
 
     p = 2 * num_nodes - 1
 
     t0 = 0.0
-    dt_list = np.logspace(-1.0, 0.0, num=11)
+    dt_list = np.logspace(-3.0, -2.0, num=11) # choose_time_step_sizes(problem_name)  # np.logspace(-2.0, -1.0, num=11)
 
-    case = 4
+    case = 14
 
-    problems = get_problem_cases(k=case)
+    problems = get_problem_cases(k=case, problem_name=problem_name)
 
-    hook_class = [LogGlobalErrorPostStep]
+    hook_class = [LogGlobalErrorPostStep, LogGlobalErrorPostStepPerturbation]
 
-    order_plotter = Plotter(nrows=2, ncols=2, figsize=(12, 12))
+    if len(QI_list) == 1 and case in [5, 9, 14]:
+        order_plotter = Plotter(nrows=1, ncols=1, figsize=(6, 6))
+    else:
+        order_y_plotter = Plotter(nrows=2, ncols=2, figsize=(12, 12))
+        order_z_plotter = Plotter(nrows=2, ncols=2, figsize=(12, 12))
 
+    maxiter = 2 * num_nodes - 1
     for q, QI in enumerate(QI_list):
         for problem_type, eps_values in problems.items():
             for i, eps in enumerate(eps_values):
-                errors = []
+                errors_y = []
+                errors_z = []
 
                 for dt in dt_list:
                     print(f"\n{QI} with {num_nodes} nodes: Running test for {problem_type} with {eps=} using {dt=}...\n")
@@ -79,18 +102,22 @@ if __name__ == "__main__":
                         problemName=problem_name,
                         t0=t0,
                         dt=dt,
-                        Tend=getEndTime(problem_name),
+                        Tend=0.01,#t0+dt,#getEndTime(problem_name),
                         nNodes=num_nodes,
                         QI=QI,
                         problemType=problem_type,
                         hookClass=hook_class,
                         eps=eps,
-                        e_tol=1e-7,
+                        maxiter=maxiter,
+                        e_tol=-1,
                     )
 
                     err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
+                    err_diff_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_step", sortby="time")]
+                    err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_step", sortby="time")]
 
-                    errors.append(max(err_values))
+                    errors_y.append(max(err_diff_values))
+                    errors_z.append(max(err_alg_values))
 
                 # Define plotting-related stuff and use shortcuts
                 color, res = getColor(problem_type, i, QI), getMarker(problem_type, i, QI)
@@ -98,13 +125,49 @@ if __name__ == "__main__":
                 marker = res["marker"]
                 markersize = res["markersize"]
 
-                order_plotter = plot_result(
-                    order_plotter, dt_list, errors, q, color, marker, markersize, linestyle, problem_label
-                )
+                if len(QI_list) == 1 and case in [5, 9, 14]:
+                    label_diff = "y - " + problem_label
+                    label_alg = "z - " + problem_label 
+                    order_plotter = plot_result(
+                        order_plotter, dt_list, errors_y, q, None, marker, markersize, linestyle, label_diff
+                    )
+
+                    order_plotter = plot_result(
+                        order_plotter, dt_list, errors_z, q, None, marker, markersize, "dotted", label_alg
+                    )
+                else:
+                    order_y_plotter = plot_result(
+                        order_y_plotter, dt_list, errors_y, q, color, marker, markersize, linestyle, problem_label
+                    )
+
+                    order_z_plotter = plot_result(
+                        order_z_plotter, dt_list, errors_z, q, color, marker, markersize, linestyle, problem_label
+                    )
 
         # Reference order
-        order_plotter = plot_result(
-            order_plotter, dt_list, [dt ** p for dt in dt_list], q, "lightgrey", None, None, "dotted", ""
-        )
+        ref_ord_y = [dt ** p for dt in dt_list]
+        ref_ord_z = [dt ** 1 for dt in dt_list]
+        if len(QI_list) == 1 and case in [5, 9, 14]:
+            order_plotter = plot_result(
+                order_plotter, dt_list, ref_ord_y, q, "black", None, None, "dashed", f"y - ref. order {p}"
+            )
 
-    finalize_plot(case, order_plotter, num_nodes, problem_name, QI_list)
+            order_plotter = plot_result(
+                order_plotter, dt_list, ref_ord_z, q, "lightgrey", None, None, "dashed", f"z - ref. order {p}"
+            )
+        else:
+            order_y_plotter = plot_result(
+                order_y_plotter, dt_list, ref_ord_y, q, "lightgrey", None, None, "dashed", ""
+            )
+
+            # Reference order
+            order_z_plotter = plot_result(
+                order_z_plotter, dt_list, ref_ord_z, q, "lightgrey", None, None, "dashed", ""
+            )
+
+    if len(QI_list) == 1 and case in [5, 9, 14]:
+        finalize_plot(case, order_plotter, num_nodes, problem_name, QI_list, "")
+    else:
+        finalize_plot(case, order_y_plotter, num_nodes, problem_name, QI_list, "y")
+
+        finalize_plot(case, order_z_plotter, num_nodes, problem_name, QI_list, "z")

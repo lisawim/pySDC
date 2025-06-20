@@ -75,13 +75,13 @@ def get_iteration_matrices(dt, eps, M, Qmat, QImat, problem_name, problem_type):
             K = np.matmul(inv, -dt * (Qmat - QImat))
 
         elif problem_type == "embeddedDAE":
-            K = np.identity(M) - np.linalg.inv(QImat) * Qmat
+            K = np.identity(M) - np.matmul(np.linalg.inv(QImat), Qmat)
 
         elif problem_type == "constrainedDAE":
             K = np.zeros((M, M))
 
         elif problem_type == "fullyImplicitDAE":
-            K = np.identity(M) - np.linalg.inv(QImat) * Qmat
+            K = np.identity(M) - np.matmul(np.linalg.inv(QImat), Qmat)
 
         elif problem_type == "semiImplicitDAE":
             K = np.zeros((M, M))

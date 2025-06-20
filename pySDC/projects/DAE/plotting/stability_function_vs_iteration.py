@@ -69,6 +69,19 @@ def get_sweeper_mats(dt, eps, num_nodes, Q, QI, problem_name, problem_type):
                 L = dt * QI
                 R = -dt * (Q - QI)
 
+        elif problem_name == "DAHLQUIST-PROTHERO-ROBINSON":
+            if problem_type == "SPP":
+                L = np.identity(num_nodes) + (dt / eps) *  QI
+                R = (-dt / eps) * (Q - QI)
+
+            elif problem_type == "constrainedDAE":
+                L = np.identity(num_nodes)
+                R = np.zeros((num_nodes, num_nodes))
+
+            elif problem_type == "embeddedDAE":
+                L = dt * QI
+                R = -dt * (Q - QI)
+
         return L, R
 
 

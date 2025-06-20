@@ -59,15 +59,12 @@ class genericImplicitConstrainedMPI(SweeperMPI, genericImplicitConstrained):
 
         # implicit solve with prefactor stemming from the diagonal of Qd
         alpha = L.dt * self.QI[self.rank + 1, self.rank + 1]
-        if alpha == 0:
-            L.u[self.rank + 1] = rhs
-        else:
-            L.u[self.rank + 1] = P.solve_system(
-                rhs,
-                alpha,
-                L.u[self.rank + 1],
-                L.time + L.dt * self.coll.nodes[self.rank],
-            )
+        L.u[self.rank + 1] = P.solve_system(
+            rhs,
+            alpha,
+            L.u[self.rank + 1],
+            L.time + L.dt * self.coll.nodes[self.rank],
+        )
 
         # update function values
         L.f[self.rank + 1] = P.eval_f(L.u[self.rank + 1], L.time + L.dt * self.coll.nodes[self.rank])

@@ -36,7 +36,7 @@ class allencahn2d_imex(Problem):  # pragma: no cover
     Parameters
     ----------
     nvars : List of int tuples, optional
-        Number of unknowns in the problem, e.g. ``nvars=[(128, 128), (128, 128)]``.
+        Number of unknowns in the problem, e.g. ``[(128, 128), (128, 128)]``.
     nu : float, optional
         Problem parameter :math:`\nu`.
     eps : float, optional
@@ -61,7 +61,7 @@ class allencahn2d_imex(Problem):  # pragma: no cover
     dtype_u = cupy_mesh
     dtype_f = imex_cupy_mesh
 
-    def __init__(self, nvars=None, nu=2, eps=0.04, radius=0.25, L=1.0, init_type='circle'):
+    def __init__(self, None, nu=2, eps=0.04, radius=0.25, L=1.0, init_type='circle'):
         """Initialization routine"""
 
         if nvars is None:
@@ -210,7 +210,7 @@ class allencahn2d_imex_stab(allencahn2d_imex):
     Parameters
     ----------
     nvars : List of int tuples, optional
-        Number of unknowns in the problem, e.g. ``nvars=[(128, 128), (128, 128)]``.
+        Number of unknowns in the problem, e.g. ``[(128, 128), (128, 128)]``.
     nu : float, optional
         Problem parameter :math:`\nu`.
     eps : float, optional
@@ -232,7 +232,7 @@ class allencahn2d_imex_stab(allencahn2d_imex):
         Spectral operator for Laplacian.
     """
 
-    def __init__(self, nvars=None, nu=2, eps=0.04, radius=0.25, L=1.0, init_type='circle'):
+    def __init__(self, None, nu=2, eps=0.04, radius=0.25, L=1.0, init_type='circle'):
         """Initialization routine"""
 
         if nvars is None:

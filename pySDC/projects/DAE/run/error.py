@@ -1,5 +1,6 @@
 import numpy as np
 
+from pySDC.implementations.hooks.log_solution import LogSolutionAfterIteration
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE import computeSolution, getColor, getEndTime, getLabel, get_linestyle, getMarker, Plotter
 
@@ -15,6 +16,8 @@ def get_problem_cases(k: int, problem_name: str, epsList: list=None):
       * Case 4: Embedded SDC, constrained SDC (in integral formulation) and SDC in fully-implicit and
         semi-implicit formulation (i.e. yp-formulation) to solve DAE.
       * Case 5: SDC in fully-implicit and semi-implicit formulation for DAEs.
+      * Case 6: SDC for SPP, embedded SDC, constrained SDC (in integral formulation) and SDC in fully-implicit and
+        semi-implicit formulation (i.e. yp-formulation) to solve DAE.
 
     Parameters
     ----------
@@ -32,9 +35,10 @@ def get_problem_cases(k: int, problem_name: str, epsList: list=None):
         Problem dictionary.
     """
 
-    if epsList is None:
+    if epsList is None and problem_name not in ["ANDREWS-SQUEEZER"]:
         epsListProblems = {
             "LINEAR-TEST": [10 ** (-m) for m in range(1, 12)],
+            "DPR": [10 ** (-m) for m in range(1, 12)],
             "MICHAELIS-MENTEN": [10 ** (-m) for m in range(1, 8)],
             "PROTHERO-ROBINSON": [10 ** (-m) for m in range(1, 12)],
         }
@@ -117,6 +121,18 @@ def get_problem_cases(k: int, problem_name: str, epsList: list=None):
     elif k == 13:
         problems = {"semiImplicitDAE": [0.0]}
 
+    elif k == 14:
+        problems = {
+            "constrainedDAE": [0.0],
+            "embeddedDAE": [0.0],
+        }
+    elif k == 15:
+        problems = {
+                "constrainedDAE": [0.0],
+                "fullyImplicitDAE": [0.0],
+                "semiImplicitDAE": [0.0],
+            }
+
     else:
         raise NotImplementedError(f"Case {k} is not implemented!")
     
@@ -181,7 +197,7 @@ def get_hooks(k: int, hook_for: str):
     elif k in [3, 7]:
         hook_class = hook_SPP
 
-    elif k in [4, 5, 9]:
+    elif k in [4, 5, 9, 10, 11, 12, 13, 14]:
         hook_class = hook_DAE
 
     elif k == 6:
@@ -202,18 +218,6 @@ def get_hooks(k: int, hook_for: str):
             "fullyImplicitDAE": hook_DAE,
             "semiImplicitDAE": hook_DAE,
         }
-
-    elif k == 10:
-        hook_class = {"embeddedDAE": hook_DAE}
-
-    elif k == 11:
-        hook_class = {"constrainedDAE": hook_DAE}
-
-    elif k == 12:
-        hook_class = {"fullyImplicitDAE": hook_DAE}
-
-    elif k == 13:
-        hook_class = {"semiImplicitDAE": hook_DAE}
 
     else:
         raise NotImplementedError(f"Case {k} is not implemented!")
@@ -444,7 +448,7 @@ def get_error_label(problem_name):
         Label for plotting.
     """
 
-    if problem_name in ["LINEAR-TEST", "MICHAELIS-MENTEN", "PROTHERO-ROBINSON"]:
+    if problem_name in ["LINEAR-TEST", "DPR", "MICHAELIS-MENTEN", "PROTHERO-ROBINSON"]:
         err_label = "global error"
     else:
         raise NotImplementedError(f"No label implemented for {problem_name}!")
@@ -498,13 +502,13 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
         plotter.set_ylabel(f"{err_label} in " + r"$y$", subplot_index=subplot_indices_y_1[q])
         plotter.set_ylabel(f"{err_label} in " + r"$z$", subplot_index=subplot_indices_z_1[q])
 
-        plotter.set_ylim((1e-15, 1e-6), subplot_index=subplot_indices_y_1[q])
-        plotter.set_ylim((1e-15, 1e-6), subplot_index=subplot_indices_z_1[q])
+        # plotter.set_ylim((1e-15, 1e-6), subplot_index=subplot_indices_y_1[q])
+        # plotter.set_ylim((1e-15, 1e-6), subplot_index=subplot_indices_z_1[q])
 
         plotter.set_yscale(scale="log", subplot_index=subplot_indices_y_1[q])
         plotter.set_yscale(scale="log", subplot_index=subplot_indices_z_1[q])
 
-    # plotter.sync_ylim(min_y_set=1e-15)
+    plotter.sync_ylim(min_y_set=1e-15)
 
     plotter.set_shared_legend(loc="lower center", bbox_to_anchor=(0.5, -0.14), ncol=6, fontsize=22)
 
@@ -518,25 +522,26 @@ if __name__ == "__main__":
     # problem_name = "LINEAR-TEST"
     problem_name = "MICHAELIS-MENTEN"
     # problem_name = "PROTHERO-ROBINSON"
+    # problem_name = "DPR"
 
-    QI_list = ["LU"]  # ["IE", "LU", "MIN-SR-S"]
-    num_nodes = 10
+    QI_list = ["IE", "LU", "MIN-SR-S"]
+    num_nodes = 3
 
-    solver_type = ""
+    solver_type = "hybr"  # ""
     kwargs = {
         # "e_tol": -1,
-        # "maxiter": 80,
+        # "maxiter": 1,
         "solver_type": solver_type,
-        "logger_level": 15,
+        "newton_tol": 1e-14,
+        # "logger_level": 15,
     }
 
     t0 = 0.0
-    dt = 1e-5
+    dt = 1e-8#1e0  # 1e-1
 
     case = 4
 
-    # problems = get_problem_cases(k=case, problem_name=problem_name)
-    problems = {"embeddedDAE": [0.0]}
+    problems = get_problem_cases(k=case, problem_name=problem_name)
 
     hook_for = "step"  # "iteration"  # "step"
     if hook_for == "iteration":
@@ -565,13 +570,14 @@ if __name__ == "__main__":
                 print(f"\n{QI} with {num_nodes} nodes: Running test for {problem_type} with {eps=} using {dt=}...\n")
 
                 hooks = hook_class[problem_type] if isinstance(hook_class, dict) else hook_class
+                hooks += [LogSolutionAfterIteration]
 
                 # Let's do the simulation to get results
                 solution_stats = computeSolution(
                     problemName=problem_name,
                     t0=t0,
                     dt=dt,
-                    Tend=t0 + dt,# if hook_for in ["iteration", "sweep"] else getEndTime(problem_name),
+                    Tend=1e-6,#t0 + dt if hook_for in ["iteration", "sweep"] else getEndTime(problem_name),
                     nNodes=num_nodes,
                     QI=QI,
                     problemType=problem_type,
@@ -581,10 +587,15 @@ if __name__ == "__main__":
                 )
 
                 # Get error values along iterations
-                x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_differential_post_{hook_for}", sortby=sortby)]
+                x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_{hook_for}", sortby=sortby)]
                 err_diff_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_{hook_for}", sortby=sortby)]
                 err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_{hook_for}", sortby=sortby)]
+                print(err_diff_values)
                 print(err_alg_values)
+                # if problem_type in ["embeddedDAE"]:
+                #     rates = [np.linalg.norm(err_alg_values[i+1]/err_alg_values[i]) for i in range(len(err_alg_values)-1)]
+                #     # print(err_alg_values)
+                #     print(rates)
                 # Define plotting-related stuff and use shortcuts
                 color, res = getColor(problem_type, i, QI), getMarker(problem_type, i, QI)
                 problem_label, linestyle = getLabel(problem_type, eps, QI), get_linestyle(problem_type, QI)
@@ -622,4 +633,4 @@ if __name__ == "__main__":
                     # markevery=100,
                 )
 
-    # finalize_plot(case, dt, err_plotter, num_nodes, problems, problem_name, QI_list, subplot_indices, hook_for, solver_type=solver_type)
+    finalize_plot(case, dt, err_plotter, num_nodes, problems, problem_name, QI_list, subplot_indices, hook_for, solver_type=solver_type)

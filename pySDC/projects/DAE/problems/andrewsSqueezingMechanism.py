@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 
 from pySDC.core.errors import ProblemError
 from pySDC.core.problem import WorkCounter
@@ -6,12 +7,12 @@ from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
 
 class AndrewsSqueezingMechanismDAE(ProblemDAE):
-    def __init__(self, newton_tol=1e-12, index=1):
+    def __init__(self, newton_tol=1e-12, index=1, newton_maxiter=100):
         """Initialization routine"""
         super().__init__(nvars=27, newton_tol=newton_tol)
-        self._makeAttributeAndRegister('newton_tol', 'index', localVars=locals())
-        self.work_counters['rhs'] = WorkCounter()
-        self.work_counters['newton'] = WorkCounter()
+        self._makeAttributeAndRegister("newton_tol", "index", localVars=locals())
+        self.work_counters["rhs"] = WorkCounter()
+        self.work_counters["newton"] = WorkCounter()
 
         self.m1 = 0.04325
         self.m2 = 0.00365
@@ -71,6 +72,20 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.func = np.zeros(7)
         self.g = np.zeros(6)
         self.gqqv = np.zeros(6)
+
+        for path in [
+            Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
+            Path("/beegfs/wimmer/pySDC/projects/DAE/data/")
+        ]:
+            if path.exists():
+                path_to_data = path
+                break
+        else:
+            raise FileNotFoundError("Could not locate data directory.")
+
+        self.t_ref = np.load(path_to_data / "t_solve_andrews_3.npy")
+        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_3.npy")
+        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_3.npy")
 
     def eval_f(self, u, du, t):
         r"""
@@ -320,9 +335,9 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             Exact solution.
         """
 
-        assert (
-            t == 0.0 or t == 0.03
-        ), f"u_exact only provides initial conditions for time 0.0 and reference solution for time 0.03 for q!"
+        # assert (
+        #     t == 0.0 or t == 0.03
+        # ), f"u_exact only provides initial conditions for time 0.0 and reference solution for time 0.03 for q!"
 
         me = self.dtype_u(self.init)
         if t == 0.0:
@@ -339,17 +354,64 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             me.alg[0 : 7] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
             me.alg[7 : 13] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
 
-        elif t == 0.03:
-            me.diff[0 : 7] = (
-                0.1581077119629904e2,
-                -0.1575637105984298e2,
-                0.4082224013073101e-1,
-                -0.5347301163226948,
-                0.5244099658805304,
-                0.5347301163226948,
-                0.1048080741042263*10,
-            )
+        if t > 0.0:
+            i = np.searchsorted(self.t_ref, t)
+
+            if i < len(self.t_ref) and np.isclose(self.t_ref[i], t, atol=1e-14):
+                ind = i
+            elif i > 0 and np.isclose(self.t_ref[i-1], t, atol=1e-14):
+                ind = i - 1
+            else:
+                print("No suitable entry found.")
+
+            u_ref_diff = self.u_diff_ref[ind, :]
+            u_ref_alg = self.u_alg_ref[ind, :]
+
+            me.diff[0 : 7] = u_ref_diff[0 : 7]  # q
+            me.diff[7 : 14] = u_ref_diff[7 : 14]  # v
+
+            me.alg[0 : 7] = u_ref_alg[0 : 7]  # w
+            me.alg[7 : 13] = u_ref_alg[7 : 13]  # l
+
+        # elif t == 0.03:
+        #     me.diff[0 : 7] = (
+        #         0.1581077119629904e2,
+        #         -0.1575637105984298e2,
+        #         0.4082224013073101e-1,
+        #         -0.5347301163226948,
+        #         0.5244099658805304,
+        #         0.5347301163226948,
+        #         0.1048080741042263*10,
+        #     )
         return me
+
+    def du_exact(self, t):
+        r"""
+        Routine for the initial condition of derivative of exact solution
+        at time :math:`t`. Required for Runge-Kutta methods.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
+
+        Returns
+        -------
+        du_ex : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Derivative of exact solution.
+        """
+
+        assert t == 0.0, f"ERROR: Only initial condition at time 0.0 available!"
+
+        u0 = self.u_exact(t)
+        q, v = u0.diff[: 7], u0.diff[7 : 14]
+        w = u0.alg[: 7]
+
+        du_ex = self.dtype_f(self.init)
+        du_ex.diff[0 : 7] = v[:]
+        du_ex.diff[7 : 14] = w[:]
+        du_ex.alg[:] = self.algebraicConstraints(u0, t)[:]
+        return du_ex
 
 
 class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):

@@ -56,7 +56,7 @@ class LinearTestDAE(ProblemDAE):
             localVars=locals(),
         )
 
-        if self.solver_type in ["direct", "gmres"]:
+        if self.solver_type in ["gmres"]:
             raise ParameterError(
                 f"{self.solver_type} does not work correctly yet. Choose either 'newton' or 'hybr'"
             )
@@ -249,10 +249,13 @@ class LinearTestDAE(ProblemDAE):
             Numerical solution of the linear system.
         """
 
-        b = np.array([rhs.diff[0], rhs.alg[0]])
-        u = np.linalg.solve(self.Id0 - factor * self.A, b)
-        # dg_inv = self.dg_inv(factor)
-        # u = dg_inv @ b
+        b = np.array([
+            self.lamb_diff * rhs.diff[0] + self.lamb_alg * rhs.alg[0],
+            self.lamb_diff * rhs.diff[0] - self.lamb_alg * rhs.alg[0],
+        ])
+
+        dg_inv = self.dg_inv(factor)
+        u = dg_inv @ b
 
         solution = self.dtype_u(self.init)
         solution.diff[0] = u[0]
@@ -532,10 +535,10 @@ class SemiImplicitLinearTestDAE(LinearTestDAE):
             Numerical solution of the linear system.
         """
 
-        b = np.array([rhs.diff[0], rhs.alg[0]])
-        u = np.linalg.solve(self.Id0 - factor * self.Adiff2 - self.Aalg2, b)
-        # dg_inv = self.dg_inv(factor)
-        # u = dg_inv @ b
+        b = np.array([self.lamb_diff * rhs.diff[0], self.lamb_diff * rhs.diff[0]])
+
+        dg_inv = self.dg_inv(factor)
+        u = dg_inv @ b
 
         solution = self.dtype_u(self.init)
         solution.diff[0] = u[0]
@@ -691,9 +694,9 @@ class LinearTestDAEConstrained(LinearTestDAE):
         """
 
         b = np.array([rhs.diff[0], rhs.alg[0]])
-        u = np.linalg.solve(self.Id0 - factor * self.Adiff + self.Aalg, b)
-        # dg_inv = self.dg_inv(factor)
-        # u = dg_inv @ b
+
+        dg_inv = self.dg_inv(factor)
+        u = dg_inv @ b
 
         solution = self.dtype_u(self.init)
         solution.diff[0] = u[0]
@@ -866,9 +869,9 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
         """
 
         b = np.array([rhs.diff[0], rhs.alg[0]])
-        u = np.linalg.solve(self.Id0 - factor * self.A, b)
-        # dg_inv = self.dg_inv(factor)
-        # u = dg_inv @ b
+        # u = np.linalg.solve(self.Id0 - factor * self.A, b)
+        dg_inv = self.dg_inv(factor)
+        u = dg_inv @ b
 
         solution = self.dtype_u(self.init)
         solution.diff[0] = u[0]

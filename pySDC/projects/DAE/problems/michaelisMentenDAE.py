@@ -622,6 +622,7 @@ class MichaelisMentenConstrained(MichaelisMentenDAE):
 
 class MichaelisMentenEmbedded(MichaelisMentenConstrained):
     """Problem class for an embedded method where only the algebraic constraint is enforced"""
+
     def g(self, factor, u, t, rhs):
         r"""
         Function of implicit system to be solved arising in ``genericImplicitEmbedded``.

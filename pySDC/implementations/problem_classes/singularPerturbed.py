@@ -176,6 +176,210 @@ class chatGPTSPP(Problem):
         return me
 
 
+class DahlquistProtheroRobinsonSPP(Problem):
+    r"""
+    Example implementing the combined system consisting of the Dahlquist equation
+    and the Prothero-Robinson example [1]_. For :math:`\varepsilon > 0` we have
+
+    .. math::
+        y'(t) = \lambda y(t),
+
+    .. math::
+        \varepsilon z'(t) = \varepsilon p'(t) - z(t) + p(t)
+
+    for :math:`p(t) = \alpha y(t)`. The exact solution is given by
+    :math:`(e^{\lambda t}, \alpha e^{\lambda t})`.
+
+    Parameters
+    ----------
+    nvars : int
+        Number of unknowns in the problem.
+    newton_tol : float
+        Tolerance for Newton's method to terminate.
+    newton_maxiter : int
+        Maximum number of iterations for Newton's method.
+    stop_at_maxiter : bool, optional
+        Indicates that the Newton solver should stop if maximum number of iterations are executed.
+    stop_at_nan : bool, optional
+        Indicates that the Newton solver should stop if ``nan`` values arise.
+    eps : float, optional
+        Perturbation parameter :math:`\varepsilon`.
+    lamb : float, optional
+        Parameter from Dahlquist equation.
+    alpha : float, optional
+        Parameter of known function :math:`p`.
+
+    References
+    ----------
+    .. [1] A. Prothero, A. Robinson. On the stability and accuracy of one-step methods for solving stiff systems
+        of ordinary differential equations. Mathematics of Computation, pp. 145-162, 28 (1974).
+    """
+
+    dtype_u = mesh
+    dtype_f = mesh
+
+    def __init__(
+            self,
+            nvars=2,
+            newton_tol=1e-12,
+            newton_maxiter=100,
+            stop_at_maxiter=False,
+            stop_at_nan=True,
+            eps=0.001,
+            lamb=1.0,
+            alpha=100.0,
+    ):
+        """Initialization routine"""
+        super().__init__(init=(nvars, None, np.dtype("float64")))
+        self._makeAttributeAndRegister(
+            "newton_tol",
+            "newton_maxiter",
+            "stop_at_maxiter",
+            "stop_at_nan",
+            "eps",
+            "lamb",
+            "alpha",
+            localVars=locals(),
+        )
+        self.work_counters["newton"] = WorkCounter()
+        self.work_counters["rhs"] = WorkCounter()
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains four components).
+        """
+        y, z = u[0], u[1]
+
+        f = self.dtype_f(self.init)
+        f[0] = self.lamb * y
+        f[1] = self.alpha * self.lamb * y - (z - self.alpha * y) * self.eps ** (-1)
+        self.work_counters["rhs"]()
+        return f
+
+    def g(self, factor, u, t, rhs):
+        y, z = u[0], u[1]
+
+        g1 = y - factor * self.lamb * y - rhs[0]
+        g2 = z - factor * (self.alpha * self.lamb * y - z * self.eps ** (-1) + self.alpha * y * self.eps ** (-1)) - rhs[1]
+
+        return np.array([g1, g2])
+
+    def dg(self, factor):
+        dg = np.array(
+            [
+                [1 - factor * self.lamb, 0],
+                [-factor * self.alpha * (self.lamb + self.eps ** (-1)), 1 + factor * self.eps ** (-1)],
+            ]
+        )
+
+        return dg
+    
+    def dg_inv(self, factor):
+        det_dg = (1 - factor * self.lamb) * (1 + factor * self.eps ** (-1))
+
+        dg_inv = np.array(
+            [
+                [1 + factor * self.eps ** (-1), 0],
+                [factor * self.alpha * (self.lamb + self.eps ** (-1)), 1 - factor * self.lamb],
+            ]
+        )
+        return 1 / det_dg * dg_inv
+
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Simple Newton solver.
+
+        Parameters
+        ----------
+        rhs : dtype_f
+            Right-hand side for the nonlinear system.
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u0 : dtype_u
+            Initial guess for the iterative solver.
+        t : float
+            Current time (required here for the BC).
+
+        Returns
+        -------
+        me : dtype_u
+            The solution as mesh.
+        """
+
+        u = self.dtype_u(u0)
+
+        # start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            # Form the function g(u), such that the solution to the nonlinear problem is a root of g
+            g = self.g(factor, u, t, rhs)
+
+            # If g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+            if res < self.newton_tol:
+                break
+
+            # Inverse of dg
+            dg_inv = self.dg_inv(factor)
+
+            # Newton update: u1 = u0 - g/dg
+            dx = dg_inv @ g
+            u -= dx
+
+            n += 1
+            self.work_counters["newton"]()
+        # print(n, res)
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
+        elif np.isnan(res):
+            self.logger.warning("Newton got nan after %i iterations..." % n)
+
+        # if n == self.newton_maxiter:
+        #     msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+        #     if self.stop_at_maxiter:
+        #         raise ProblemError(msg)
+        #     else:
+        #         self.logger.warning(msg)
+
+        me = self.dtype_u(self.init)
+        me[:] = u[:]
+
+        return me
+
+    def u_exact(self, t, **kwargs):
+        r"""
+        Routine for the exact solution at time :math:`t`.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
+
+        Returns
+        -------
+        me : dtype_u
+            Exact solution.
+        """
+
+        me = self.dtype_u(self.init)
+        me[0] = np.exp(self.lamb * t)
+        me[1] = self.alpha * np.exp(self.lamb * t)
+        return me
+
+
 class ProtheroRobinsonSPP(Problem):
     r"""
     Example implementing the cosine problem also known as the Prothero-Robinson example [1]_ of the form
@@ -1301,7 +1505,8 @@ class MichaelisMentenSPP(Problem):
 
         path_to_data = Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/")
         if not path_to_data.exists():
-            path_to_data = Path("/beegfs/wimmer/Python/pySDC/lib/python3.9/site-packages/pySDC/implementations/problem_classes/")
+            # path_to_data = Path("/beegfs/wimmer/Python/pySDC/lib/python3.9/site-packages/pySDC/implementations/problem_classes/")
+            path_to_data = Path("/beegfs/wimmer/Python/pysdc_assimulo_ida/lib/python3.9/site-packages/pySDC/projects/DAE/data/")
 
         if eps in [10 ** (-m) for m in range(1, 12)]:            
             fname = path_to_data / f"refSol_SciPy_michaelisMenten_{eps=}.dat"

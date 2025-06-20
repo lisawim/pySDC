@@ -486,7 +486,7 @@ class Plotter:
         handles, labels = [], []
         for ax in self.axes:
             h, l = ax.get_legend_handles_labels()
-            
+
             # If `ax` is a `brokenaxes`, h and l may be nested lists/tuples. Flatten them.
             if isinstance(h, (list, tuple)) and any(isinstance(i, (list, tuple)) for i in h):
                 h = [item for sublist in h for item in sublist]  # Flatten nested lists/tuples
@@ -498,7 +498,7 @@ class Plotter:
 
         # Remove duplicates (optional, in case labels repeat)
         by_label = dict(zip(labels, handles))
-        
+
         self.fig.legend(
             by_label.values(),
             by_label.keys(),
@@ -549,16 +549,16 @@ class Plotter:
             self.fig.colorbar(self._shared_colorbar, ax=self.axes, location="right", **kwargs)
 
 
-    def set_grid(self, grid_on=True, subplot_index=None, secondary=False):
+    def set_grid(self, grid_on=True, subplot_index=None, secondary=False, **kwargs):
         if subplot_index is None:
             for ax in self.axes:
-                ax.grid(grid_on)
+                ax.grid(grid_on, **kwargs)
         else:
             self._check_subplot_index(subplot_index)
             if secondary and self.secondary_axes[subplot_index] is not None:
-                self.secondary_axes[subplot_index].grid(grid_on)
+                self.secondary_axes[subplot_index].grid(grid_on, **kwargs)
             else:
-                self.axes[subplot_index].grid(grid_on)
+                self.axes[subplot_index].grid(grid_on, **kwargs)
 
     def set_xscale(self, scale="linear", subplot_index=0, base=None):
         """
@@ -738,6 +738,17 @@ def getColor(problemType, i, QI):
         return colors[QI][i]
 
 
+def getColorQI(QI):
+    colors = {
+        "IE": "chocolate",
+        "LU": "darkred",
+        "MIN-SR-S": "green",
+        "MIN-SR-NS": "steelblue",
+        "Picard": "mediumpurple",
+    }
+    return colors[QI]
+
+
 def getLabel(problemType, eps, QI):
     if QI in SDC_METHODS:
         if problemType == "constrainedDAE":
@@ -772,6 +783,17 @@ def get_linestyle(problem_type, QI):
         return random.choice(linestyles)
 
 
+def get_linestyle_QI(QI):
+    linestyles = {
+        "IE": "solid",
+        "LU": "dashed",
+        "MIN-SR-S": "dotted",
+        "MIN-SR-NS": "dashdot",
+        "Picard": "solid",
+    }
+    return linestyles[QI]
+
+
 def getMarker(problemType, i, QI):
     markersize = 13.0
 
@@ -801,3 +823,14 @@ def getMarker(problemType, i, QI):
             "RadauIIA9": ["h"],
         }
         return {"marker": marker[QI][i], "markersize": markersize}
+
+
+def getMarkerQI(QI):
+    markers = {
+        "IE": "*",
+        "LU": "d",
+        "MIN-SR-S": "o",
+        "MIN-SR-NS": "s",
+        "Picard": "h",
+    }
+    return markers[QI]

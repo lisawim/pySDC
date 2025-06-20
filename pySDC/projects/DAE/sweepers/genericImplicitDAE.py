@@ -111,10 +111,8 @@ class genericImplicitConstrained(generic_implicit):
 
             # implicit solve with prefactor stemming from the diagonal of Qd
             alpha = L.dt * self.QI[m + 1, m + 1]
-            if alpha == 0:
-                L.u[m + 1] = rhs
-            else:
-                L.u[m + 1] = P.solve_system(rhs, alpha, L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
+            L.u[m + 1] = P.solve_system(rhs, alpha, L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
+
             # update function values
             L.f[m + 1] = P.eval_f(L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
 

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.optimize import root
 
+from pySDC.implementations.sweeper_classes.Runge_Kutta import ButcherTableau, ButcherTableauEmbedded
 from pySDC.projects.DAE.sweepers.rungeKuttaDAE import RungeKuttaDAE
 from pySDC.implementations.sweeper_classes.Runge_Kutta import ButcherTableau
 

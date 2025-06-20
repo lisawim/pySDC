@@ -1,11 +1,12 @@
 import numpy as np
 import importlib
+import gc
 
 from pySDC.helpers.stats_helper import get_sorted
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
-SDC_METHODS = ['IE', 'LU', 'MIN-SR-NS', 'MIN-SR-S', 'MIN-SR-FLEX', 'MIN', 'MIN3', 'Picard']
+SDC_METHODS = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "MIN-SR-FLEX", "MIN", "MIN3", "Picard", "FB", "FB2"]
 RK_METHODS = ["BE", "DIRK43", "EDIRK4", "DIRK", "DIRK5", "DIRK5_2", "ESDIRK53", "SDIRK3"]
 COLLOCATION_METHODS = ["RadauIIA5", "RadauIIA7", "RadauIIA9"]
 
@@ -23,12 +24,53 @@ problemMapping = {
             "module": "pySDC.projects.DAE.problems.andrewsSqueezingMechanism",
             "class": "AndrewsSqueezingMechanismDAEConstrained",
         },
+        "fullyImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.andrewsSqueezingMechanism",
+            "class": "AndrewsSqueezingMechanismDAE",
+        },
+        "semiImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.andrewsSqueezingMechanism",
+            "class": "AndrewsSqueezingMechanismDAE",
+        },
         "description": {
-            "index": 3,
+            "index": 1,
             "e_tol": 1e-13,
             "maxiter": 80,
             "newton_tol": 1e-12,
             "newton_maxiter": 100,
+            "solver_type": "hybr",
+        },
+    },
+    "DPR": {
+        "SPP": {
+            "module": "pySDC.implementations.problem_classes.singularPerturbed",
+            "class": "DahlquistProtheroRobinsonSPP",
+        },
+        "SPP-yp": {
+            "NotImplemented": True,
+        },
+        "embeddedDAE": {
+            "module": "pySDC.projects.DAE.problems.dahlquistProtheroRobinsonDAE",
+            "class": "DahlquistProtheroRobinsonDAEEmbedded",
+        },
+        "constrainedDAE": {
+            "module": "pySDC.projects.DAE.problems.dahlquistProtheroRobinsonDAE",
+            "class": "DahlquistProtheroRobinsonDAEConstrained",
+        },
+        "fullyImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.dahlquistProtheroRobinsonDAE",
+            "class": "DahlquistProtheroRobinsonDAE",
+        },
+        "semiImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.dahlquistProtheroRobinsonDAE",
+            "class": "DahlquistProtheroRobinsonDAE",
+        },
+        "description": {
+            "e_tol": 1e-13,
+            "maxiter": 80,
+            "newton_tol": 1e-12,
+            "newton_maxiter": 20,
+            "solver_type": "newton",
         },
     },
     "LINEAR-TEST": {
@@ -102,6 +144,33 @@ problemMapping = {
             "maxiter": 100,
             "newton_tol": 1e-12,
             "newton_maxiter": 20,
+            "solver_type": "hybr",
+        },
+    },
+    "REACTION-DIFFUSION": {
+        # "embeddedDAE": {
+        #     "module": "pySDC.projects.DAE.problems.michaelisMentenDAE",
+        #     "class": "MichaelisMentenEmbedded",
+        # },
+        # "constrainedDAE": {
+        #     "module": "pySDC.projects.DAE.problems.michaelisMentenDAE",
+        #     "class": "MichaelisMentenConstrained",
+        # },
+        "fullyImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.reactionDiffusionPDAE",
+            "class": "ReactionDiffusionPDAE",
+        },
+        "semiImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.reactionDiffusionPDAE",
+            "class": "ReactionDiffusionPDAE",
+        },
+        "description": {
+            "e_tol": 1e-13,
+            "maxiter": 100,
+            "newton_tol": 1e-12,
+            "newton_maxiter": 20,
+            "nvars": 64,
+            "solver_type": "hybr",
         },
     },
     "PROTHERO-ROBINSON": {
@@ -127,6 +196,36 @@ problemMapping = {
         "semiImplicitDAE": {
             "module": "pySDC.projects.DAE.problems.protheroRobinsonDAE",
             "class": "ProtheroRobinsonDAE",
+        },
+        "description": {
+            "e_tol": 1e-13,
+            "maxiter": 40,
+            "newton_tol": 1e-12,
+            "newton_maxiter": 20,
+        },
+    },
+    "TELEGRAPHER": {
+        "SPP": {
+            "NotImplemented": True,  # Indicate this case is not implemented
+        },
+        "SPP-yp": {
+            "NotImplemented": True,  # Indicate this case is not implemented
+        },
+        # "embeddedDAE": {
+        #     "module": "pySDC.projects.DAE.problems.protheroRobinsonDAE",
+        #     "class": "ProtheroRobinsonDAEEmbedded",
+        # },
+        # "constrainedDAE": {
+        #     "module": "pySDC.projects.DAE.problems.protheroRobinsonDAE",
+        #     "class": "ProtheroRobinsonDAEConstrained",
+        # },
+        "fullyImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.telegrapherDAE",
+            "class": "TelegrapherDAE",
+        },
+        "semiImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.telegrapherDAE",
+            "class": "TelegrapherDAE",
         },
         "description": {
             "e_tol": 1e-13,
@@ -403,8 +502,11 @@ def getEndTime(problemName):
 
     Tprob = {
         "ANDREWS-SQUEEZER": 0.03,
+        "DPR": 1.0,
         "LINEAR-TEST": 1.0,
         "MICHAELIS-MENTEN": 0.02,  # 1.2
+        "PROTHERO-ROBINSON": 1.0,
+        "REACTION-DIFFUSION": 0.5,
         "VAN-DER-POL": 1.5,
     }
     return Tprob[problemName]
@@ -764,12 +866,22 @@ def setupProblem(problemName, description, nNodes, problemType, **kwargs):
             "maxiter": maxiter_adaptivity if kwargs.get("use_adaptivity", False) else kwargs.get("maxiter", maxiter)
         }
 
-        description["problem_params"] = {"newton_tol": kwargs.get("newton_tol", newton_tol), "newton_maxiter": newton_maxiter}
+        description["problem_params"] = {
+            "newton_tol": kwargs.get("newton_tol", newton_tol), "newton_maxiter": newton_maxiter
+        }
 
         # Add problem-specific params "manually" (TODO: more efficient way to do that?)
         if problemName == "ANDREWS-SQUEEZER":
             index = descriptionInfo["index"]
-            description["problem_params"].update({"index": kwargs.get("index", index)})
+            # solver_type = descriptionInfo["solver_type"]
+            description["problem_params"].update({
+                "index": kwargs.get("index", index),
+                # "solver_type": kwargs.get("solver_type", solver_type)
+            })
+
+        elif problemName == "DPR":
+            if problemType in ["fullyImplicitDAE", "semiImplicitDAE"]:
+                description["problem_params"].pop("newton_maxiter", None)
 
         elif problemName == "LINEAR-TEST":
             solver_type = descriptionInfo["solver_type"]
@@ -779,12 +891,19 @@ def setupProblem(problemName, description, nNodes, problemType, **kwargs):
                 description["problem_params"].pop("newton_maxiter", None)
 
         elif problemName == "MICHAELIS-MENTEN":
+            solver_type = descriptionInfo["solver_type"]
+            description["problem_params"].update({"solver_type": kwargs.get("solver_type", solver_type)})
+
             if problemType in ["SPP-yp"]:
                 description["problem_params"].pop("newton_maxiter", None)
 
         elif problemName == "PROTHERO-ROBINSON":
             if problemType in ["fullyImplicitDAE", "semiImplicitDAE"]:
                 description["problem_params"].pop("newton_maxiter", None)
+
+        elif problemName == "REACTION-DIFFUSION":
+            nvars = descriptionInfo["nvars"]
+            description["problem_params"].update({"nvars": kwargs.get("nvars", nvars)})
 
         eps = kwargs.get("eps")
         if eps != 0.0:
@@ -853,7 +972,7 @@ def setupSweeper(description, nNodes, QI, problemType, useMPI=False, **kwargs):
             "num_nodes": nNodes,
             "QI": QI,
             "QE": "EE",
-            "initial_guess": "spread",
+            "initial_guess": kwargs.get("initial_guess", "spread"),
             "skip_residual_computation": kwargs.get("skip_residual_computation", skip_residual_computation_default),
         })
 
@@ -902,84 +1021,6 @@ def setupSweeper(description, nNodes, QI, problemType, useMPI=False, **kwargs):
 
     # Assign sweeper class to description
     description["sweeper_class"] = sweeper
-
-    #######################################################
-    # if QI in SDC_METHODS:
-        # if useMPI:
-        #     if problemType == 'SPP':
-        #         from pySDC.implementations.sweeper_classes.generic_implicit_MPI import generic_implicit_MPI as sweeper
-        #     elif problemType == "SPP-yp":
-        #         from pySDC.projects.DAE.sweepers.fullyImplicitDAEMPI import FullyImplicitDAEMPI as sweeper
-        #     elif problemType == 'embeddedDAE':
-        #         from pySDC.playgrounds.DAE.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
-        #     elif problemType == 'constrainedDAE':
-        #         from pySDC.playgrounds.DAE.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
-        #     elif problemType == 'fullyImplicitDAE':
-        #         from pySDC.projects.DAE.sweepers.fullyImplicitDAEMPI import FullyImplicitDAEMPI as sweeper
-        #     elif problemType == 'semiImplicitDAE':
-        #         from pySDC.projects.DAE.sweepers.semiImplicitDAEMPI import SemiImplicitDAEMPI as sweeper
-        #     else:
-        #         raise NotImplementedError(f"No MPI sweeper for {problemType} implemented!")
-
-        #     comm = kwargs.get('comm', None)
-        #     if comm is not None:
-        #         description['sweeper_params'].update({'comm': comm})
-        #         assert (
-        #             nNodes == comm.Get_size()
-        #         ), f"Number of nodes does not match with number of processes! Expected {nNodes}, got {comm.Get_size()}!"
-        # else:
-        #     if problemType == 'SPP':
-        #         logResidualComp = kwargs.get('logResidualComp', False)
-        #         if logResidualComp:
-        #             from pySDC.playgrounds.DAE.genericImplicitDAE import genericImplicitOriginal as sweeper
-        #         else:
-        #             from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit as sweeper
-        #     elif problemType == "gmresSPP":
-        #         from pySDC.implementations.sweeper_classes.gmres_sdc import GMRESSDC as sweeper
-        #     elif problemType == "SPP-yp":
-        #         from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE as sweeper
-        #     elif problemType == 'embeddedDAE':
-        #         from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded as sweeper
-        #     elif problemType == 'constrainedDAE':
-        #         from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained as sweeper
-        #     elif problemType == 'fullyImplicitDAE':
-        #         from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE as sweeper
-        #     elif problemType == 'semiImplicitDAE':
-        #         from pySDC.projects.DAE.sweepers.semiImplicitDAE import SemiImplicitDAE as sweeper
-        #     else:
-        #         raise NotImplementedError(f"{problemType} is not implemented!")
-
-    #     # initialize sweeper parameters
-    #     description['sweeper_params'].update({
-    #         'quad_type': kwargs.get('quadType', 'RADAU-RIGHT'),
-    #         'num_nodes': nNodes,
-    #         'QI': QI,
-    #         'initial_guess': 'spread',
-    #         'skip_residual_computation': kwargs.get('skip_residual_computation', skip_residual_computation_default),
-    #     })
-
-    # elif QI in RK_METHODS.keys() or QI in RK_METHODS_DAE.keys():  # Expect scheme to be a Runge-Kutta method
-    #     if useMPI:
-    #         raise NotImplementedError(f"No parallel Runge-Kutta schemes implemented!")
-    #     if problemType == 'SPP':
-    #         sweeper = RK_METHODS[QI]
-    #     elif problemType in ['SPP-yp', 'fullyImplicitDAE', 'semiImplicitDAE']:
-    #         sweeper = RK_METHODS_DAE[QI]
-    #     elif problemType == 'constrainedDAE':
-    #         sweeper = RK_METHODS_DAE_CONSTRAINED[QI]
-    #     else:
-    #         raise NotImplementedError(f"No Runge Kutta method for {problemType} is implemented!")
-
-    #     description['level_params']['restol'] = -1
-    #     description['level_params']['e_tol'] = -1
-    #     description['level_params']['nsweeps'] = 1
-
-    #     description['step_params'] = {'maxiter': 1}
-    #     description['sweeper_params'] = {
-    #         'skip_residual_computation': skip_residual_computation_default,
-    #     }
-
-    # description['sweeper_class'] = sweeper
 
     return description
 
@@ -1054,6 +1095,8 @@ def computeSolution(problemName, t0, dt, Tend, nNodes, QI, problemType, useMPI=F
 
     # call main function to get things done...
     _, solutionStats = controller.run(u0=uinit, t0=t0, Tend=Tend)
+
+    # gc.collect()
 
     return solutionStats
 

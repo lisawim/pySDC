@@ -15,7 +15,7 @@ from .utils import (
     roundUpToNextBase10,
     roundUpToNextX,
 )
-from .utilsPlot import getColor, getLabel, get_linestyle, getMarker, Plotter
+from .utilsPlot import getColor, getColorQI, getLabel, get_linestyle, get_linestyle_QI, getMarker, getMarkerQI, Plotter
 
 QI_SERIAL = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX"]
 
@@ -28,6 +28,7 @@ __all__ = [
     "getErrors",
     "getCollocationMatrix",
     "getColor",
+    "getColorQI",
     "getEndTime",
     "getIterationMatrix",
     "getJacobianMatrix",
@@ -35,7 +36,9 @@ __all__ = [
     "getWork",
     "getLabel",
     "get_linestyle",
+    "get_linestyle_QI",
     "getMarker",
+    "getMarkerQI",
     "getMaxVal",
     "getMinVal",
     "Plotter",

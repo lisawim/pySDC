@@ -148,9 +148,7 @@ class LinearTestDAE(ProblemDAE):
         """
 
         det = factor * self.lamb_alg - 2 * factor ** 2 * self.lamb_diff * self.lamb_alg
-        if abs(det) < 1e-14:
-            raise np.linalg.LinAlgError("Jacobian determinant close to zero.")
-        
+
         inv = np.array([
             [factor * self.lamb_alg, factor * self.lamb_alg],
             [factor * self.lamb_diff, 1 - factor * self.lamb_diff],

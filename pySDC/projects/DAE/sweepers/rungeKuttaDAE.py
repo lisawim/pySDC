@@ -1,5 +1,7 @@
 from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE
 from pySDC.implementations.sweeper_classes.Runge_Kutta import (
+    ButcherTableau,
+    ButcherTableauEmbedded,
     RungeKutta,
     BackwardEuler,
     CrankNicolson,
@@ -165,6 +167,37 @@ class RungeKuttaDAE(RungeKutta):
         lvl.status.updated = True
 
         return None
+
+    def compute_end_point(self):
+        """
+        In this Runge-Kutta implementation, the solution to the step is always stored in the last node
+        """
+        lvl = self.level
+
+        if lvl.f[1] is None:
+            lvl.uend = lvl.prob.dtype_u(lvl.u[0])
+            if type(self.coll) == ButcherTableauEmbedded:
+                self.u_secondary = lvl.prob.dtype_u(lvl.u[0])
+        elif self.coll.globally_stiffly_accurate:
+            lvl.uend = lvl.prob.dtype_u(lvl.u[-1])
+            if type(self.coll) == ButcherTableauEmbedded:
+                self.u_secondary = lvl.prob.dtype_u(lvl.u[0])
+                for w2, k in zip(self.coll.weights[1], lvl.f[1:]):
+                    self.u_secondary += lvl.dt * w2 * k
+            elif type(self.coll) == ButcherTableau:
+                self.u_secondary = lvl.prob.dtype_u(lvl.u[0])
+                for w, k in zip(self.coll.weights, lvl.f[1:]):
+                    self.u_secondary += lvl.dt * w * k
+        else:
+            lvl.uend = lvl.prob.dtype_u(lvl.u[0])
+            if type(self.coll) == ButcherTableau:
+                for w, k in zip(self.coll.weights, lvl.f[1:]):
+                    lvl.uend += lvl.dt * w * k
+            elif type(self.coll) == ButcherTableauEmbedded:
+                self.u_secondary = lvl.prob.dtype_u(lvl.u[0])
+                for w1, w2, k in zip(self.coll.weights[0], self.coll.weights[1], lvl.f[1:]):
+                    lvl.uend += lvl.dt * w1 * k
+                    self.u_secondary += lvl.dt * w2 * k
 
 
 class BackwardEulerDAE(RungeKuttaDAE, BackwardEuler):

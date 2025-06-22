@@ -77,13 +77,17 @@ def main():
             max_errors.append(max(err_values))
 
     if rank == 0:
-        # TODO: Instead of many files, only use one file for storing stats 
-        out = {"max_errors": max_errors, "wc_times": wallclock_times}
-
-        fname = f"result_{args.sweeper_type}_{args.QI}_{args.num_nodes}.pkl"
+        fname = f"results_experiment_{args.num_nodes}.pkl"
         path = os.path.join(args.output_dir, fname)
+
+        with open(path, "rb") as f:
+            all_stats = dill.load(f)
+
+        key = f"{args.sweeper_type}_{args.QI}"
+        all_stats[key] = {"max_errors": max_errors, "wc_times": wallclock_times}
+
         with open(path, "wb") as f:
-            dill.dump(out, f)
+            dill.dump(all_stats, f)
 
 if __name__ == '__main__':
     main()

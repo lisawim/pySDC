@@ -52,7 +52,7 @@ def plot_work_vs_error_single(all_stats, qDelta_list, problem_name, sweeper_type
     ax.tick_params(axis="both", which="minor", bottom=False, left=False)
     ax.set_xlabel("wall-clock time")
     ax.set_ylabel("global error")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"work_vs_error_single.png"
     file_path = Path(filename)
@@ -134,7 +134,7 @@ def plot_work_vs_error_sdc_variants(
     ax.tick_params(axis="both", which="minor", bottom=False, left=False)
     ax.set_xlabel("wall-clock time")
     ax.set_ylabel("global error")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"work_vs_error_sdc_variants.png"
     file_path = Path(filename)

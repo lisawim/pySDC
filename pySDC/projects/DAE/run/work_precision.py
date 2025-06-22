@@ -41,6 +41,11 @@ def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
 
     all_stats = {}
 
+    fname = f"results_experiment_{config.num_nodes}.pkl"
+    path = os.path.join(output_dir, fname)
+    with open(path, "wb") as f:
+        dill.dump(all_stats, f)
+
     args = {"problem_name": problem_name}
 
     for sweeper_type in config.sweeper_type_list:
@@ -77,18 +82,6 @@ def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
 
             env = os.environ.copy()
             subprocess.run(cmd, check=True, env=env, close_fds=True)
-
-            fname = f"result_{sweeper_type}_{QI}_{config.num_nodes}.pkl"
-            path = os.path.join(output_dir, fname)
-            with open(path, "rb") as f:
-                res = dill.load(f)
-
-            all_stats[key] = res
-
-    fname = f"results_experiment_{config.num_nodes}.pkl"
-    path = os.path.join(output_dir, fname)
-    with open(path, "wb") as f:
-        dill.dump(all_stats, f)
 
 
 # Script is started with "python3 work_precision.py"

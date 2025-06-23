@@ -34,7 +34,7 @@ def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
     os.makedirs(output_dir, exist_ok=True)
 
     t0, Tend = 0.0, 1.0
-    n_steps_list = [5, 10, 20, 50, 100, 200, 500, 1000]
+    n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500]
     dt_list = [Tend / n_steps for n_steps in n_steps_list]
 
     hook_class = [LogGlobalErrorPostStep]

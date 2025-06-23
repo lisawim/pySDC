@@ -43,6 +43,71 @@ def my_setup_mpl():
     # plt.rcParams['mathtext.fontset'] = 'cm'
     # plt.rcParams['mathtext.rm'] = 'serif'
 
+
+def my_plot_style_config():
+    """Defines plot-specific stuff."""
+
+    colors = {
+        "constrainedDAE_IE": "gold",
+        "constrainedDAE_LU": "orange",
+        "constrainedDAE_MIN-SR-NS": "firebrick",
+        "constrainedDAE_MIN-SR-S": "purple",
+        "constrainedDAE_Picard": "dodgerblue",
+        "embeddedDAE_IE": "royalblue",
+        "embeddedDAE_LU": "green",
+        "embeddedDAE_MIN-SR-NS": "plum",
+        "embeddedDAE_MIN-SR-S": "coral",
+        "embeddedDAE_Picard": "darkcyan",
+        "fullyImplicitDAE_IE": "limegreen",
+        "fullyImplicitDAE_LU": "darkturquoise",
+        "fullyImplicitDAE_MIN-SR-NS": "slategrey",
+        "fullyImplicitDAE_MIN-SR-S": "pink",
+        "fullyImplicitDAE_Picard": "sandybrown",
+        "fullyImplicitDAE_RadauIIA5": "palegreen",
+        "fullyImplicitDAE_RadauIIA7": "black",
+        "fullyImplicitDAE_RadauIIA9": "lightskyblue",
+        "semiImplicitDAE_IE": "yellow",
+        "semiImplicitDAE_LU": "darkmagenta",
+        "semiImplicitDAE_MIN-SR-NS": "mediumseagreen",
+        "semiImplicitDAE_MIN-SR-S": "khaki",
+        "semiImplicitDAE_Picard": "red",
+    }
+
+    markers = {
+        "constrainedDAE_IE": "o",
+        "constrainedDAE_LU": "s",
+        "constrainedDAE_MIN-SR-NS": "^",
+        "constrainedDAE_MIN-SR-S": "d",
+        "constrainedDAE_Picard": "*",
+        "embeddedDAE_IE": "D",
+        "embeddedDAE_LU": "<",
+        "embeddedDAE_MIN-SR-NS": "H",
+        "embeddedDAE_MIN-SR-S": "o",
+        "embeddedDAE_Picard": "v",
+        "fullyImplicitDAE_IE": "s",
+        "fullyImplicitDAE_LU": "p",
+        "fullyImplicitDAE_MIN-SR-NS": "X",
+        "fullyImplicitDAE_MIN-SR-S": "*",
+        "fullyImplicitDAE_Picard": "<",
+        "fullyImplicitDAE_RadauIIA5": "D",
+        "fullyImplicitDAE_RadauIIA7": "v",
+        "fullyImplicitDAE_RadauIIA9": "H",
+        "semiImplicitDAE_IE": "d",
+        "semiImplicitDAE_LU": "8",
+        "semiImplicitDAE_MIN-SR-NS": "s",
+        "semiImplicitDAE_MIN-SR-S": "^",
+        "semiImplicitDAE_Picard": "D",
+    }
+
+    sweeper_labels = {
+        "constrainedDAE": "SDC-C",
+        "embeddedDAE": "SDC-E",
+        "fullyImplicitDAE": "FI-SDC",
+        "semiImplicitDAE": "SI-SDC",
+    }
+
+    return colors, markers, sweeper_labels
+
 def setup_problem(problem_name, description, sweeper_type):
     """Sets up the problem with certain parameters."""
 

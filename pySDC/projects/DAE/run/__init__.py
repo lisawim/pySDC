@@ -5,6 +5,7 @@ from .utils import (
     ExperimentConfig,
     compute_solution,
     my_setup_mpl,
+    my_plot_style_config,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "ExperimentConfig",
     "compute_solution",
     "my_setup_mpl",
+    "my_plot_style_config",
 ]

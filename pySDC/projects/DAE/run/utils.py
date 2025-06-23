@@ -83,9 +83,9 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
 
     if use_mpi:
         if sweeper_type == "constrainedDAE":
-            from pySDC.playgrounds.DAE.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
+            from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
         elif sweeper_type == "embeddedDAE":
-            from pySDC.playgrounds.DAE.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
+            from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
         elif sweeper_type == "fullyImplicitDAE":
             from pySDC.projects.DAE.sweepers.fullyImplicitDAEMPI import FullyImplicitDAEMPI as sweeper
         elif sweeper_type == "semiImplicitDAE":

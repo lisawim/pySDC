@@ -84,6 +84,5 @@ def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
             subprocess.run(cmd, check=True, env=env, close_fds=True)
 
 
-# Script is started with "python3 work_precision.py"
 if __name__ == "__main__":
     run_all_simulations(problem_name="LINEAR-TEST")

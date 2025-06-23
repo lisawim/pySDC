@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 import scipy.sparse as sp
 from scipy.sparse.linalg import gmres
 from scipy.optimize import root
@@ -44,6 +45,7 @@ class LinearTestDAE(ProblemDAE):
             solver_type="newton",
             stop_at_maxiter=False,
             stop_at_nan=False,
+            suppress_warning=True,
         ):
         """Initialization routine"""
         super().__init__(nvars=2, newton_tol=newton_tol)
@@ -53,6 +55,7 @@ class LinearTestDAE(ProblemDAE):
             "solver_type",
             "stop_at_maxiter",
             "stop_at_nan",
+            "suppress_warning",
             localVars=locals(),
         )
 
@@ -60,6 +63,9 @@ class LinearTestDAE(ProblemDAE):
             raise ParameterError(
                 f"{self.solver_type} does not work correctly yet. Choose either 'newton' or 'hybr'"
             )
+        
+        if self.suppress_warning:
+            self.logger.setLevel(logging.ERROR)
 
         self.lamb_diff = -2.0
         self.lamb_alg = 1.0

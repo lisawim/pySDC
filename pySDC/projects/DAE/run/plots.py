@@ -109,7 +109,7 @@ def plot_work_vs_error_sdc_variants(
         "constrainedDAE": "SDC-C",
         "embeddedDAE": "SDC-E",
         "fullyImplicitDAE": "FI-SDC",
-        "semiImplicitDAE": "SE-SDC",
+        "semiImplicitDAE": "SI-SDC",
     }
 
     my_setup_mpl()

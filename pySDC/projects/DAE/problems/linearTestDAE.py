@@ -40,7 +40,7 @@ class LinearTestDAE(ProblemDAE):
 
     def __init__(
             self,
-            newton_tol=1e-12,
+            newton_tol=1e-14,
             newton_maxiter=20,
             solver_type="newton",
             stop_at_maxiter=False,

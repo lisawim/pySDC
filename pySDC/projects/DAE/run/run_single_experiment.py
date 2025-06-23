@@ -52,7 +52,15 @@ def main():
             comm.Barrier()
 
             solution_stats = compute_solution(
-                args.problem_name, args.t0, dt, args.Tend, args.num_nodes, args.QI, args.sweeper_type, hook_class=args.hook_class
+                args.problem_name,
+                args.t0,
+                dt,
+                args.Tend,
+                args.num_nodes,
+                args.QI,
+                args.sweeper_type,
+                args.use_mpi,
+                hook_class=args.hook_class,
             )
 
             comm.Barrier()
@@ -66,7 +74,15 @@ def main():
         else:
             if rank == 0:
                 solution_stats = compute_solution(
-                    args.problem_name, args.t0, dt, args.Tend, args.num_nodes, args.QI, args.sweeper_type, hook_class=args.hook_class
+                    args.problem_name,
+                    args.t0,
+                    dt,
+                    args.Tend,
+                    args.num_nodes,
+                    args.QI,
+                    args.sweeper_type,
+                    args.use_mpi,
+                    hook_class=args.hook_class,
                 )
 
                 timing_run_full = np.array(get_sorted(solution_stats, type="timing_run", sortby="time"))[0][1]

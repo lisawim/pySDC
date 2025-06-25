@@ -1,11 +1,8 @@
-import numpy as np
 import dill
 import os
 import subprocess
 
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
-
-from pySDC.projects.DAE import QI_PARALLEL, ExperimentConfig
+from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision
 
 
 def build_args_list(args, hook_class):
@@ -29,15 +26,12 @@ def build_args_list(args, hook_class):
     return args_list
 
 
-def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
-    output_dir = "data" + "/" + f"{problem_name}" + "/" + "results"
+def run_all_simulations(config):
+    output_dir = "data" + "/" + f"{config.problem_name}" + "/" + "results"
     os.makedirs(output_dir, exist_ok=True)
 
-    t0, Tend = 0.0, 1.0
     n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500]
-    dt_list = [Tend / n_steps for n_steps in n_steps_list]
-
-    hook_class = [LogGlobalErrorPostStep]
+    dt_list = [config.Tend / n_steps for n_steps in n_steps_list]
 
     all_stats = {}
 
@@ -46,32 +40,32 @@ def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
     with open(path, "wb") as f:
         dill.dump(all_stats, f)
 
-    args = {"problem_name": problem_name}
+    args = {"problem_name": config.problem_name}
 
-    for sweeper_type in config.sweeper_type_list:
+    for sweeper_type in config.sweepers:
 
-        for QI in config.qDelta_list:
+        for QI in config.qDeltas:
             key = f"{sweeper_type}_{QI}"
             all_stats[key] = {}
 
             if QI in ["RadauIIA5", "RadauIIA7"]:
                 sweeper_type = "fullyImplicitDAE"
 
-            use_mpi = True if QI in QI_PARALLEL else False
+            use_mpi = True if QI in config.qDeltas_parallel else False
 
             args.update({
-                "t0": t0,
+                "t0": config.t0,
                 "dt_list": dt_list,
-                "Tend": Tend,
+                "Tend": config.Tend,
                 "use_mpi": use_mpi,
                 "QI": QI,
                 "sweeper_type": sweeper_type,
-                "problem_name": problem_name,
+                "problem_name": config.problem_name,
                 "num_nodes": str(config.num_nodes),
                 "output_dir": output_dir,
             })
 
-            args_list = build_args_list(args, hook_class)
+            args_list = build_args_list(args, config.hook_class)
 
             cmd = (
                 ["mpiexec", "-n", str(config.num_nodes), "python3", "run_single_experiment.py"] + args_list
@@ -85,4 +79,5 @@ def run_all_simulations(config=ExperimentConfig, problem_name="LINEAR-TEST"):
 
 
 if __name__ == "__main__":
-    run_all_simulations(problem_name="LINEAR-TEST")
+    config = LinearTestWorkPrecision()
+    run_all_simulations(config, problem_name="LINEAR-TEST")

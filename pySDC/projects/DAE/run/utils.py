@@ -1,24 +1,8 @@
-import numpy as np
 import matplotlib.pyplot as plt
 
+from pySDC.projects.DAE.misc.configurations import BaseConfig
+
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-
-
-QDELTAS = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard"]
-
-QI_PARALLEL = ["MIN-SR-NS", "MIN-SR-S"]
-QI_SERIAL  = ["IE", "LU", "Picard"]
-
-COLL_METHODS = ["RadauIIA5", "RadauIIA7", "RadauIIA9"]
-
-class ExperimentConfig:
-    qDelta_list = [
-        "IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"
-    ]
-    sweeper_type_list = [
-        "constrainedDAE", "embeddedDAE", "fullyImplicitDAE", "semiImplicitDAE"
-    ]
-    num_nodes = 6
 
 
 def my_setup_mpl():
@@ -230,6 +214,7 @@ def compute_solution(
         sweeper_type,
         use_mpi=False,
         hook_class=[],
+        config=BaseConfig(),
         **kwargs,
     ):
 
@@ -238,11 +223,11 @@ def compute_solution(
 
     description = setup_problem(problem_name, description, sweeper_type)
 
-    if QI in QDELTAS:
+    if QI in config.qDeltas:
         description = setup_sweeper_sdc(
             description, num_nodes, sweeper_type, QI, use_mpi, **kwargs
         )
-    elif QI in COLL_METHODS:
+    elif QI in config.radau_methods:
         description = setup_sweeper_coll_method(
             description, sweeper_type, num_nodes, QI
         )

@@ -222,7 +222,7 @@ def finalize_plot(dt, k, num_nodes, plot_values_for, problem_name, QI_list, sing
             singular_values_plotter.set_yticks(y_ticks_lower, y_labels_lower, subplot_index=sub_id[1], fontsize=22)
 
             # Set y-limits
-            singular_values_plotter.set_ylim((3e-4, 1e1), scale="log", subplot_index=sub_id[0])
+            singular_values_plotter.set_ylim((3e-4, 1e4), scale="log", subplot_index=sub_id[0])
             singular_values_plotter.set_ylim((1.5e-20, 7e-16), scale="log", subplot_index=sub_id[1])
 
             singular_values_plotter.set_xlabel(r"Parameter $\varepsilon$", fontsize=28, subplot_index=sub_id[1])
@@ -246,17 +246,17 @@ def finalize_plot(dt, k, num_nodes, plot_values_for, problem_name, QI_list, sing
 if __name__ == "__main__":
     problem_name = "LINEAR-TEST"
 
-    QI_list = ["IE", "LU", "MIN-SR-S"]  # ["IE", "LU", "MIN-SR-S", "MIN-SR-FLEX"]
+    QI_list = ["MIN-SR-NS"]  # ["IE", "LU", "MIN-SR-S", "MIN-SR-FLEX"]
 
-    num_nodes_list = range(2, 22, 2)
+    num_nodes_list = range(2, 31)
 
     dt = 1e-2
 
-    case = 6
+    case = 4
 
     plot_values_for = "iteration_matrix"  # "jacobian"
 
-    problems = get_problem_cases(k=case)
+    problems = {"fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
     Q_coefficients = compute_Q_coefficients(num_nodes_list)
 
@@ -292,9 +292,11 @@ if __name__ == "__main__":
                     eps_x = [ind] * len(S)
 
                     # if plot_values_for == "jacobian":
-                    condition_number = np.max(S) / np.min(S)  # np.linalg.norm(A, 2) * np.linalg.norm(np.linalg.inv(A), 2)
-                    print(f"{QI} with {num_nodes} nodes: For {problem_type} with {eps=} condition is: {condition_number}\n")
-
+                    # condition_number = np.max(S) / np.min(S)  # np.linalg.norm(A, 2) * np.linalg.norm(np.linalg.inv(A), 2)
+                    # print(f"{QI} with {num_nodes} nodes: For {problem_type} with {eps=} condition is: {condition_number}\n")
+                    print(f"{num_nodes} nodes: For {problem_type} with {QI} the singular values are:")
+                    print(S)
+                    print()
                     color = getColor(problem_type, i, QI)
                     problem_label = getLabel(problem_type, eps, QI)
 

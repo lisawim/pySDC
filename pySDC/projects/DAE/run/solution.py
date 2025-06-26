@@ -20,19 +20,20 @@ def run(epsList, problemName, dt=1e-2):
         Time step size.
     """
 
-    nNodes = 6
+    nNodes = 20
 
-    QI = "LU"
-    dt = 1e-5
+    QI = "MIN-SR-NS"#"LU"
+    dt = 1e-1#1e-5
     t0 = 0.0
-    Tend = 0.01#getEndTime(problemName)
+    Tend = getEndTime(problemName)
 
     hook_class = [LogSolution]
 
     # Define a dictionary with problem types and their respective parameters
     problems = {
-        "SPP": epsList,
-        # "embeddedDAE": [0.0],
+        # "SPP": epsList,
+        "embeddedDAE": [0.0],
+        # "fullyImplicitDAE": [0.0],
         # "constrainedDAE": [0.0],
     }
 
@@ -52,17 +53,18 @@ def run(epsList, problemName, dt=1e-2):
                 hookClass=hook_class,
                 eps=eps,
                 newton_tol=1e-14,
+                solver_type="direct",
             )
 
             u_val = get_sorted(solutionStats, type="u", sortby="time")
 
-            t = np.array([0.0] + [me[0] for me in u_val])
+            t = np.array([me[0] for me in u_val])
             if not eps == 0.0:
                 # u = np.array([me[1] for me in u_val])
                 # y = u[:, 0]
                 # z = u[:, -1]
-                y = np.array([1.0] + [me[1][0] for me in u_val])
-                z = np.array([1.0] + [me[1][1] for me in u_val])
+                y = np.array([me[1][0] for me in u_val])
+                z = np.array([me[1][1] for me in u_val])
             else:
                 y = np.array([me[1].diff[0] for me in u_val])
                 z = np.array([me[1].alg[0] for me in u_val])
@@ -83,7 +85,7 @@ def run(epsList, problemName, dt=1e-2):
 
 
 if __name__ == "__main__":
-    # run([1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], 'LINEAR-TEST')
+    run([1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], 'LINEAR-TEST')
     # run([1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], 'MICHAELIS-MENTEN')
-    run([1e-1, 1e-2, 1e-3, 1e-4, 1e-5], 'MICHAELIS-MENTEN')
+    # run([1e-1, 1e-2, 1e-3, 1e-4, 1e-5], 'MICHAELIS-MENTEN')
     # run([10 ** (-m) for m in range(1, 5)], 'VAN-DER-POL', dt=1e-5)

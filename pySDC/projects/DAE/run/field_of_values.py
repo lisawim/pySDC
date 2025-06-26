@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE.plotting.linearTest_spectral_radius import (
     compute_Q_coefficients, compute_QI_coefficients
@@ -15,38 +16,56 @@ def random_unit_vector(n):
 
 
 if __name__ == "__main__":
-    num_nodes = 17
-    QI_list = ["IE", "LU", "MIN-SR-S"]
+    num_nodes_list = range(2, 31)
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS"]
 
-    dt = 0.1
+    dt = 1e-2
 
-    Q_coefficients = compute_Q_coefficients(num_nodes)
+    lamb_diff = -2.0
+    lamb_alg = 1.0
+
+    A = np.array([
+        [lamb_diff, lamb_alg],
+        [lamb_diff, -lamb_alg]
+    ])
+
+    Ieps = np.identity(2)
+    Ieps[-1, -1] = 0.0
+
+    Q_coefficients = compute_Q_coefficients(num_nodes_list)
 
     QI_coefficients = compute_QI_coefficients(Q_coefficients, QI_list)
 
-    num = 3000
+    num = 1000#3000
 
+    fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     for QI in QI_list:
         print(f"\n{QI}:\n")
+        fov_std = []
 
-        sum = 0
-        i=0
-        for _ in range(num):
+        for num_nodes in num_nodes_list:
+            list_of_unit_vectors = [random_unit_vector(2 * num_nodes) for _ in range(num)]
+
             Qmat = Q_coefficients[num_nodes]["matrix"]
             QImat = QI_coefficients[QI][num_nodes]["matrix"]
 
-            K_stiff = np.identity(num_nodes) - np.linalg.inv(QImat).dot(Qmat)
+            inv = np.linalg.inv(np.kron(np.identity(num_nodes), Ieps) - dt * np.kron(QImat, A))
+            K_stiff = np.matmul(inv, dt * np.kron(Qmat - QImat, A))
 
-            x = random_unit_vector(num_nodes)
-            val = x.T.dot(K_stiff.dot(x))
-            # print(val)
+            fov = [x.T.dot(K_stiff.dot(x)) for x in list_of_unit_vectors]
+            fov_std.append(np.std(fov))
 
-            sum += abs(val)
+            print(f"Standardabweichung: {np.std(fov)}")
+            print()
 
-            i+= 1
+        ax.plot(num_nodes_list, fov_std, marker="o", label=f"{QI}")
 
-        print("Count:", i)
+    ax.set_xlabel("number of nodes")
+    ax.set_ylabel("standard deviation of field of values")
+    ax.set_xticks(num_nodes_list[::4])
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=4)
 
-        mean = sum / num
-        print(f"Mean for {QI}: {mean}")
-        print()
+    plt.tight_layout()
+
+    filename = "data" + "/" + "LINEAR-TEST" + "/" + f"standard_deviation_fov_fullyImplicitDAE.png"
+    fig.savefig(filename, dpi=400, bbox_inches="tight")

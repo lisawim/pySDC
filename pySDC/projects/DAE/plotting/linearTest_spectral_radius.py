@@ -37,12 +37,15 @@ def get_iteration_matrices(dt, eps, M, Qmat, QImat, problem_name, problem_type):
         lamb_diff = -2.0
         lamb_alg = 1.0
 
-        A = np.array([[lamb_diff, lamb_alg], [lamb_diff, -lamb_alg]])
+        A = np.array([
+            [lamb_diff, lamb_alg],
+            [lamb_diff, -lamb_alg]
+        ])
 
         Ieps = np.identity(2)
         Ieps[-1, -1] = eps
 
-        if problem_type in ["SPP", "SPP-yp", "embeddedDAE"]:
+        if problem_type in ["SPP", "SPP-yp", "embeddedDAE", "fullyImplicitDAE"]:
             inv = np.linalg.inv(np.kron(np.identity(M), Ieps) - dt * np.kron(QImat, A))
             K = np.matmul(inv, dt * np.kron(Qmat - QImat, A))
 
@@ -52,12 +55,6 @@ def get_iteration_matrices(dt, eps, M, Qmat, QImat, problem_name, problem_type):
 
             inv = np.linalg.inv(np.kron(np.identity(M), Ieps) - dt * np.kron(QImat, A_d_eq) + np.kron(np.identity(M), A_a_eq))
             K = np.matmul(inv, dt * np.kron(Qmat - QImat, A_d_eq))
-
-        elif problem_type == "fullyImplicitDAE":
-            inv = np.linalg.inv(np.kron(np.identity(M), Ieps) - dt * np.kron(QImat, A))
-            K = np.matmul(inv, dt * np.kron(Qmat - QImat, A))
-            # K_tilde = np.matmul(dt * np.kron(Qmat, np.identity(2)), np.matmul(inv, dt * np.kron(Qmat - QImat, A)))
-            # K = K_tilde
 
         elif problem_type == "semiImplicitDAE":
             A_d_var = np.array([[lamb_diff, 0], [lamb_diff, 0]])
@@ -234,8 +231,9 @@ def finalize_plot(dt, k, k_flex, num_nodes_list, problem_name, QI_list, spectral
 
     spectral_radii_plotter.set_ylabel('spectral radius', subplot_index=None)
 
-    spectral_radii_plotter.set_ylim((-0.03, 1.12), subplot_index=None)
-    spectral_radii_plotter.set_ylim((-0.03, 10.0), subplot_index=3)
+    # spectral_radii_plotter.set_ylim((-0.03, 1.12), subplot_index=None)
+    # spectral_radii_plotter.set_ylim((-0.03, 10.0), subplot_index=3)
+    spectral_radii_plotter.set_ylim((-0.03, 30), subplot_index=None)
 
     spectral_radii_plotter.adjust_layout(num_subplots=len(QI_list))
 
@@ -251,15 +249,15 @@ if __name__ == "__main__":
     problem_name = "LINEAR-TEST"
     # problem_name = "PROTHERO-ROBINSON"
 
-    QI_list = ["IE", "LU", "MIN-SR-S"]  # , 'MIN-SR-FLEX']
-    num_nodes_list = get_nodes_range_of_convergence(problem_name, node_every=1)
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS"]  # , 'MIN-SR-FLEX']
+    num_nodes_list = range(2, 21) #get_nodes_range_of_convergence(problem_name, node_every=1)
 
-    k_flex = 1
+    k_flex = None
 
     dt = 1e-2
-    case = 6
+    case = 4
 
-    problems = get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"embeddedDAE": [0.0], "fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
     Q_coefficients = compute_Q_coefficients(num_nodes_list)
 
@@ -284,6 +282,10 @@ if __name__ == "__main__":
 
                     derivation = computeNormalityDeviation(K)
                     print(f"{QI}-{problem_type} for {num_nodes} nodes: Derivation from normality is: {derivation}\n")
+
+                    for k in range(1, num_nodes + 1):
+                        induced_norm = np.linalg.norm(np.linalg.matrix_power(K, k))
+                        print(f"Induces norm for {k=}: {induced_norm}")
 
                 color, res = getColor(problem_type, i, QI), getMarker(problem_type, i, QI)
                 problem_label, linestyle = getLabel(problem_type, eps, QI), get_linestyle(problem_type, QI)

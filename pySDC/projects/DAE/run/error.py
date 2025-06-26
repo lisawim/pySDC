@@ -519,31 +519,28 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
 
 """Main routine"""
 if __name__ == "__main__":
-    # problem_name = "LINEAR-TEST"
-    problem_name = "MICHAELIS-MENTEN"
-    # problem_name = "PROTHERO-ROBINSON"
-    # problem_name = "DPR"
+    problem_name = "LINEAR-TEST"
 
-    QI_list = ["IE", "LU", "MIN-SR-S"]
-    num_nodes = 3
+    QI_list = ["MIN-SR-NS"]#["IE", "LU", "MIN-SR-S"]
+    num_nodes = 29
 
-    solver_type = "hybr"  # ""
+    solver_type = "direct"  # ""
     kwargs = {
-        # "e_tol": -1,
-        # "maxiter": 1,
+        "e_tol": -1,
+        "maxiter": 10000,
         "solver_type": solver_type,
-        "newton_tol": 1e-14,
+        "newton_tol": 1e-12,
         # "logger_level": 15,
     }
 
     t0 = 0.0
-    dt = 1e-8#1e0  # 1e-1
+    dt = 1e-2#1e0  # 1e-1
 
     case = 4
 
-    problems = get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
-    hook_for = "step"  # "iteration"  # "step"
+    hook_for = "iteration"  # "iteration"  # "step"
     if hook_for == "iteration":
         sortby = "iter"
     elif hook_for == "sweep":
@@ -577,7 +574,7 @@ if __name__ == "__main__":
                     problemName=problem_name,
                     t0=t0,
                     dt=dt,
-                    Tend=1e-6,#t0 + dt if hook_for in ["iteration", "sweep"] else getEndTime(problem_name),
+                    Tend=t0 + dt if hook_for in ["iteration", "sweep"] else getEndTime(problem_name),
                     nNodes=num_nodes,
                     QI=QI,
                     problemType=problem_type,

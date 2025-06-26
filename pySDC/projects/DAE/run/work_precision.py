@@ -44,11 +44,11 @@ def run_all_simulations(config):
 
     for sweeper_type in config.sweepers:
 
-        for QI in config.qDeltas:
+        for QI in config.test_methods:
             key = f"{sweeper_type}_{QI}"
             all_stats[key] = {}
 
-            if QI in ["RadauIIA5", "RadauIIA7"]:
+            if QI in config.radau_methods:
                 sweeper_type = "fullyImplicitDAE"
 
             use_mpi = True if QI in config.qDeltas_parallel else False

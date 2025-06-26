@@ -33,7 +33,7 @@ def plot_work_vs_error_single(all_stats, config, sweeper_type="constrainedDAE"):
     my_setup_mpl()
     colors, markers, _ = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
-    for QI in config.qDeltas:
+    for QI in [q for q in config.test_methods if not q.startswith("RadauIIA")]:
         key = f"{sweeper_type}_{QI}"
         stats = all_stats[key]
 
@@ -107,24 +107,16 @@ def plot_work_vs_error_best_vs_radau(
     my_setup_mpl()
     colors, markers, sweeper_labels = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
-    print(config.radau_methods)
-    qDelta_best_vs_radau = [
-        q
-        for q in config.qDeltas
-        if q in qDelta_best
-        or q
-        for q in config.radau_methods
-        if q in radau_methods_plot
-    ]
-    print(qDelta_best_vs_radau)
+
+    qDelta_best_vs_radau = qDelta_best + radau_methods_plot
     for QI in qDelta_best_vs_radau:
         for sweeper_type in sweeper_type_best:
             key = f"{sweeper_type}_{QI}" if QI in qDelta_best else f"fullyImplicitDAE_{QI}"
-            print(all_stats)
+
             if key not in key_cache:
                 stats = all_stats[key]
 
-                # Adding key to cache
+                # Adding key to cache to avoid double plotting
                 key_cache.append(key)
 
                 wc_times = stats["wc_times"]

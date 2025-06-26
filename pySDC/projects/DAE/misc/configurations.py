@@ -7,7 +7,7 @@ class BaseConfig:
         self._qDeltas_parallel = ["MIN-SR-NS", "MIN-SR-S"]
         self._qDeltas_serial = ["IE", "LU", "Picard"]
 
-        self._qDeltas_experiment = None
+        self._test_methods = None
 
         self._sweepers = [
             "constrainedDAE", "embeddedDAE", "fullyImplicitDAE", "semiImplicitDAE"
@@ -23,8 +23,8 @@ class BaseConfig:
 
     # TODO: It is maybe unnecessary to have both qDeltas an qDeltas_experiment..
     @property
-    def qDeltas_experiment(self):
-        return self._qDeltas_experiment
+    def test_methods(self):
+        return self._test_methods
 
     @property
     def qDeltas_parallel(self):
@@ -47,7 +47,7 @@ class LinearTestBaseConfig(BaseConfig):
     def __init__(self):
         super().__init__()
 
-        self._qDeltas_experiment = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
+        self._test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
 
         self.t0 = 0.0
         self.Tend = 1.0

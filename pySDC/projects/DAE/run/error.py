@@ -521,13 +521,13 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
 if __name__ == "__main__":
     problem_name = "LINEAR-TEST"
 
-    QI_list = ["MIN-SR-NS"]#["IE", "LU", "MIN-SR-S"]
-    num_nodes = 29
+    QI_list = ["MIN-SR-S", "MIN-SR-NS"]#["IE", "LU", "MIN-SR-S"]
+    num_nodes = 30
 
     solver_type = "direct"  # ""
     kwargs = {
         "e_tol": -1,
-        "maxiter": 10000,
+        # "maxiter": 10000,
         "solver_type": solver_type,
         "newton_tol": 1e-12,
         # "logger_level": 15,
@@ -538,7 +538,7 @@ if __name__ == "__main__":
 
     case = 4
 
-    problems = {"fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"embeddedDAE": [0.0], "fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
     hook_for = "iteration"  # "iteration"  # "step"
     if hook_for == "iteration":

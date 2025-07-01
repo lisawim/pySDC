@@ -250,13 +250,13 @@ if __name__ == "__main__":
 
     num_nodes_list = range(2, 31)
 
-    dt = 1e-2
+    dt = 1e-1
 
     case = 4
 
     plot_values_for = "iteration_matrix"  # "jacobian"
 
-    problems = {"fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"embeddedDAE": [0.0], "fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
     Q_coefficients = compute_Q_coefficients(num_nodes_list)
 

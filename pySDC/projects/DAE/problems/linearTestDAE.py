@@ -1,5 +1,4 @@
 import numpy as np
-import scipy
 import scipy.sparse as sp
 from scipy.sparse.linalg import gmres
 from scipy.optimize import root

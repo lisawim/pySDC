@@ -249,8 +249,8 @@ if __name__ == "__main__":
     problem_name = "LINEAR-TEST"
     # problem_name = "PROTHERO-ROBINSON"
 
-    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS"]  # , 'MIN-SR-FLEX']
-    num_nodes_list = range(2, 21) #get_nodes_range_of_convergence(problem_name, node_every=1)
+    QI_list = ["MIN-SR-NS"]#["IE", "LU", "MIN-SR-S", "MIN-SR-NS"]  # , 'MIN-SR-FLEX']
+    num_nodes_list = range(2, 31) #get_nodes_range_of_convergence(problem_name, node_every=1)
 
     k_flex = None
 

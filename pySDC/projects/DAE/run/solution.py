@@ -20,10 +20,10 @@ def run(epsList, problemName, dt=1e-2):
         Time step size.
     """
 
-    nNodes = 20
+    nNodes = 3
 
-    QI = "MIN-SR-NS"#"LU"
-    dt = 1e-1#1e-5
+    QI = "LU"#"LU"
+    dt = 1e-2#1e-5
     t0 = 0.0
     Tend = getEndTime(problemName)
 
@@ -32,9 +32,10 @@ def run(epsList, problemName, dt=1e-2):
     # Define a dictionary with problem types and their respective parameters
     problems = {
         # "SPP": epsList,
-        "embeddedDAE": [0.0],
-        # "fullyImplicitDAE": [0.0],
+        # "embeddedDAE": [0.0],
+        "fullyImplicitDAE": [0.0],
         # "constrainedDAE": [0.0],
+        # "semiImplicitDAE": [0.0],
     }
 
     solutionPlotter = Plotter(nrows=1, ncols=2, figsize=(18, 6))
@@ -58,6 +59,8 @@ def run(epsList, problemName, dt=1e-2):
 
             u_val = get_sorted(solutionStats, type="u", sortby="time")
 
+            niters = [me[1] for me in get_sorted(solutionStats, type="niter", sortby="time")]
+            print(niters)
             t = np.array([me[0] for me in u_val])
             if not eps == 0.0:
                 # u = np.array([me[1] for me in u_val])
@@ -85,7 +88,8 @@ def run(epsList, problemName, dt=1e-2):
 
 
 if __name__ == "__main__":
-    run([1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], 'LINEAR-TEST')
+    # run([1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], 'LINEAR-TEST')
+    run([0.0], "ANDREWS-SQUEEZER")
     # run([1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01], 'MICHAELIS-MENTEN')
     # run([1e-1, 1e-2, 1e-3, 1e-4, 1e-5], 'MICHAELIS-MENTEN')
     # run([10 ** (-m) for m in range(1, 5)], 'VAN-DER-POL', dt=1e-5)

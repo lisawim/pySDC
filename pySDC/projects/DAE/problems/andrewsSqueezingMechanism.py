@@ -1,18 +1,42 @@
 import numpy as np
 from pathlib import Path
+from scipy.optimize import root
 
-from pySDC.core.errors import ProblemError
+from pySDC.core.errors import ParameterError, ProblemError
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
 
 class AndrewsSqueezingMechanismDAE(ProblemDAE):
-    def __init__(self, newton_tol=1e-12, index=1, newton_maxiter=100):
+    def __init__(
+            self,
+            newton_tol=1e-12,
+            index=1,
+            newton_maxiter=100,
+            solver_type="hybr",
+            stop_at_maxiter=False,
+            stop_at_nan=False,
+        ):
         """Initialization routine"""
+
         super().__init__(nvars=27, newton_tol=newton_tol)
-        self._makeAttributeAndRegister("newton_tol", "index", localVars=locals())
+        self._makeAttributeAndRegister(
+            "newton_tol",
+            "index",
+            "newton_maxiter",
+            "solver_type",
+            "stop_at_maxiter",
+            "stop_at_nan",
+            localVars=locals(),
+        )
+
+        if self.solver_type in ["newton"]:
+            raise ParameterError(
+                f"{self.solver_type} is not available. Choose 'hybr' instead."
+            )
+
         self.work_counters["rhs"] = WorkCounter()
-        self.work_counters["newton"] = WorkCounter()
+        self.work_counters[self.solver_type] = WorkCounter()
 
         self.m1 = 0.04325
         self.m2 = 0.00365
@@ -72,6 +96,8 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.func = np.zeros(7)
         self.g = np.zeros(6)
         self.gqqv = np.zeros(6)
+
+        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
 
         for path in [
             Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
@@ -319,6 +345,94 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.M[5, 6] = self.M[6, 5]
 
         self.M[6, 6] = self.m6 * ((self.zf - self.fa) ** 2 - 2 * self.u * (self.zf - self.fa) * np.sin(q6) + self.u ** 2) + self.m7 * (self.ua ** 2 + self.ub ** 2) + self.I6 + self.I7
+    
+    def solve_system(self, impl_sys, rhs, factor, u0, t):
+        r"""
+        Dispatcher that selects the appropriate solver backend based on ``self.solver_type``.
+        Possible solvers are:
+
+        - "hybr": solves the system using SciPy's root finder with hybrid methods
+        - "newton": solves the system via a custom Newton-Raphson method (only available
+           for SDC-C and SDC-E)
+
+        Parameters
+        ----------
+        impl_sys : callable
+            The function representing the fully implicit system (required for 'hybr').
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side of the implicit system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time.
+
+        Returns
+        -------
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
+
+        Raises
+        ------
+        ProblemError
+            If ``self.solver_type`` is not recognized.
+        """
+
+        if self.solver_type == "hybr":
+            return self.solve_with_hybr(rhs, factor, u0, t, impl_sys)
+        elif self.solver_type == "newton":
+            return self.solve_with_newton(rhs, factor, u0, t)
+        else:
+            raise ProblemError(f"Unknown solver_type: {self.solver_type}")
+    
+    def solve_with_hybr(self, u_approx, factor, u0, t, impl_sys=None):
+        r"""
+        Root solver for the nonlinear system using SciPy's ``optimize.root`` with
+        'hybr' method. The method calls the one from parent class ``ProblemDAE``.
+
+        Parameters
+        ----------
+        u_approx : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Approximation of u in the implicit system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time.
+        impl_sys : callable, optional
+            Implicit system needed for the routine; is defined in
+            ``fullyImplicitDAE`` or ``semiImplicitDAE`` sweeper.
+
+        Returns
+        -------
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
+        """
+        return super().solve_system(impl_sys, u_approx, factor, u0, t)
+    
+    def solve_with_newton(self, rhs, factor, u0, t):
+        r"""
+        Placeholder for solve with Newton's method that can be written
+        some time.
+
+        Parameters
+        ----------
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side of the implicit system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time.
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        raise NotImplementedError
 
     def u_exact(self, t, **kwargs):
         r"""
@@ -334,10 +448,6 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         me : dtype_u
             Exact solution.
         """
-
-        # assert (
-        #     t == 0.0 or t == 0.03
-        # ), f"u_exact only provides initial conditions for time 0.0 and reference solution for time 0.03 for q!"
 
         me = self.dtype_u(self.init)
         if t == 0.0:
@@ -373,16 +483,6 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             me.alg[0 : 7] = u_ref_alg[0 : 7]  # w
             me.alg[7 : 13] = u_ref_alg[7 : 13]  # l
 
-        # elif t == 0.03:
-        #     me.diff[0 : 7] = (
-        #         0.1581077119629904e2,
-        #         -0.1575637105984298e2,
-        #         0.4082224013073101e-1,
-        #         -0.5347301163226948,
-        #         0.5244099658805304,
-        #         0.5347301163226948,
-        #         0.1048080741042263*10,
-        #     )
         return me
 
     def du_exact(self, t):
@@ -415,21 +515,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
 
 class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
-    r"""
-    For this class no quadrature is used for the algebraic constraints, i.e., system for algebraic constraints is solved directly.
-    Note that in this class the index 2 formulation of Andrews' squeezer is used.
-    """
-
-    def __init__(self, index=3, nvars=27, newton_tol=1e-12, newton_maxiter=50, stop_at_maxiter=False, stop_at_nan=False):
-        """Initialization routine"""
-        super().__init__()
-        self._makeAttributeAndRegister(
-            'index', 'newton_tol', 'newton_maxiter', 'stop_at_maxiter', 'stop_at_nan', localVars=locals()
-        )
-        self.work_counters['newton'] = WorkCounter()
-        self.work_counters['rhs'] = WorkCounter()
-
-        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
+    """Constrained formulation where only the differential equations are integrated numerically"""
 
     def eval_f(self, u, t):
         r"""
@@ -460,24 +546,25 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         self.work_counters['rhs']()
         return f
 
-    def solve_system(self, rhs, factor, u0, t):
-        """
-        Simple Newton solver.
+    def solve_with_newton(self, rhs, factor, u0, t):
+        r"""
+        Newton's method to solve the nonlinear system.
 
         Parameters
         ----------
-        rhs : dtype_f
-            Right-hand side for the nonlinear system.
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side of the implicit system to be solved.
         factor : float
-            Abbrev. for the node-to-node stepsize (or any other factor required).
-        u0 : dtype_u
-            Initial guess for the iterative solver.
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
         t : float
-            Current time (required here for the BC).
+            Current time.
+
         Returns
         -------
-        me : dtype_u
-            The solution as mesh.
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
         """
 
         u = self.dtype_u(u0)
@@ -495,7 +582,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             h2 = v[:] - factor * w[:] - rhs_diff2[:]
             f_alg = self.algebraicConstraints(u, t)[0 : 13]
 
-            # Form the function h(u), such that the solution to the nonlinear problem is a root of g
+            # Form the function h(u), such that the solution to the nonlinear problem is a root of h
             h = np.array([*h1, *h2, *f_alg])
 
             # If g is close to 0, then we are done
@@ -515,22 +602,95 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
             # Increase iteration per one
             n += 1
-            self.work_counters['newton']()
-        # print(n, res)
+            self.work_counters["newton"]()
+
         if np.isnan(res) and self.stop_at_nan:
-            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+            raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
         elif np.isnan(res):
-            self.logger.warning('Newton got nan after %i iterations...' % n)
+            self.logger.warning("Newton got nan after %i iterations..." % n)
         if n == self.newton_maxiter:
-            msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+            msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
             if self.stop_at_maxiter:
                 raise ProblemError(msg)
             else:
                 self.logger.warning(msg)
 
-        me = self.dtype_u(self.init)
-        me[:] = u[:]
-        return me
+        solution = self.dtype_u(self.init)
+        solution[:] = u[:]
+        return solution
+
+    def solve_with_hybr(self, rhs, factor, u0, t, impl_sys=None):
+        r"""
+        Root solver for the nonlinear system using SciPy's ``optimize.root`` with
+        'hybr' method. The function to be find the root for is defined in this
+        method.
+
+        Parameters
+        ----------
+        u_approx : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Approximation of u in the implicit system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time.
+        impl_sys : callable, optional
+            Implicit system needed for the routine; is defined in
+            ``fullyImplicitDAE`` or ``semiImplicitDAE`` sweeper.
+
+        Returns
+        -------
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
+        """
+
+        solution = self.dtype_u(self.init)
+
+        # Form the function, such that the solution to the nonlinear problem is a root of it
+        def func(u):
+            q, v = u[: 7], u[7 : 14]
+            w, l = u[14 : 21], u[21 :]
+
+            # Get matrices and functions for algebraic part of right-hand side
+            self.getM(q)
+            self.get_func(q, v)
+            self.getG(q)
+
+            f1 = q - factor * v - rhs.diff[: 7]
+            f2 = v - factor * w - rhs.diff[7 : 14]
+            f3 = self.M.dot(w) - self.func + self.G.T.dot(l)
+            if self.index == 3:
+                self.get_g(q)
+
+                f4 = self.g
+
+            elif self.index == 2:
+                f4 = self.G.dot(v)
+
+            elif self.index == 1:
+                self.get_gqq(q, v)
+
+                f4 = self.gqqv + self.G.dot(w)
+            else:
+                raise NotImplementedError
+
+            return np.array([*f1, *f2, *f3, *f4])
+
+        u0_vec = np.array([*u0.diff[: 14], *u0.alg[: 13]])
+
+        opt = root(
+            func,
+            u0_vec,
+            method=self.solver_type,
+            tol=self.newton_tol,
+        )
+
+        solution = self.dtype_u(self.init)
+        solution.diff[0] = opt.x[0]
+        solution.alg[0] = opt.x[1]
+        self.work_counters["hybr"].niter += opt.nfev
+        return solution
 
     def update_Jacobian(self, factor):
         r"""
@@ -583,28 +743,27 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
 
 class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrained):
-    r"""
-    For this class the naively approach of embedded SDC is used.
-    """
+    """Problem class for an embedded method where only the algebraic constraints are enforced"""
 
-    def solve_system(self, rhs, factor, u0, t):
-        """
-        Simple Newton solver.
+    def solve_with_newton(self, rhs, factor, u0, t):
+        r"""
+        Newton's method to solve the nonlinear system.
 
         Parameters
         ----------
-        rhs : dtype_f
-            Right-hand side for the nonlinear system.
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side of the implicit system to be solved.
         factor : float
-            Abbrev. for the node-to-node stepsize (or any other factor required).
-        u0 : dtype_u
-            Initial guess for the iterative solver.
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
         t : float
-            Current time (required here for the BC).
+            Current time.
+
         Returns
         -------
-        me : dtype_u
-            The solution as mesh.
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
         """
 
         u = self.dtype_u(u0)
@@ -620,7 +779,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             h2 = v - factor * w - rhs.diff[7 : 14]
             h3 = -factor * self.algebraicConstraints(u, t)[:13] - rhs.alg[:13]
 
-            # Form the function g(u), such that the solution to the nonlinear problem is a root of g
+            # Form the function h(u), such that the solution to the nonlinear problem is a root of h
             h = np.array([*h1, *h2, *h3])
 
             # If g is close to 0, then we are done
@@ -640,22 +799,95 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
 
             # Increase iteration per one
             n += 1
-            self.work_counters['newton']()
+            self.work_counters["newton"]()
 
         if np.isnan(res) and self.stop_at_nan:
-            raise ProblemError('Newton got nan after %i iterations, aborting...' % n)
+            raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
         elif np.isnan(res):
-            self.logger.warning('Newton got nan after %i iterations...' % n)
+            self.logger.warning("Newton got nan after %i iterations..." % n)
         if n == self.newton_maxiter:
-            msg = 'Newton did not converge after %i iterations, error is %s' % (n, res)
+            msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
             if self.stop_at_maxiter:
                 raise ProblemError(msg)
             else:
                 self.logger.warning(msg)
 
-        me = self.dtype_u(self.init)
-        me[:] = u[:]
-        return me
+        solution = self.dtype_u(self.init)
+        solution[:] = u[:]
+        return solution
+    
+    def solve_with_hybr(self, rhs, factor, u0, t, impl_sys=None):
+        r"""
+        Root solver for the nonlinear system using SciPy's ``optimize.root`` with
+        'hybr' method. The function to be find the root for is defined in this
+        method.
+
+        Parameters
+        ----------
+        u_approx : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Approximation of u in the implicit system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time.
+        impl_sys : callable, optional
+            Implicit system needed for the routine; is defined in
+            ``fullyImplicitDAE`` or ``semiImplicitDAE`` sweeper.
+
+        Returns
+        -------
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
+        """
+
+        solution = self.dtype_u(self.init)
+
+        # Form the function, such that the solution to the nonlinear problem is a root of it
+        def func(u):
+            q, v = u[: 7], u[7 : 14]
+            w, l = u[14 : 21], u[21 :]
+
+            # Get matrices and functions for algebraic part of right-hand side
+            self.getM(q)
+            self.get_func(q, v)
+            self.getG(q)
+
+            f1 = q - factor * v - rhs.diff[: 7]
+            f2 = v - factor * w - rhs.diff[7 : 14]
+            f3 = -factor * (self.M.dot(w) - self.func + self.G.T.dot(l)) - rhs.alg[: 7]
+            if self.index == 3:
+                self.get_g(q)
+
+                f4 = -factor * self.g - rhs.alg[7 : 13]
+
+            elif self.index == 2:
+                f4 = -factor * self.G.dot(v) - rhs.alg[7 : 13]
+
+            elif self.index == 1:
+                self.get_gqq(q, v)
+
+                f4 = -factor * (self.gqqv + self.G.dot(w)) - rhs.alg[7 : 13]
+            else:
+                raise NotImplementedError
+
+            return np.array([*f1, *f2, *f3, *f4])
+
+        u0_vec = np.array([*u0.diff[: 14], *u0.alg[: 13]])
+
+        opt = root(
+            func,
+            u0_vec,
+            method=self.solver_type,
+            tol=self.newton_tol,
+        )
+
+        solution = self.dtype_u(self.init)
+        solution.diff[0] = opt.x[0]
+        solution.alg[0] = opt.x[1]
+        self.work_counters["hybr"].niter += opt.nfev
+        return solution
 
     def update_Jacobian(self, factor):
         r"""

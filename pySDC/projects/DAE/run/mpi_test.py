@@ -76,6 +76,13 @@ def run_mpi_test(config):
     global_rank = global_comm.Get_rank()
     global_size = global_comm.Get_size()
 
+    if global_rank == 0:
+        output_dir = "data" + "/" + f"{config.problem_name}" + "/" + "results"
+        os.makedirs(output_dir, exist_ok=True)
+
+        fname = f"results_scaling.pkl"
+        path = os.path.join(output_dir, fname)
+
     config.set_num_processes(global_size)
 
     config.check_global_comm_size(global_size)
@@ -92,6 +99,8 @@ def run_mpi_test(config):
                 results[key_ser][num_nodes] = 0
             
             if global_rank == 0:
+                print(f"\nRunning {config.QI_ser} with {sweeper_type} using {num_nodes} nodes...\n")
+
                 solution_stats = compute_solution(
                     config.problem_name,
                     config.t0,
@@ -108,6 +117,9 @@ def run_mpi_test(config):
 
                 results[key_ser][num_nodes] = timing_run[0][1]
 
+                with open(path, "wb") as f:
+                    dill.dump(results, f)
+
     for sweeper_type in config.sweepers:
         for QI_par in config.qDeltas_parallel:
             key_par = f"{sweeper_type}_{QI_par}"
@@ -117,6 +129,8 @@ def run_mpi_test(config):
             for num_nodes in config.num_processes:
                 if global_rank == 0:
                     results[key_par][num_nodes] = 0
+
+                    print(f"\nRunning {QI_par} with {sweeper_type} using {num_nodes} nodes...\n")
 
                 global_comm.Barrier()
 
@@ -129,12 +143,10 @@ def run_mpi_test(config):
                 if global_rank == 0:
                     results[key_par][num_nodes] = timing_run_full
 
-    if global_rank == 0:
-        output_dir = "data" + "/" + f"{config.problem_name}" + "/" + "results"
-        os.makedirs(output_dir, exist_ok=True)
+                    with open(path, "wb") as f:
+                        dill.dump(results, f)
 
-        fname = f"results_scaling.pkl"
-        path = os.path.join(output_dir, fname)
+    if global_rank == 0:
         with open(path, "wb") as f:
             dill.dump(results, f)
 

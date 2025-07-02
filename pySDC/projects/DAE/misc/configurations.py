@@ -61,6 +61,10 @@ class LinearTestWorkPrecision(LinearTestBaseConfig):
         self.num_nodes = 6
         self.hook_class = [LogGlobalErrorPostStep]
 
+        self._sweepers = [
+            "constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"
+        ]
+
 
 class LinearTestScaling(LinearTestBaseConfig):
     def __init__(self):

@@ -41,6 +41,26 @@ def main():
     else:
         rank = 0
 
+    # Dummy run to avoid start overhead
+    if args.use_mpi:
+        comm.Barrier()
+
+        _ = compute_solution(
+            args.problem_name,
+            args.t0,
+            dt=1e-1,
+            Tend=1e-1,
+            num_nodes=args.num_nodes,
+            QI="MIN-SR-NS",
+            sweeper_type="constrainedDAE",
+            use_mpi=args.use_mpi,
+            hook_class=args.hook_class,
+            measure=False,
+        )
+
+    if args.use_mpi:
+        comm.Barrier()
+
     max_errors = [] if rank == 0 else None
     wallclock_times = [] if rank == 0 else None
 
@@ -51,7 +71,7 @@ def main():
         if args.use_mpi:
             comm.Barrier()
 
-            solution_stats = compute_solution(
+            runtime, solution_stats = compute_solution(
                 args.problem_name,
                 args.t0,
                 dt,
@@ -61,11 +81,13 @@ def main():
                 args.sweeper_type,
                 args.use_mpi,
                 hook_class=args.hook_class,
+                measure=True,
             )
 
             comm.Barrier()
 
-            timing_run = get_sorted(solution_stats, type="timing_run")[0][1]
+            # timing_run = get_sorted(solution_stats, type="timing_run")[0][1]
+            timing_run = runtime
             timing_run_full = comm.reduce(timing_run, op=MPI.MAX)
 
             if rank == 0:
@@ -73,7 +95,7 @@ def main():
 
         else:
             if rank == 0:
-                solution_stats = compute_solution(
+                runtime, solution_stats = compute_solution(
                     args.problem_name,
                     args.t0,
                     dt,
@@ -83,9 +105,11 @@ def main():
                     args.sweeper_type,
                     args.use_mpi,
                     hook_class=args.hook_class,
+                    measure=True,
                 )
 
-                timing_run_full = np.array(get_sorted(solution_stats, type="timing_run", sortby="time"))[0][1]
+                # timing_run_full = np.array(get_sorted(solution_stats, type="timing_run", sortby="time"))[0][1]
+                timing_run_full = runtime
                 wallclock_times.append(timing_run_full)
 
         if rank == 0:
@@ -96,8 +120,11 @@ def main():
         fname = f"results_experiment_{args.num_nodes}.pkl"
         path = os.path.join(args.output_dir, fname)
 
-        with open(path, "rb") as f:
-            all_stats = dill.load(f)
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            with open(path, "rb") as f:
+                all_stats = dill.load(f)
+        else:
+            all_stats = {}
 
         key = f"{args.sweeper_type}_{args.QI}"
         all_stats[key] = {"max_errors": max_errors, "wc_times": wallclock_times}

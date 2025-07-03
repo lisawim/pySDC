@@ -1,3 +1,4 @@
+import sys
 import dill
 import os
 import subprocess
@@ -27,6 +28,8 @@ def build_args_list(args, hook_class):
 
 
 def run_all_simulations(config):
+    python_exec = sys.executable
+
     output_dir = "data" + "/" + f"{config.problem_name}" + "/" + "results"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -37,8 +40,14 @@ def run_all_simulations(config):
 
     fname = f"results_experiment_{config.num_nodes}.pkl"
     path = os.path.join(output_dir, fname)
-    with open(path, "wb") as f:
-        dill.dump(all_stats, f)
+
+    if not os.path.exists(path):
+        with open(path, "wb") as f:
+            dill.dump(all_stats, f)
+            f.flush()
+            os.fsync(f.fileno())
+
+    assert os.path.getsize(path) > 0
 
     args = {"problem_name": config.problem_name}
 
@@ -68,16 +77,17 @@ def run_all_simulations(config):
             args_list = build_args_list(args, config.hook_class)
 
             cmd = (
-                ["mpiexec", "-n", str(config.num_nodes), "python3", "run_single_experiment.py"] + args_list
+                ["mpiexec", "-n", str(config.num_nodes), python_exec, "run_single_experiment.py"] + args_list
                 if use_mpi
                 else
-                ["python3", "run_single_experiment.py"] + args_list
+                [python_exec, "run_single_experiment.py"] + args_list
             )
 
             env = os.environ.copy()
+            #env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
             subprocess.run(cmd, check=True, env=env, close_fds=True)
 
 
 if __name__ == "__main__":
     config = LinearTestWorkPrecision()
-    run_all_simulations(config, problem_name="LINEAR-TEST")
+    run_all_simulations(config)

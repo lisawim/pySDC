@@ -1,3 +1,5 @@
+from mpi4py import MPI
+import time
 import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE.misc.configurations import BaseConfig
@@ -215,6 +217,7 @@ def compute_solution(
         use_mpi=False,
         hook_class=[],
         config=BaseConfig(),
+        measure=True,
         **kwargs,
     ):
 
@@ -241,7 +244,22 @@ def compute_solution(
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
 
+    if use_mpi:
+        comm = MPI.COMM_WORLD
+        comm.Barrier()             # alle Prozesse bereit
+        t_start = MPI.Wtime()
+    elif measure:
+        t_start = time.time()
+
     # call main function to get things done...
     _, solution_stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
+
+    if use_mpi:
+        comm.Barrier()
+        t_end = MPI.Wtime()
+        return (t_end - t_start), solution_stats
+    elif measure:
+        t_end = time.time()
+        return (t_end - t_start), solution_stats
 
     return solution_stats

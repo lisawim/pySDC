@@ -448,7 +448,7 @@ def get_error_label(problem_name):
         Label for plotting.
     """
 
-    if problem_name in ["LINEAR-TEST", "DPR", "MICHAELIS-MENTEN", "PROTHERO-ROBINSON"]:
+    if problem_name in ["ANDREWS-SQUEEZER", "LINEAR-TEST", "DPR", "MICHAELIS-MENTEN", "PROTHERO-ROBINSON"]:
         err_label = "global error"
     else:
         raise NotImplementedError(f"No label implemented for {problem_name}!")
@@ -502,13 +502,13 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
         plotter.set_ylabel(f"{err_label} in " + r"$y$", subplot_index=subplot_indices_y_1[q])
         plotter.set_ylabel(f"{err_label} in " + r"$z$", subplot_index=subplot_indices_z_1[q])
 
-        # plotter.set_ylim((1e-15, 1e-6), subplot_index=subplot_indices_y_1[q])
-        # plotter.set_ylim((1e-15, 1e-6), subplot_index=subplot_indices_z_1[q])
+        plotter.set_ylim((1e-15, 1e0), subplot_index=subplot_indices_y_1[q])
+        plotter.set_ylim((1e-15, 1e0), subplot_index=subplot_indices_z_1[q])
 
         plotter.set_yscale(scale="log", subplot_index=subplot_indices_y_1[q])
         plotter.set_yscale(scale="log", subplot_index=subplot_indices_z_1[q])
 
-    plotter.sync_ylim(min_y_set=1e-15)
+    # plotter.sync_ylim(min_y_set=1e-15)
 
     plotter.set_shared_legend(loc="lower center", bbox_to_anchor=(0.5, -0.14), ncol=6, fontsize=22)
 
@@ -519,26 +519,26 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
 
 """Main routine"""
 if __name__ == "__main__":
-    problem_name = "LINEAR-TEST"
+    problem_name = "ANDREWS-SQUEEZER"
 
-    QI_list = ["MIN-SR-S", "MIN-SR-NS"]#["IE", "LU", "MIN-SR-S"]
-    num_nodes = 30
+    QI_list = ["IE", "LU", "MIN-SR-S"] # ["MIN-SR-NS", "Picard"]
+    num_nodes = 4
 
-    solver_type = "direct"  # ""
+    solver_type = "hybr"  # ""
     kwargs = {
         "e_tol": -1,
         # "maxiter": 10000,
         "solver_type": solver_type,
-        "newton_tol": 1e-12,
+        "newton_tol": 1e-15,
         # "logger_level": 15,
     }
 
     t0 = 0.0
-    dt = 1e-2#1e0  # 1e-1
+    dt = 1e-4#1e0  # 1e-1
 
     case = 4
 
-    problems = {"embeddedDAE": [0.0], "fullyImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
+    problems = get_problem_cases(k=case, problem_name=problem_name)
 
     hook_for = "iteration"  # "iteration"  # "step"
     if hook_for == "iteration":

@@ -30,13 +30,45 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             localVars=locals(),
         )
 
-        if self.solver_type in ["newton"]:
-            raise ParameterError(
-                f"{self.solver_type} is not available. Choose 'hybr' instead."
-            )
+        # if self.solver_type in ["newton"]:
+        #     raise ParameterError(
+        #         f"{self.solver_type} is not available. Choose 'hybr' instead."
+        #     )
 
         self.work_counters["rhs"] = WorkCounter()
         self.work_counters[self.solver_type] = WorkCounter()
+
+        self._init_masses_and_inertias()
+        self._init_geometrical_params()
+        self._init_coordinates()
+
+        self.fa = 0.01421
+        self.mom = 0.033
+
+        self.M = np.zeros((7, 7))
+        self.G = np.zeros((6, 7))
+        self.func = np.zeros(7)
+        self.g = np.zeros(6)
+        self.gqqv = np.zeros(6)
+
+        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
+
+        for path in [
+            Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
+            Path("/beegfs/wimmer/pySDC/projects/DAE/data/")
+        ]:
+            if path.exists():
+                path_to_data = path
+                break
+        else:
+            raise FileNotFoundError("Could not locate data directory.")
+
+        self.t_ref = np.load(path_to_data / "t_solve_andrews_3.npy")
+        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_3.npy")
+        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_3.npy")
+
+    def _init_masses_and_inertias(self):
+        """Sets the attributes with values of masses and inertias."""
 
         self.m1 = 0.04325
         self.m2 = 0.00365
@@ -46,15 +78,6 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.m6 = 0.00706
         self.m7 = 0.05498
 
-        self.xa = -0.06934
-        self.ya = -0.00227
-        self.xb = -0.03635
-        self.yb = 0.03273
-        self.xc = 0.014
-        self.yc = 0.072
-
-        self.c0 = 4530
-
         self.I1 = 2.194e-6
         self.I2 = 4.410e-7
         self.I3 = 5.255e-6
@@ -62,6 +85,11 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.I5 = 1.169e-5
         self.I6 = 5.667e-7
         self.I7 = 1.912e-5
+
+    def _init_geometrical_params(self):
+        """Sets attributes with geometrical parameters."""
+
+        self.c0 = 4530
 
         self.d = 0.028
         self.da = 0.0115
@@ -88,30 +116,15 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.zf = 0.02
         self.zt = 0.04
 
-        self.fa = 0.01421
-        self.mom = 0.033
+    def _init_coordinates(self):
+        """Sets attributes for coordinates."""
 
-        self.M = np.zeros((7, 7))
-        self.G = np.zeros((6, 7))
-        self.func = np.zeros(7)
-        self.g = np.zeros(6)
-        self.gqqv = np.zeros(6)
-
-        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
-
-        for path in [
-            Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
-            Path("/beegfs/wimmer/pySDC/projects/DAE/data/")
-        ]:
-            if path.exists():
-                path_to_data = path
-                break
-        else:
-            raise FileNotFoundError("Could not locate data directory.")
-
-        self.t_ref = np.load(path_to_data / "t_solve_andrews_3.npy")
-        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_3.npy")
-        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_3.npy")
+        self.xa = -0.06934
+        self.ya = -0.00227
+        self.xb = -0.03635
+        self.yb = 0.03273
+        self.xc = 0.014
+        self.yc = 0.072
 
     def eval_f(self, u, du, t):
         r"""
@@ -546,6 +559,29 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         self.work_counters['rhs']()
         return f
 
+    def solve_system(self, rhs, factor, u0, t):
+        """
+        Wrapper for the base class solver interface with omitted implicit system.
+
+        Parameters
+        ----------
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side of the nonlinear system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time point.
+
+        Returns
+        -------
+        me : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the nonlinear system.
+        """
+
+        return super().solve_system(None, rhs, factor, u0, t)
+
     def solve_with_newton(self, rhs, factor, u0, t):
         r"""
         Newton's method to solve the nonlinear system.
@@ -647,6 +683,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
         solution = self.dtype_u(self.init)
 
+        rhs_diff1, rhs_diff2 = rhs.diff[0 : 7], rhs.diff[7 : 14]
+
         # Form the function, such that the solution to the nonlinear problem is a root of it
         def func(u):
             q, v = u[: 7], u[7 : 14]
@@ -657,8 +695,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             self.get_func(q, v)
             self.getG(q)
 
-            f1 = q - factor * v - rhs.diff[: 7]
-            f2 = v - factor * w - rhs.diff[7 : 14]
+            f1 = q[:] - factor * v[:] - rhs_diff1[:]
+            f2 = v[:] - factor * w[:] - rhs_diff2[:]
             f3 = self.M.dot(w) - self.func + self.G.T.dot(l)
             if self.index == 3:
                 self.get_g(q)
@@ -677,7 +715,9 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
             return np.array([*f1, *f2, *f3, *f4])
 
-        u0_vec = np.array([*u0.diff[: 14], *u0.alg[: 13]])
+        q0, v0 = u0.diff[0 : 7], u0.diff[7 : 14]
+        w0, l0 = u0.alg[0 : 7], u0.alg[7 : 13]
+        u0_vec = np.array([*q0, *v0, *w0, *l0])
 
         opt = root(
             func,
@@ -687,8 +727,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         )
 
         solution = self.dtype_u(self.init)
-        solution.diff[0] = opt.x[0]
-        solution.alg[0] = opt.x[1]
+        solution.diff[: 14] = opt.x[: 14]
+        solution.alg[: 13] = opt.x[14 :]
         self.work_counters["hybr"].niter += opt.nfev
         return solution
 
@@ -884,8 +924,8 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         )
 
         solution = self.dtype_u(self.init)
-        solution.diff[0] = opt.x[0]
-        solution.alg[0] = opt.x[1]
+        solution.diff[: 14] = opt.x[: 14]
+        solution.alg[: 13] = opt.x[14 :]
         self.work_counters["hybr"].niter += opt.nfev
         return solution
 

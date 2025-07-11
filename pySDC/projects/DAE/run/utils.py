@@ -35,7 +35,7 @@ problemMapping = {
         "description": {
             "index": 1,
             "e_tol": 1e-13,
-            "maxiter": 80,
+            "maxiter": 120,
             "newton_tol": 1e-12,
             "newton_maxiter": 100,
             "solver_type": "hybr",
@@ -71,6 +71,30 @@ problemMapping = {
             "newton_tol": 1e-12,
             "newton_maxiter": 20,
             "solver_type": "newton",
+        },
+    },
+    "LINEAR-STIFF": {
+        "embeddedDAE": {
+            "module": "pySDC.projects.DAE.problems.linearStiffDAE",
+            "class": "LinearStiffDAEEmbedded",
+        },
+        "constrainedDAE": {
+            "module": "pySDC.projects.DAE.problems.linearStiffDAE",
+            "class": "LinearStiffDAEConstrained",
+        },
+        "fullyImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.linearStiffDAE",
+            "class": "LinearStiffDAE",
+        },
+        "semiImplicitDAE": {
+            "module": "pySDC.projects.DAE.problems.linearStiffDAE",
+            "class": "SemiImplicitLinearStiffDAE",
+        },
+        "description": {
+            "e_tol": 1e-13,
+            "maxiter": 120,
+            "newton_tol": 1e-12,
+            "newton_maxiter": 100,
         },
     },
     "LINEAR-TEST": {
@@ -504,6 +528,7 @@ def getEndTime(problemName):
         "ANDREWS-SQUEEZER": 0.03,
         "DPR": 1.0,
         "LINEAR-TEST": 1.0,
+        "LINEAR-STIFF": 1.0,
         "MICHAELIS-MENTEN": 0.02,  # 1.2
         "PROTHERO-ROBINSON": 1.0,
         "REACTION-DIFFUSION": 0.5,
@@ -873,10 +898,10 @@ def setupProblem(problemName, description, nNodes, problemType, **kwargs):
         # Add problem-specific params "manually" (TODO: more efficient way to do that?)
         if problemName == "ANDREWS-SQUEEZER":
             index = descriptionInfo["index"]
-            # solver_type = descriptionInfo["solver_type"]
+            solver_type = descriptionInfo["solver_type"]
             description["problem_params"].update({
                 "index": kwargs.get("index", index),
-                # "solver_type": kwargs.get("solver_type", solver_type)
+                "solver_type": kwargs.get("solver_type", solver_type)
             })
 
         elif problemName == "DPR":
@@ -889,6 +914,9 @@ def setupProblem(problemName, description, nNodes, problemType, **kwargs):
 
             if problemType in ["SPP-IMEX", "SPP-yp"]:
                 description["problem_params"].pop("newton_maxiter", None)
+
+        elif problemName == "LINEAR-STIFF":
+            description["problem_params"].pop("newton_maxiter", None)
 
         elif problemName == "MICHAELIS-MENTEN":
             solver_type = descriptionInfo["solver_type"]

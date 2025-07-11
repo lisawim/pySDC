@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     hook_class = [LogSolution]
 
-    kwargs = {"maxiter": 1, "nsweeps": 1, "e_tol": -1}
+    kwargs = {"maxiter": 1, "nsweeps": 1, "e_tol": -1, "newton_tol": 1e-14}
 
     # Let's do the simulation to get results
     solution_stats = computeSolution(

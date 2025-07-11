@@ -5,9 +5,10 @@ from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE.run.error import get_problem_cases, plot_result
 from pySDC.projects.DAE.run.mpi_test import QI_SERIAL, QI_PARALLEL, run_serial_test, run_parallel_tests
 from pySDC.projects.DAE import computeSolution, getColor, getEndTime, getLabel, get_linestyle, getMarker, Plotter
+from pySDC.projects.DAE.run.run_single_qi import choose_time_step_sizes
 
 
-def finalize_plot(dt, k, problem_name, QI_list, iter_plotter, num_nodes_list=None, appendix="along_nodes"):
+def finalize_plot(dt, k, problem_name, QI_list, iter_plotter, num_nodes=None, num_nodes_list=None, appendix="along_nodes"):
     r"""
     Finalizes the plot with labels, titles, limits for y-axis and scaling, and legend. The plot is
     then stored with fixed filename. 
@@ -41,6 +42,9 @@ def finalize_plot(dt, k, problem_name, QI_list, iter_plotter, num_nodes_list=Non
 
         iter_plotter.set_yscale(scale="log")
 
+        if appendix == "along_step_sizes":
+            iter_plotter.set_xscale(scale="log", base=10, subplot_index=q)
+
     iter_plotter.set_ylabel("number of iterations", subplot_index=None)
 
     # if problem_name == "LINEAR-TEST":
@@ -57,7 +61,8 @@ def finalize_plot(dt, k, problem_name, QI_list, iter_plotter, num_nodes_list=Non
     bbox_pos = bbox_position[k]
     iter_plotter.set_shared_legend(loc="lower center", bbox_to_anchor=(0.5, bbox_pos), ncol=4, fontsize=22)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"iterations_{appendix}_{dt=}_case{k}.png"
+    plot_name = f"iterations_{appendix}_{dt=}_case{k}.png" if appendix == "along_nodes" else f"iterations_{appendix}_{num_nodes=}_case{k}.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     iter_plotter.save(filename)
 
 
@@ -69,8 +74,8 @@ def iterations_along_nodes():
     QI_list = QI_SERIAL + QI_PARALLEL
     num_processes_list = range(2, global_size + 1)
 
-    # problem_name = "LINEAR-TEST"
-    problem_name = "MICHAELIS-MENTEN"
+    problem_name = "LINEAR-TEST"
+    # problem_name = "MICHAELIS-MENTEN"
 
     solver_type = "direct"
     kwargs = {"solver_type": solver_type}
@@ -150,17 +155,17 @@ def iterations_along_nodes():
 
 
 def iterations_along_step_sizes():
-    QI_list = QI_PARALLEL  # QI_SERIAL + QI_PARALLEL
-    num_nodes = 3
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS"]  # QI_PARALLEL  # QI_SERIAL + QI_PARALLEL
+    num_nodes = 18
 
-    # problem_name = "LINEAR-TEST"
-    problem_name = "MICHAELIS-MENTEN"
+    problem_name = "LINEAR-TEST"
+    # problem_name = "MICHAELIS-MENTEN"
 
     solver_type = "direct"
     kwargs = {"solver_type": solver_type}
 
     t0 = 0.0
-    dt_list = [1e-2]  # [10 ** (-m) for m in range(2, 8)]
+    dt_list = choose_time_step_sizes(problem_name=problem_name)
 
     case = 4  # 6
 
@@ -209,7 +214,15 @@ def iterations_along_step_sizes():
                     plot_type="semilogy",
                 )
 
-    # finalize_plot(dt, case, problem_name, QI_list, iter_plotter, appendix="along_step_sizes")
+    finalize_plot(
+        dt,
+        case,
+        problem_name,
+        QI_list,
+        iter_plotter,
+        num_nodes=num_nodes,
+        appendix="along_step_sizes",
+    )
 
 
 if __name__ == "__main__":

@@ -62,6 +62,8 @@ def main():
         comm.Barrier()
 
     max_errors = [] if rank == 0 else None
+    max_errors_y = [] if rank == 0 else None
+    max_errors_z = [] if rank == 0 else None
     wallclock_times = [] if rank == 0 else None
 
     if rank == 0:
@@ -116,6 +118,12 @@ def main():
             err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
             max_errors.append(max(err_values))
 
+            err_diff_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_step", sortby="time")]
+            max_errors_y.append(max(err_diff_values))
+
+            err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_step", sortby="time")]
+            max_errors_z.append(max(err_alg_values))
+
     if rank == 0:
         fname = f"results_experiment_{args.num_nodes}.pkl"
         path = os.path.join(args.output_dir, fname)
@@ -127,7 +135,13 @@ def main():
             all_stats = {}
 
         key = f"{args.sweeper_type}_{args.QI}"
-        all_stats[key] = {"max_errors": max_errors, "wc_times": wallclock_times}
+        all_stats[key] = {
+            "dt_list": args.dt_list,
+            "max_errors": max_errors,
+            "max_errors_y": max_errors_y,
+            "max_errors_z": max_errors_z,
+            "wc_times": wallclock_times,
+        }
 
         with open(path, "wb") as f:
             dill.dump(all_stats, f)

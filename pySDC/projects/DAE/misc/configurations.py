@@ -1,5 +1,9 @@
 from pySDC.core.errors import ParameterError
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.projects.DAE.misc.hooksDAE import (
+    LogGlobalErrorPostStepDifferentialVariable,
+    LogGlobalErrorPostStepAlgebraicVariable,
+)
 
 
 class BaseConfig:
@@ -59,7 +63,11 @@ class LinearTestWorkPrecision(LinearTestBaseConfig):
         super().__init__()
 
         self.num_nodes = 6
-        self.hook_class = [LogGlobalErrorPostStep]
+        self.hook_class = [
+            LogGlobalErrorPostStep,
+            LogGlobalErrorPostStepDifferentialVariable,
+            LogGlobalErrorPostStepAlgebraicVariable,
+        ]
 
         self._sweepers = [
             "constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"

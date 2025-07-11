@@ -27,6 +27,24 @@ def plot_work_vs_error(config):
     plot_work_vs_error_best_vs_radau(all_stats, config)
 
 
+def plot_order_iteration(all_stats, config, sweeper_type="constrainedDAE"):
+    """Plots order in each iteration for one single SDC variant."""
+
+    my_setup_mpl()
+    
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+    for QI in [q for q in config.test_methods if not q.startswith("RadauIIA")]:
+        key = f"{sweeper_type}_{QI}"
+        stats = all_stats[key]
+
+        dt_list = stats["dt_list"]
+        max_errors_y = stats["max_errors_y"]
+        max_errors_z = stats["max_errors_z"]
+
+        axs[0].loglog(dt_list, max_errors_y, marker=markers[key], color=colors[key], label=f"{QI}")
+        axs[1].loglog(dt_list, max_errors_y, marker=markers[key], color=colors[key], label=f"{QI}")
+
+
 def plot_work_vs_error_single(all_stats, config, sweeper_type="constrainedDAE"):
     """Plots work vs error for one single SDC variant (default is SDC-C)."""
 

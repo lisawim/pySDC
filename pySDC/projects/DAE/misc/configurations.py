@@ -1,8 +1,10 @@
 from pySDC.core.errors import ParameterError
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 from pySDC.projects.DAE.misc.hooksDAE import (
-    LogGlobalErrorPostStepDifferentialVariable,
-    LogGlobalErrorPostStepAlgebraicVariable,
+    LogGlobalErrorPreIterDifferentialVariable,
+    LogGlobalErrorPreIterationAlgebraicVariable,
+    LogGlobalErrorPostIterDiff,
+    LogGlobalErrorPostIterAlg,
 )
 
 
@@ -63,10 +65,25 @@ class LinearTestWorkPrecision(LinearTestBaseConfig):
         super().__init__()
 
         self.num_nodes = 6
+        self.hook_class = [LogGlobalErrorPostStep]
+
+        self._sweepers = [
+            "constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"
+        ]
+
+
+class LinearTestOrderIteration(LinearTestBaseConfig):
+    # TODO: Config benötigt feste Anzahl an maxiter für den Lauf! Dies muss dann in utils überschrieben werden,
+    # daher macht es Sinn, dass wir eine BaseClass haben, wo der ControllerStuff gemacht wird!
+    def __init__(self):
+        super().__init__()
+
+        self.num_nodes = 6
         self.hook_class = [
-            LogGlobalErrorPostStep,
-            LogGlobalErrorPostStepDifferentialVariable,
-            LogGlobalErrorPostStepAlgebraicVariable,
+            LogGlobalErrorPreIterDifferentialVariable,
+            LogGlobalErrorPreIterationAlgebraicVariable,
+            LogGlobalErrorPostIterDiff,
+            LogGlobalErrorPostIterAlg,
         ]
 
         self._sweepers = [

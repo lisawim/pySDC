@@ -4,12 +4,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
-from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision, LinearTestScaling
+from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision, LinearTestOrderIteration, LinearTestScaling
 
 from pySDC.projects.DAE.run.work_precision import run_all_simulations
 
 
-def plot_work_vs_error(config):
+def plots_work_vs_error(config):
     path = "data" + "/" + f"{config.problem_name}" + "/" + "results" + "/" + f"results_experiment_{config.num_nodes}.pkl"
     if not os.path.isfile(path):
         run_all_simulations(config)
@@ -30,6 +30,12 @@ def plot_work_vs_error(config):
 def plot_order_iteration(all_stats, config, sweeper_type="constrainedDAE"):
     """Plots order in each iteration for one single SDC variant."""
 
+    path = "data" + "/" + f"{config.problem_name}" + "/" + "results" + "/" + f"results_experiment_{config.num_nodes}.pkl"
+    run_all_simulations(config)
+
+    with open(path, "rb") as f:
+        all_stats = dill.load(f)
+
     my_setup_mpl()
     
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
@@ -38,11 +44,11 @@ def plot_order_iteration(all_stats, config, sweeper_type="constrainedDAE"):
         stats = all_stats[key]
 
         dt_list = stats["dt_list"]
-        max_errors_y = stats["max_errors_y"]
-        max_errors_z = stats["max_errors_z"]
+        errors_y_iter = stats["errors_y_iter"]
+        errors_z_iter = stats["errors_z_iter"]
 
-        axs[0].loglog(dt_list, max_errors_y, marker=markers[key], color=colors[key], label=f"{QI}")
-        axs[1].loglog(dt_list, max_errors_y, marker=markers[key], color=colors[key], label=f"{QI}")
+        axs[0].loglog(dt_list, errors_y_iter, marker=markers[key], color=colors[key], label=f"{QI}")
+        axs[1].loglog(dt_list, errors_z_iter, marker=markers[key], color=colors[key], label=f"{QI}")
 
 
 def plot_work_vs_error_single(all_stats, config, sweeper_type="constrainedDAE"):
@@ -251,8 +257,10 @@ def plot_scaling(config):
 
 
 if __name__ == "__main__":
-    config = LinearTestWorkPrecision()
-    plot_work_vs_error(config)
+    config_work_prec = LinearTestWorkPrecision()
+    plots_work_vs_error(config_work_prec)
+
+    config_order_iter = LinearTestOrderIteration()
 
     # config_scaling = LinearTestScaling()
     # plot_scaling(config_scaling)

@@ -7,13 +7,13 @@ from pySDC.projects.DAE.misc.configurations import BaseConfig
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
 
-def my_setup_mpl():
+def my_setup_mpl(fontsize=16):
     "Setting up my personal settings for plotting."
 
-    plt.rcParams["axes.labelsize"] = 16
-    plt.rcParams["xtick.labelsize"] = 16
-    plt.rcParams["ytick.labelsize"] = 16
-    plt.rcParams['legend.fontsize'] = 16
+    plt.rcParams["axes.labelsize"] = fontsize
+    plt.rcParams["xtick.labelsize"] = fontsize
+    plt.rcParams["ytick.labelsize"] = fontsize
+    plt.rcParams['legend.fontsize'] = fontsize
 
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False
@@ -94,7 +94,7 @@ def my_plot_style_config():
 
     return colors, markers, sweeper_labels
 
-def setup_problem(problem_name, description, sweeper_type):
+def setup_problem(problem_name, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
 
     if problem_name == "LINEAR-TEST":
@@ -109,8 +109,8 @@ def setup_problem(problem_name, description, sweeper_type):
 
         description["problem_class"] = problem
 
-        description["level_params"]["e_tol"] = 1e-13
-        description["step_params"] = {"maxiter": 120}
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-13)
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
         description["problem_params"] = {"solver_type": "direct"}
 
     return description
@@ -224,7 +224,7 @@ def compute_solution(
     description = {}
     description["level_params"] = {"dt": dt}
 
-    description = setup_problem(problem_name, description, sweeper_type)
+    description = setup_problem(problem_name, description, sweeper_type, **kwargs)
 
     if QI in config.qDeltas:
         description = setup_sweeper_sdc(

@@ -18,10 +18,12 @@ def my_setup_mpl(fontsize=16):
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False
 
-    plt.rcParams['lines.linewidth'] = 2
+    plt.rcParams['lines.linewidth'] = 1.2
     plt.rcParams["lines.solid_capstyle"] = "round"
-    plt.rcParams["lines.markeredgewidth"] = 1.2
+    plt.rcParams["lines.markeredgewidth"] = 0.8
     plt.rcParams["lines.markeredgecolor"] = "black"
+    plt.rcParams["lines.markersize"] = 4
+    
 
     # sets fig.tight_layout()
     plt.rcParams["figure.autolayout"] = True

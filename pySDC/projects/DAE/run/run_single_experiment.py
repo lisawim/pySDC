@@ -62,10 +62,6 @@ def main():
         comm.Barrier()
 
     max_errors = [] if rank == 0 else None
-    max_errors_y = [] if rank == 0 else None
-    max_errors_z = [] if rank == 0 else None
-    errors_y_iter = [] if rank == 0 else None
-    errors_z_iter = [] if rank == 0 else None
     wallclock_times = [] if rank == 0 else None
 
     if rank == 0:
@@ -118,24 +114,6 @@ def main():
             err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
             max_errors.append(max(err_values))
 
-            err_diff_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_step", sortby="time")]
-            max_errors_y.append(max(err_diff_values))
-
-            err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_step", sortby="time")]
-            max_errors_z.append(max(err_alg_values))
-
-            err_diff_values_spread = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_pre_iteration", sortby="iter")][0]
-            err_alg_values_spread = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_pre_iteration", sortby="iter")][0]
-
-            err_diff_iter_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_iteration", sortby="iter")]
-            err_alg_iter_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
-
-            err_diff_iter_values.insert(0, err_diff_values_spread)
-            err_alg_iter_values.insert(0, err_alg_values_spread)
-
-            errors_y_iter.append(err_diff_iter_values)
-            errors_z_iter.append(err_alg_iter_values)
-
     if rank == 0:
         fname = f"results_experiment_{args.num_nodes}.pkl"
         path = os.path.join(args.output_dir, fname)
@@ -148,12 +126,7 @@ def main():
 
         key = f"{args.sweeper_type}_{args.QI}"
         all_stats[key] = {
-            "dt_list": args.dt_list,
             "max_errors": max_errors,
-            "max_errors_y": max_errors_y,
-            "max_errors_z": max_errors_z,
-            "errors_y_iter": errors_y_iter,
-            "errors_z_iter": errors_z_iter,
             "wc_times": wallclock_times,
         }
 

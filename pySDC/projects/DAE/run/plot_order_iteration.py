@@ -25,7 +25,7 @@ def choose_time_step_sizes(problem_name):
 
 
 def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
-    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.5)
+    figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
     colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
@@ -50,7 +50,7 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
         LogGlobalErrorPostIterAlg,
     ]
 
-    my_setup_mpl(fontsize=10)
+    my_setup_mpl(fontsize=8)
 
     for q, QI in enumerate(QI_list):
         errors_y, errors_z = [], []
@@ -89,20 +89,37 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
             err_z_iter = [res[k] for res in errors_z]
 
             axs[0].loglog(
-                dt_list, err_y_iter, color=colors[k], marker=markers[k], linestyle=linestyles[k % 2], label=f"k = {k}"
+                dt_list,
+                err_y_iter,
+                color=colors[k],
+                marker=markers[k],
+                linestyle=linestyles[k % 2],
+                label=f"k = {k}",
             )
 
             axs[1].loglog(
-                dt_list, err_z_iter, color=colors[k], marker=markers[k], linestyle=linestyles[k % 2],
+                dt_list,
+                err_z_iter,
+                color=colors[k],
+                marker=markers[k],
+                linestyle=linestyles[k % 2],
             )
 
             # Reference order
             axs[0].loglog(
-                dt_list_short, [9e-1 * dt ** (k + 1) for dt in dt_list_short], color="black", linestyle="dashed", linewidth=1.5,
+                dt_list_short,
+                [9e-1 * dt ** (k + 1) for dt in dt_list_short],
+                color="black",
+                linestyle="dashed",
+                linewidth=1.5,
             )
 
             axs[1].loglog(
-                dt_list_short, [dt ** (k + 1) for dt in dt_list_short], color="black", linestyle="dashed", linewidth=1.5,
+                dt_list_short,
+                [dt ** (k + 1) for dt in dt_list_short],
+                color="black",
+                linestyle="dashed",
+                linewidth=1.2,
             )
 
         for ax in axs:
@@ -115,7 +132,7 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
 
         handles, labels = axs[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.001), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
         plot_name = "Fig2.eps" if QI == "MIN-SR-NS" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.eps"
         filename = "data" + "/" + f"{problem_name}" + "/" + plot_name

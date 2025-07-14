@@ -7,13 +7,6 @@ from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 from pySDC.helpers import problem_helper
 
 
-# def f_source(x, t):
-#     return -0.1 * np.sin(np.pi * x) * np.exp(-0.05 * t)
-
-# def g_source(x, t):
-#     return -0.05 * np.sin(np.pi * x) * np.exp(-0.02 * t)
-
-
 class ReactionDiffusionPDAE(ProblemDAE):
     def __init__(self, bc="dirichlet", newton_tol=1e-12, newton_maxiter=100, nvars=256):
         """Initialization routine"""
@@ -169,3 +162,7 @@ class ReactionDiffusionPDAE(ProblemDAE):
         u_ex.diff[self.nvars :] = self.v_ex(t, x_deriv=0, t_deriv=0)
         u_ex.alg[: self.nvars] = self.w_ex(t, x_deriv=0)
         return u_ex
+
+
+# class SemiImplicitReactionDiffusionPDAE(ReactionDiffusionPDAE):
+

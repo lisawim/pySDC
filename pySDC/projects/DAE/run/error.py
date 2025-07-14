@@ -448,7 +448,7 @@ def get_error_label(problem_name):
         Label for plotting.
     """
 
-    if problem_name in ["ANDREWS-SQUEEZER", "LINEAR-TEST", "DPR", "MICHAELIS-MENTEN", "PROTHERO-ROBINSON"]:
+    if problem_name in ["ANDREWS-SQUEEZER", "LINEAR-TEST", "DPR", "MICHAELIS-MENTEN", "PROTHERO-ROBINSON", "REACTION-DIFFUSION"]:
         err_label = "global error"
     else:
         raise NotImplementedError(f"No label implemented for {problem_name}!")
@@ -519,10 +519,11 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
 
 """Main routine"""
 if __name__ == "__main__":
-    problem_name = "ANDREWS-SQUEEZER"
+    # problem_name = "ANDREWS-SQUEEZER"
+    problem_name = "REACTION-DIFFUSION"
 
     QI_list = ["IE", "LU", "MIN-SR-S"] # ["MIN-SR-NS", "Picard"]
-    num_nodes = 4
+    num_nodes = 5
 
     solver_type = "hybr"  # ""
     kwargs = {
@@ -534,11 +535,11 @@ if __name__ == "__main__":
     }
 
     t0 = 0.0
-    dt = 1e-4#1e0  # 1e-1
+    dt = 1e-2#1e0  # 1e-1
 
     case = 4
 
-    problems = get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"fullyImplicitDAE": [0.0], "semiImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
     hook_for = "iteration"  # "iteration"  # "step"
     if hook_for == "iteration":

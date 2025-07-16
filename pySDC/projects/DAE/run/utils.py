@@ -99,7 +99,21 @@ def my_plot_style_config():
 def setup_problem(problem_name, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
 
-    if problem_name == "LINEAR-TEST":
+    if problem_name == "ANDREWS-SQUEEZER":
+        if sweeper_type == "constrainedDAE":
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAEConstrained as problem
+        elif sweeper_type == "embeddedDAE":
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAEEmbedded as problem
+        elif sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAE as problem
+        elif sweeper_type == "semiImplicitDAE":
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import SemiImplicitAndrewsSqueezingMechanismDAE as problem
+
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-13)
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 130)}
+        description["problem_params"] = {"index": 1, "solver_type": "newton"}
+
+    elif problem_name == "LINEAR-TEST":
         if sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEConstrained as problem
         elif sweeper_type == "embeddedDAE":
@@ -109,11 +123,11 @@ def setup_problem(problem_name, description, sweeper_type, **kwargs):
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
-        description["problem_class"] = problem
-
         description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-13)
         description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
         description["problem_params"] = {"solver_type": "direct"}
+
+    description["problem_class"] = problem
 
     return description
 

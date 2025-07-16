@@ -30,14 +30,14 @@ problemMapping = {
         },
         "semiImplicitDAE": {
             "module": "pySDC.projects.DAE.problems.andrewsSqueezingMechanism",
-            "class": "AndrewsSqueezingMechanismDAE",
+            "class": "SemiImplicitAndrewsSqueezingMechanismDAE",
         },
         "description": {
             "index": 1,
             "e_tol": 1e-13,
             "maxiter": 120,
-            "newton_tol": 1e-12,
-            "newton_maxiter": 100,
+            "newton_tol": 2e-14,
+            "newton_maxiter": 10,
             "solver_type": "hybr",
         },
     },

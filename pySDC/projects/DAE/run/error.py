@@ -1,5 +1,3 @@
-import numpy as np
-
 from pySDC.implementations.hooks.log_solution import LogSolutionAfterIteration
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE import computeSolution, getColor, getEndTime, getLabel, get_linestyle, getMarker, Plotter
@@ -513,33 +511,34 @@ def finalize_plot(k: int, dt, plotter, num_nodes, problems, problem_name, QI_lis
     plotter.set_shared_legend(loc="lower center", bbox_to_anchor=(0.5, -0.14), ncol=6, fontsize=22)
 
     solve = f"_{solver_type}" if solver_type == "direct" else ""
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"error_{hook_for}_{num_nodes=}_{dt=}_case{k}{solve}.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + f"error_{hook_for}_{num_nodes=}_{dt=}_case{k}{solve}_2.png"
     plotter.save(filename)
 
 
 """Main routine"""
 if __name__ == "__main__":
-    # problem_name = "ANDREWS-SQUEEZER"
-    problem_name = "REACTION-DIFFUSION"
+    problem_name = "ANDREWS-SQUEEZER"
+    # problem_name = "REACTION-DIFFUSION"
 
-    QI_list = ["IE", "LU", "MIN-SR-S"] # ["MIN-SR-NS", "Picard"]
-    num_nodes = 5
+    QI_list = ["MIN-SR-NS", "Picard"]  # ["IE", "LU", "MIN-SR-S"]
+    num_nodes = 12
 
-    solver_type = "hybr"  # ""
+    solver_type = "newton"  # ""
     kwargs = {
         "e_tol": -1,
-        # "maxiter": 10000,
+        "maxiter": 200,
         "solver_type": solver_type,
-        "newton_tol": 1e-15,
+        "newton_tol": 1e-14,
         # "logger_level": 15,
     }
 
     t0 = 0.0
-    dt = 1e-2#1e0  # 1e-1
+    dt = 1e-5#1e0  # 1e-1
 
     case = 4
 
-    problems = {"fullyImplicitDAE": [0.0], "semiImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
+    # problems = get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"constrainedDAE": [0.0], "semiImplicitDAE": [0.0]}
 
     hook_for = "iteration"  # "iteration"  # "step"
     if hook_for == "iteration":

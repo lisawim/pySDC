@@ -32,8 +32,11 @@ def finalize_plot(dt, k, problem_name, QI_list, iter_plotter, num_nodes=None, nu
     bbox_position = {1: -0.17, 2: -0.17, 3: -0.25, 4: -0.05, 5: -0.05, 6: -0.17}
 
     for q, QI in enumerate(QI_list):
+        if appendix == "along_step_sizes":
+            iter_plotter.set_xscale(scale="log", base=10, subplot_index=q)
+
         if appendix == "along_nodes":
-            iter_plotter.set_xticks(num_nodes_list[::4], subplot_index=q)
+            iter_plotter.set_xticks(num_nodes_list[::16], subplot_index=q)
             iter_plotter.set_xlabel("number of nodes", subplot_index=q)
         elif appendix == "along_step_sizes":
             iter_plotter.set_xlabel("time step sizes", subplot_index=q)
@@ -42,17 +45,14 @@ def finalize_plot(dt, k, problem_name, QI_list, iter_plotter, num_nodes=None, nu
 
         iter_plotter.set_yscale(scale="log")
 
-        if appendix == "along_step_sizes":
-            iter_plotter.set_xscale(scale="log", base=10, subplot_index=q)
-
     iter_plotter.set_ylabel("number of iterations", subplot_index=None)
 
     # if problem_name == "LINEAR-TEST":
-    #     iter_plotter.set_ylim((5e2, 5e3), scale="log")
+    #     iter_plotter.set_ylim((8e1, 2e2), scale="log")
     # elif problem_name == "MICHAELIS-MENTEN":
     #     iter_plotter.set_ylim((5e2, 1.4e5), scale="log")
 
-    iter_plotter.sync_ylim(min_y_set=1e0)
+    iter_plotter.sync_ylim(min_y_set=1e1)
 
     iter_plotter.set_grid()
 
@@ -74,18 +74,22 @@ def iterations_along_nodes():
     QI_list = QI_SERIAL + QI_PARALLEL
     num_processes_list = range(2, global_size + 1)
 
-    problem_name = "LINEAR-TEST"
-    # problem_name = "MICHAELIS-MENTEN"
+    # problem_name = "LINEAR-TEST"
+    problem_name = "ANDREWS-SQUEEZER"
 
     solver_type = "direct"
-    kwargs = {"solver_type": solver_type}
+    kwargs = {
+        "maxiter": 200,
+        # "solver_type": solver_type,
+        "newton_tol": 1e-14,
+    }
 
     t0 = 0.0
-    dt = 1e-4#np.logspace(-2.5, 0.0, num=11)[0]
+    dt = 1e-3#np.logspace(-2.5, 0.0, num=11)[0]
 
-    case = 6
+    case = 4
 
-    problems = get_problem_cases(k=case, problem_name=problem_name)
+    problems = {"constrainedDAE": [0.0], "semiImplicitDAE": [0.0]}#get_problem_cases(k=case, problem_name=problem_name)
 
     results_dict = {} if global_rank == 0 else None
 
@@ -94,7 +98,17 @@ def iterations_along_nodes():
         iter_plotter = Plotter(nrows=2, ncols=2, figsize=(12, 12))
 
         for q, QI_ser in enumerate(QI_SERIAL):
-            results_dict, global_rank = run_serial_test(dt, global_rank, num_processes_list, problems, problem_name, QI_ser, results_dict, t0, **kwargs)
+            results_dict, global_rank = run_serial_test(
+                dt,
+                global_rank,
+                num_processes_list,
+                problems,
+                problem_name,
+                QI_ser,
+                results_dict,
+                t0,
+                **kwargs,
+            )
 
             for problem_type, eps_values in problems.items():
                 for i, eps in enumerate(eps_values):
@@ -115,18 +129,30 @@ def iterations_along_nodes():
                         markersize,
                         linestyle,
                         problem_label,
-                        plot_type="semilogy",
+                        plot_type="loglog",
                         markevery=4,
                     )
 
     global_comm.Barrier()
 
-    results_dict = run_parallel_tests(dt, global_comm, global_rank, num_processes_list, problems, problem_name, QI_PARALLEL, results_dict, t0, **kwargs)
+    results_dict = run_parallel_tests(
+        dt,
+        global_comm,
+        global_rank,
+        num_processes_list,
+        problems,
+        problem_name,
+        QI_PARALLEL,
+        results_dict,
+        t0,
+        **kwargs,
+    )
 
     if global_rank == 0:
         for QI_par in QI_PARALLEL:
             for problem_type, eps_values in problems.items():
                 for i, eps in enumerate(eps_values):
+                    # q = 1 if QI_par == "MIN-SR-S" else 2
                     q = 2 if QI_par == "MIN-SR-S" else 3
                     color, res = getColor(problem_type, i, QI_ser), getMarker(problem_type, i, QI_ser)
                     problem_label, linestyle = getLabel(problem_type, eps, QI_ser), get_linestyle(problem_type, QI_ser)
@@ -145,7 +171,7 @@ def iterations_along_nodes():
                         markersize,
                         linestyle,
                         problem_label,
-                        plot_type="semilogy",
+                        plot_type="loglog",
                         markevery=4,
                     )
 
@@ -226,5 +252,5 @@ def iterations_along_step_sizes():
 
 
 if __name__ == "__main__":
-    # iterations_along_nodes()
-    iterations_along_step_sizes()    
+    iterations_along_nodes()
+    # iterations_along_step_sizes()    

@@ -2,7 +2,7 @@ import numpy as np
 from pathlib import Path
 from scipy.optimize import root
 
-from pySDC.core.errors import ParameterError, ProblemError
+from pySDC.core.errors import ProblemError
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
@@ -10,12 +10,13 @@ from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 class AndrewsSqueezingMechanismDAE(ProblemDAE):
     def __init__(
             self,
-            newton_tol=1e-12,
+            newton_tol=1e-14,
             index=1,
-            newton_maxiter=100,
+            newton_maxiter=10,
             solver_type="hybr",
             stop_at_maxiter=False,
             stop_at_nan=False,
+            verbose=False,
         ):
         """Initialization routine"""
 
@@ -27,13 +28,9 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             "solver_type",
             "stop_at_maxiter",
             "stop_at_nan",
+            "verbose",
             localVars=locals(),
         )
-
-        # if self.solver_type in ["newton"]:
-        #     raise ParameterError(
-        #         f"{self.solver_type} is not available. Choose 'hybr' instead."
-        #     )
 
         self.work_counters["rhs"] = WorkCounter()
         self.work_counters[self.solver_type] = WorkCounter()
@@ -358,7 +355,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.M[5, 6] = self.M[6, 5]
 
         self.M[6, 6] = self.m6 * ((self.zf - self.fa) ** 2 - 2 * self.u * (self.zf - self.fa) * np.sin(q6) + self.u ** 2) + self.m7 * (self.ua ** 2 + self.ub ** 2) + self.I6 + self.I7
-    
+
     def solve_system(self, impl_sys, rhs, factor, u0, t):
         r"""
         Dispatcher that selects the appropriate solver backend based on ``self.solver_type``.
@@ -395,10 +392,121 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         if self.solver_type == "hybr":
             return self.solve_with_hybr(rhs, factor, u0, t, impl_sys)
         elif self.solver_type == "newton":
-            return self.solve_with_newton(rhs, factor, u0, t)
+            return self.solve_with_newton(rhs, factor, u0, t, impl_sys)
         else:
             raise ProblemError(f"Unknown solver_type: {self.solver_type}")
-    
+
+    def update_Jacobian(self, factor):
+        r"""
+        Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
+        the right-hand side of the DAE system is approximated. Here, the derivatives of
+        :math:`f`, :math:`M` and :math:`G` are neglected.
+
+        Parameters
+        ----------
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+
+        Returns
+        -------
+        J : np.2darray
+            Jacobian.
+        """
+
+        if self.index == 3:
+            J = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        factor * self.M,
+                        factor * self.G.T,
+                    ],
+                    [
+                        factor * self.G,
+                        np.zeros((self.nl, self.nv)),
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ]
+                ]
+            )
+
+        elif self.index == 2:
+            J = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        factor * self.M,
+                        factor * self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        factor * self.G,
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+
+        elif self.index == 1:
+            J = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        factor * self.M,
+                        factor * self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        np.zeros((self.nl, self.nv)),
+                        factor * self.G,
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+        else:
+            raise NotImplementedError
+
+        return J
+
     def solve_with_hybr(self, u_approx, factor, u0, t, impl_sys=None):
         r"""
         Root solver for the nonlinear system using SciPy's ``optimize.root`` with
@@ -425,7 +533,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         """
         return super().solve_system(impl_sys, u_approx, factor, u0, t)
     
-    def solve_with_newton(self, rhs, factor, u0, t):
+    def solve_with_newton(self, rhs, factor, u0, t, impl_sys):
         r"""
         Placeholder for solve with Newton's method that can be written
         some time.
@@ -445,7 +553,52 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         ------
         NotImplementedError
         """
-        raise NotImplementedError
+
+        u = self.dtype_u(u0)
+
+        def impl_sys_numpy(u_me, **kwargs):
+            sys = impl_sys(u_me, self, factor, rhs, t, **kwargs)
+            sys_numpy = np.array([*sys.diff[:14], *sys.alg[:13]])
+            return sys_numpy
+
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            h = impl_sys_numpy(u)
+
+            # If g is close to 0, then we are done
+            res = np.linalg.norm(h, np.inf)
+            if res < self.newton_tol:
+                break
+
+            # Assemble dh - TODO: Implement approximate Jacobian by finite differences
+            dh = self.update_Jacobian(factor)
+
+            # Newton direction dx
+            dx = np.linalg.solve(dh, h)
+
+            # Newton update: u1 = u0 - g/dg
+            u.diff[: 14] -= dx[: 14]
+            u.alg[: 13] -= dx[14 : 27]
+
+            # Increase iteration per one
+            n += 1
+            self.work_counters["newton"]()
+
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
+        elif np.isnan(res):
+            self.logger.warning("Newton got nan after %i iterations..." % n)
+        if n == self.newton_maxiter and self.verbose:
+            msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
+            if self.stop_at_maxiter:
+                raise ProblemError(msg)
+            else:
+                self.logger.warning(msg)
+
+        solution = self.dtype_u(self.init)
+        solution[:] = u[:]
+        return solution
 
     def u_exact(self, t, **kwargs):
         r"""
@@ -527,6 +680,120 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         return du_ex
 
 
+class SemiImplicitAndrewsSqueezingMechanismDAE(AndrewsSqueezingMechanismDAE):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def update_Jacobian(self, factor):
+        r"""
+        Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
+        the right-hand side of the DAE system is approximated. Here, the derivatives of
+        :math:`f`, :math:`M` and :math:`G` are neglected.
+
+        Parameters
+        ----------
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+
+        Returns
+        -------
+        J : np.2darray
+            Jacobian.
+        """
+
+        if self.index == 3:
+            J = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        self.G,
+                        np.zeros((self.nl, self.nv)),
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+        elif self.index == 2:
+            J = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        self.G,
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+        elif self.index == 1:
+            J = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -np.eye(self.nw), 
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        np.zeros((self.nl, self.nv)),
+                        self.G,
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+        else:
+            raise NotImplementedError
+
+        return J
+
+
 class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
     """Constrained formulation where only the differential equations are integrated numerically"""
 
@@ -556,7 +823,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         f.diff[7 : 14] = w[:]
 
         f.alg[:] = self.algebraicConstraints(u, t)
-        self.work_counters['rhs']()
+        self.work_counters["rhs"]()
         return f
 
     def solve_system(self, rhs, factor, u0, t):
@@ -582,7 +849,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
         return super().solve_system(None, rhs, factor, u0, t)
 
-    def solve_with_newton(self, rhs, factor, u0, t):
+    def solve_with_newton(self, rhs, factor, u0, t, impl_sys=None):
         r"""
         Newton's method to solve the nonlinear system.
 
@@ -616,7 +883,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
             h1 = q[:] - factor * v[:] - rhs_diff1[:]
             h2 = v[:] - factor * w[:] - rhs_diff2[:]
-            f_alg = self.algebraicConstraints(u, t)[0 : 13]
+            f_alg = self.algebraicConstraints(u, t)[: 13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
             h = np.array([*h1, *h2, *f_alg])
@@ -633,8 +900,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             dx = np.linalg.solve(dh, h)
 
             # Newton update: u1 = u0 - g/dg
-            u.diff[0 : 14] -= dx[0 : 14]
-            u.alg[0 : 13] -= dx[14 : 27]
+            u.diff[: 14] -= dx[: 14]
+            u.alg[: 13] -= dx[14 : 27]
 
             # Increase iteration per one
             n += 1
@@ -644,7 +911,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
         elif np.isnan(res):
             self.logger.warning("Newton got nan after %i iterations..." % n)
-        if n == self.newton_maxiter:
+        if n == self.newton_maxiter and self.verbose:
             msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
             if self.stop_at_maxiter:
                 raise ProblemError(msg)
@@ -686,7 +953,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         rhs_diff1, rhs_diff2 = rhs.diff[0 : 7], rhs.diff[7 : 14]
 
         # Form the function, such that the solution to the nonlinear problem is a root of it
-        def func(u):
+        def andrews_dae(u):
             q, v = u[: 7], u[7 : 14]
             w, l = u[14 : 21], u[21 :]
 
@@ -716,11 +983,11 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             return np.array([*f1, *f2, *f3, *f4])
 
         q0, v0 = u0.diff[0 : 7], u0.diff[7 : 14]
-        w0, l0 = u0.alg[0 : 7], u0.alg[7 : 13]
-        u0_vec = np.array([*q0, *v0, *w0, *l0])
+        w0, lamb0 = u0.alg[0 : 7], u0.alg[7 : 13]
+        u0_vec = np.array([*q0, *v0, *w0, *lamb0])
 
         opt = root(
-            func,
+            andrews_dae,
             u0_vec,
             method=self.solver_type,
             tol=self.newton_tol,
@@ -752,28 +1019,88 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         if self.index == 3:
             J = np.block(
                 [
-                    [np.eye(self.nq), -factor * np.eye(self.nv), np.zeros((self.nq, self.nw)), np.zeros((self.nq, self.nl))],
-                    [np.zeros((self.nv, self.nq)), np.eye(self.nv), -factor * np.eye(self.nw), np.zeros((self.nv, self.nl))],
-                    [np.zeros((self.nw, self.nq)), np.zeros((self.nw, self.nv)), self.M, self.G.T],
-                    [self.G, np.zeros((self.nl, self.nv)), np.zeros((self.nl, self.nw)), np.zeros((self.nl, self.nl))],
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        self.G,
+                        np.zeros((self.nl, self.nv)),
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
                 ]
             )
         elif self.index == 2:
             J = np.block(
                 [
-                    [np.eye(self.nq), -factor * np.eye(self.nv), np.zeros((self.nq, self.nw)), np.zeros((self.nq, self.nl))],
-                    [np.zeros((self.nv, self.nq)), np.eye(self.nv), -factor * np.eye(self.nw), np.zeros((self.nv, self.nl))],
-                    [np.zeros((self.nw, self.nq)), np.zeros((self.nw, self.nv)), self.M, self.G.T],
-                    [np.zeros((self.nl, self.nq)), self.G, np.zeros((self.nl, self.nw)), np.zeros((self.nl, self.nl))],
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        self.G,
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
                 ]
             )
         elif self.index == 1:
             J = np.block(
                 [
-                    [np.eye(self.nq), -factor * np.eye(self.nv), np.zeros((self.nq, self.nw)), np.zeros((self.nq, self.nl))],
-                    [np.zeros((self.nv, self.nq)), np.eye(self.nv), -factor * np.eye(self.nw), np.zeros((self.nv, self.nl))],
-                    [np.zeros((self.nw, self.nq)), np.zeros((self.nw, self.nv)), self.M, self.G.T],
-                    [np.zeros((self.nl, self.nq)), np.zeros((self.nl, self.nv)), self.G, np.zeros((self.nl, self.nl))],
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        np.zeros((self.nl, self.nv)),
+                        self.G,
+                        np.zeros((self.nl, self.nl)),
+                    ],
                 ]
             )
         else:
@@ -785,7 +1112,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrained):
     """Problem class for an embedded method where only the algebraic constraints are enforced"""
 
-    def solve_with_newton(self, rhs, factor, u0, t):
+    def solve_with_newton(self, rhs, factor, u0, t, impl_sys):
         r"""
         Newton's method to solve the nonlinear system.
 
@@ -845,7 +1172,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
         elif np.isnan(res):
             self.logger.warning("Newton got nan after %i iterations..." % n)
-        if n == self.newton_maxiter:
+        if n == self.newton_maxiter and self.verbose:
             msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
             if self.stop_at_maxiter:
                 raise ProblemError(msg)
@@ -954,30 +1281,90 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         if self.index == 3:
             J = np.block(
                 [
-                    [np.eye(self.nq), -factor * np.eye(self.nv), np.zeros((self.nq, self.nw)), np.zeros((self.nq, self.nl))],
-                    [np.zeros((self.nv, self.nq)), np.eye(self.nv), -factor * np.eye(self.nw), np.zeros((self.nv, self.nl))],
-                    [np.zeros((self.nw, self.nq)), np.zeros((self.nw, self.nv)), -factor * self.M, -factor * self.G.T],
-                    [-factor * self.G, np.zeros((self.nl, self.nv)), np.zeros((self.nl, self.nw)), np.zeros((self.nl, self.nl))]
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        -factor * self.M,
+                        -factor * self.G.T,
+                    ],
+                    [
+                        -factor * self.G,
+                        np.zeros((self.nl, self.nv)),
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ]
                 ]
             )
 
         elif self.index == 2:
             J = np.block(
                 [
-                    [np.eye(self.nq), -factor * np.eye(self.nv), np.zeros((self.nq, self.nw)), np.zeros((self.nq, self.nl))],
-                    [np.zeros((self.nv, self.nq)), np.eye(self.nv), -factor * np.eye(self.nw), np.zeros((self.nv, self.nl))],
-                    [np.zeros((self.nw, self.nq)), np.zeros((self.nw, self.nv)), -factor * self.M, -factor * self.G.T],
-                    [np.zeros((self.nl, self.nq)), -factor * self.G, np.zeros((self.nl, self.nw)), np.zeros((self.nl, self.nl))],
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        -factor * self.M,
+                        -factor * self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        -factor * self.G,
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
                 ]
             )
 
         elif self.index == 1:
             J = np.block(
                 [
-                    [np.eye(self.nq), -factor * np.eye(self.nv), np.zeros((self.nq, self.nw)), np.zeros((self.nq, self.nl))],
-                    [np.zeros((self.nv, self.nq)), np.eye(self.nv), -factor * np.eye(self.nw), np.zeros((self.nv, self.nl))],
-                    [np.zeros((self.nw, self.nq)), np.zeros((self.nw, self.nv)), -factor * self.M, -factor * self.G.T],
-                    [np.zeros((self.nl, self.nq)), np.zeros((self.nl, self.nv)), -factor * self.G, np.zeros((self.nl, self.nl))],
+                    [
+                        np.eye(self.nq),
+                        -factor * np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        -factor * np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        -factor * self.M,
+                        -factor * self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        np.zeros((self.nl, self.nv)),
+                        -factor * self.G,
+                        np.zeros((self.nl, self.nl)),
+                    ],
                 ]
             )
 

@@ -16,7 +16,7 @@ class CollocationDAE(RungeKuttaDAE):
         self.M = params['num_nodes']
 
         self.newton_tol = 1e-14
-        self.newton_maxiter = 11
+        self.newton_maxiter = 100
 
     def update_nodes(self):
         """

@@ -7,7 +7,7 @@ from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE import computeSolution, getColor, getEndTime, getLabel, get_linestyle, getMarker, Plotter
 
 QI_SERIAL = ["IE", "LU"]
-QI_PARALLEL = ["MIN-SR-S"]
+QI_PARALLEL = ["MIN-SR-S", "MIN-SR-NS"]
 
 def run_test_and_split_communicator(
         num_processes, global_comm, global_rank, problemName, t0, dt, Tend, QI, problemType, useMPI, eps, hookClass=[], **kwargs

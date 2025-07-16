@@ -69,6 +69,9 @@ def main():
 
     for dt in args.dt_list:
         if args.use_mpi:
+            if rank == 0:
+                print(f"- {dt=}..")
+
             comm.Barrier()
 
             runtime, solution_stats = compute_solution(
@@ -94,6 +97,8 @@ def main():
 
         else:
             if rank == 0:
+                print(f"- {dt=}..")
+
                 runtime, solution_stats = compute_solution(
                     args.problem_name,
                     args.t0,

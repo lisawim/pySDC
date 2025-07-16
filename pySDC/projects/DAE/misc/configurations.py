@@ -59,6 +59,16 @@ class LinearTestBaseConfig(BaseConfig):
         self.Tend = 1.0
         self.problem_name = "LINEAR-TEST"
 
+class AndrewsBaseConfig(BaseConfig):
+    def __init__(self):
+        super().__init__()
+
+        self._test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
+
+        self.t0 = 0.0
+        self.Tend = 0.03
+        self.problem_name = "ANDREWS-SQUEEZER"
+
     
 class LinearTestWorkPrecision(LinearTestBaseConfig):
     def __init__(self):
@@ -70,6 +80,9 @@ class LinearTestWorkPrecision(LinearTestBaseConfig):
         self._sweepers = [
             "constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"
         ]
+
+class AndrewsWorkPrecision(AndrewsBaseConfig, LinearTestWorkPrecision):
+    pass
 
 
 class LinearTestOrderIteration(LinearTestBaseConfig):

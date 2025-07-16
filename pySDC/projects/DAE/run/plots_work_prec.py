@@ -5,28 +5,26 @@ import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.helpers.plot_helper import figsize_by_journal
-from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision
+from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision, AndrewsWorkPrecision
 
 from pySDC.projects.DAE.run.work_precision import run_all_simulations
 
 
 def plots_work_vs_error(config):
     path = "data" + "/" + f"{config.problem_name}" + "/" + "results" + "/" + f"results_experiment_{config.num_nodes}.pkl"
-    if not os.path.isfile(path):
-        run_all_simulations(config)
+    run_all_simulations(config)
 
-        with open(path, "rb") as f:
-            all_stats = dill.load(f)
-    else:
-        with open(path, "rb") as f:
-            all_stats = dill.load(f)
+    with open(path, "rb") as f:
+        all_stats = dill.load(f)
 
     plot_work_vs_error_single(all_stats, config)
 
     plot_work_vs_error_sdc_radau(all_stats, config)
 
 
-def plot_work_vs_error_single(all_stats, config, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_work_vs_error_single(
+        all_stats, config, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"
+    ):
     """Plots work vs error for one single SDC variant (default is SDC-C)."""
 
     figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
@@ -153,4 +151,5 @@ def plot_work_vs_error_sdc_radau(
 
 if __name__ == "__main__":
     config_work_prec = LinearTestWorkPrecision()
+    # config_work_prec = AndrewsWorkPrecision()
     plots_work_vs_error(config_work_prec)

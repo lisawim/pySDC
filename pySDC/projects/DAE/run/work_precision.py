@@ -1,3 +1,4 @@
+import numpy as np
 import sys
 import dill
 import os
@@ -34,6 +35,7 @@ def run_all_simulations(config):
     os.makedirs(output_dir, exist_ok=True)
 
     n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500]
+    # n_steps_list = [50, 100, 200, 500, 1000]
     dt_list = [config.Tend / n_steps for n_steps in n_steps_list]
 
     all_stats = {}

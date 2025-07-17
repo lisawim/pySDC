@@ -137,29 +137,6 @@ class LinearTestDAE(ProblemDAE):
             [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
             [-factor * self.lamb_diff, factor * self.lamb_alg],
         ])
-    
-    def dg_inv(self, factor):
-        """
-        Analytical inverse of the Jacobian matrix.
-
-        Parameters
-        ----------
-        factor : float
-            Abbrev. for the node-to-node stepsize (or any other factor required).
-
-        Returns
-        -------
-        np.2darray
-            Inverse of Jacobian.
-        """
-
-        det = factor * self.lamb_alg - 2 * factor ** 2 * self.lamb_diff * self.lamb_alg
-
-        inv = np.array([
-            [factor * self.lamb_alg, factor * self.lamb_alg],
-            [factor * self.lamb_diff, 1 - factor * self.lamb_diff],
-        ])
-        return inv / det
 
     def eval_f(self, u, du, t):
         r"""
@@ -497,28 +474,6 @@ class SemiImplicitLinearTestDAE(LinearTestDAE):
             [1 - factor * self.lamb_diff, -self.lamb_alg],
             [-factor * self.lamb_diff, self.lamb_alg],
         ])
-    
-    def dg_inv(self, factor):
-        """
-        Analytical inverse of the Jacobian matrix.
-
-        Parameters
-        ----------
-        factor : float
-            Abbrev. for the node-to-node stepsize (or any other factor required).
-
-        Returns
-        -------
-        np.2darray
-            Inverse of Jacobian.
-        """
-
-        det = self.lamb_alg - 2 * factor * self.lamb_diff * self.lamb_alg
-        inv = np.array([
-            [self.lamb_alg, self.lamb_alg],
-            [factor * self.lamb_diff, 1 - factor * self.lamb_diff],
-        ])
-        return inv / det
 
     def solve_direct(self, rhs, factor, t):
         r"""
@@ -607,28 +562,6 @@ class LinearTestDAEConstrained(LinearTestDAE):
             [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
             [self.lamb_diff, -self.lamb_alg],
         ])
-    
-    def dg_inv(self, factor):
-        """
-        Analytical inverse of the Jacobian matrix.
-
-        Parameters
-        ----------
-        factor : float
-            Abbrev. for the node-to-node stepsize (or any other factor required).
-
-        Returns
-        -------
-        np.2darray
-            Inverse of Jacobian.
-        """
-
-        det = -self.lamb_alg + 2 * factor * self.lamb_diff * self.lamb_alg
-        inv = np.array([
-            [-self.lamb_alg, factor * self.lamb_alg],
-            [-self.lamb_diff, 1 - factor * self.lamb_diff],
-        ])
-        return inv / det
 
     def eval_f(self, u, t):
         r"""
@@ -742,10 +675,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
             f2 = self.lamb_diff * y - self.lamb_alg * z
             return np.array([f1, f2])
 
-        def jac(u):
-            return self.dg(factor)
-
-        opt = root(fun, u0_vec, method="hybr", jac=jac, tol=self.newton_tol)
+        opt = root(fun, u0_vec, method="hybr", tol=self.newton_tol)
 
         solution = self.dtype_u(self.init)
         solution.diff[0], solution.alg[0] = opt.x[0], opt.x[1]
@@ -830,28 +760,6 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
             [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
             [-factor * self.lamb_diff, factor * self.lamb_alg]
         ])
-    
-    def dg_inv(self, factor):
-        """
-        Analytical inverse of the Jacobian matrix.
-
-        Parameters
-        ----------
-        factor : float
-            Abbrev. for the node-to-node stepsize (or any other factor required).
-
-        Returns
-        -------
-        np.2darray
-            Inverse of Jacobian.
-        """
-
-        det = factor * self.lamb_alg - 2 * factor ** 2 * self.lamb_diff * self.lamb_alg
-        inv = np.array([
-            [factor * self.lamb_alg, factor * self.lamb_alg],
-            [factor * self.lamb_diff, 1 - factor * self.lamb_diff],
-        ])
-        return inv / det
 
     def solve_direct(self, rhs, factor, t):
         r"""
@@ -917,10 +825,7 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
             f2 = -factor * (self.lamb_diff * y - self.lamb_alg * z) - rhs_vec[1]
             return np.array([f1, f2])
 
-        def jac(u):
-            return self.dg(factor)
-
-        opt = root(fun, u0_vec, method="hybr", jac=jac, tol=self.newton_tol)
+        opt = root(fun, u0_vec, method="hybr", tol=self.newton_tol)
 
         solution = self.dtype_u(self.init)
         solution.diff[0], solution.alg[0] = opt.x[0], opt.x[1]

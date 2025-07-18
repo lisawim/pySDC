@@ -213,12 +213,16 @@ class RayleighBenard(GenericSpectralLinear):
 
         # start by computing derivatives
         if not hasattr(self, '_Dx_expanded') or not hasattr(self, '_Dz_expanded'):
-            self._Dx_expanded = self._setup_operator({'u': {'u': Dx}, 'v': {'v': Dx}, 'T': {'T': Dx}, 'p': {}})
-            self._Dz_expanded = self._setup_operator({'u': {'u': Dz}, 'v': {'v': Dz}, 'T': {'T': Dz}, 'p': {}})
+            self._Dx_expanded = self._setup_operator(
+                {'u': {'u': Dx}, 'v': {'v': Dx}, 'T': {'T': Dx}, 'p': {}}, diag=True
+            )
+            self._Dz_expanded = self._setup_operator(
+                {'u': {'u': Dz}, 'v': {'v': Dz}, 'T': {'T': Dz}, 'p': {}}, diag=True
+            )
         Dx_u_hat = (self._Dx_expanded @ u_hat.flatten()).reshape(u_hat.shape)
         Dz_u_hat = (self._Dz_expanded @ u_hat.flatten()).reshape(u_hat.shape)
 
-        padding = [self.dealiasing, self.dealiasing]
+        padding = (self.dealiasing, self.dealiasing)
         Dx_u_pad = self.itransform(Dx_u_hat, padding=padding).real
         Dz_u_pad = self.itransform(Dz_u_hat, padding=padding).real
         u_pad = self.itransform(u_hat, padding=padding).real
@@ -403,7 +407,7 @@ class RayleighBenard(GenericSpectralLinear):
         DzT_hat[iT] = (self.Dz @ u_hat[iT].flatten()).reshape(DzT_hat[iT].shape)
 
         # compute vT with dealiasing
-        padding = [self.dealiasing, self.dealiasing]
+        padding = (self.dealiasing, self.dealiasing)
         u_pad = self.itransform(u_hat, padding=padding).real
         _me = self.xp.zeros_like(u_pad)
         _me[0] = u_pad[iv] * u_pad[iT]

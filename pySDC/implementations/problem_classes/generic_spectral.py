@@ -59,6 +59,7 @@ class GenericSpectralLinear(Problem):
         left_preconditioner=True,
         solver_type='cached_direct',
         solver_args=None,
+        preconditioner_args=None,
         useGPU=False,
         max_cached_factorizations=12,
         spectral_space=True,
@@ -83,11 +84,17 @@ class GenericSpectralLinear(Problem):
             debug (bool): Make additional tests at extra computational cost
         """
         solver_args = {} if solver_args is None else solver_args
+
+        preconditioner_args = {} if preconditioner_args is None else preconditioner_args
+        preconditioner_args['drop_tol'] = preconditioner_args.get('drop_tol', 1e-3)
+        preconditioner_args['fill_factor'] = preconditioner_args.get('fill_factor', 100)
+
         self._makeAttributeAndRegister(
             'max_cached_factorizations',
             'useGPU',
             'solver_type',
             'solver_args',
+            'preconditioner_args',
             'left_preconditioner',
             'Dirichlet_recombination',
             'comm',
@@ -131,20 +138,21 @@ class GenericSpectralLinear(Problem):
         """
         return getattr(self.spectral, name)
 
-    def _setup_operator(self, LHS):
+    def _setup_operator(self, LHS, diag=False):
         """
         Setup a sparse linear operator by adding relationships. See documentation for ``GenericSpectralLinear.setup_L`` to learn more.
 
         Args:
             LHS (dict): Equations to be added to the operator
+            diag (bool): Whether operator is block-diagonal
 
         Returns:
             sparse linear operator
         """
-        operator = self.spectral.get_empty_operator_matrix()
+        operator = self.spectral.get_empty_operator_matrix(diag=diag)
         for line, equation in LHS.items():
-            self.spectral.add_equation_lhs(operator, line, equation)
-        return self.spectral.convert_operator_matrix_to_operator(operator)
+            self.spectral.add_equation_lhs(operator, line, equation, diag=diag)
+        return self.spectral.convert_operator_matrix_to_operator(operator, diag=diag)
 
     def setup_L(self, LHS):
         """
@@ -166,13 +174,13 @@ class GenericSpectralLinear(Problem):
         """
         self.L = self._setup_operator(LHS)
 
-    def setup_M(self, LHS):
+    def setup_M(self, LHS, diag=True):
         '''
         Setup mass matrix, see documentation of ``GenericSpectralLinear.setup_L``.
         '''
         diff_index = list(LHS.keys())
         self.diff_mask = [me in diff_index for me in self.components]
-        self.M = self._setup_operator(LHS)
+        self.M = self._setup_operator(LHS, diag=diag)
 
     def setup_preconditioner(self, Dirichlet_recombination=True, left_preconditioner=True):
         """
@@ -187,7 +195,7 @@ class GenericSpectralLinear(Problem):
 
         Id = sp.eye(N)
         Pl_lhs = {comp: {comp: Id} for comp in self.components}
-        self.Pl = self._setup_operator(Pl_lhs)
+        self.Pl = self._setup_operator(Pl_lhs, diag=True)
 
         if left_preconditioner:
             # reverse Kronecker product
@@ -203,13 +211,13 @@ class GenericSpectralLinear(Problem):
 
             self.Pl = self.spectral.sparse_lib.csc_matrix(R)
 
-        if Dirichlet_recombination and type(self.axes[-1]).__name__ in ['ChebychevHelper, Ultraspherical']:
+        if Dirichlet_recombination and type(self.axes[-1]).__name__ in ['ChebychevHelper', 'UltrasphericalHelper']:
             _Pr = self.spectral.get_Dirichlet_recombination_matrix(axis=-1)
         else:
             _Pr = Id
 
         Pr_lhs = {comp: {comp: _Pr} for comp in self.components}
-        self.Pr = self._setup_operator(Pr_lhs) @ self.Pl.T
+        self.Pr = self._setup_operator(Pr_lhs, diag=True) @ self.Pl.T
 
     def solve_system(self, rhs, dt, u0=None, *args, skip_itransform=False, **kwargs):
         """
@@ -228,14 +236,21 @@ class GenericSpectralLinear(Problem):
         if self.spectral_space:
             rhs_hat = rhs.copy()
             if u0 is not None:
-                u0_hat = self.Pr.T @ u0.copy().flatten()
+                u0_hat = u0.copy().flatten()
+            else:
+                u0_hat = None
         else:
             rhs_hat = self.spectral.transform(rhs)
             if u0 is not None:
-                u0_hat = self.Pr.T @ self.spectral.transform(u0).flatten()
+                u0_hat = self.spectral.transform(u0).flatten()
+            else:
+                u0_hat = None
 
-        if self.useGPU:
-            self.xp.cuda.Device().synchronize()
+        # apply inverse right preconditioner to initial guess
+        if u0_hat is not None and 'direct' not in self.solver_type:
+            if not hasattr(self, '_Pr_inv'):
+                self._PR_inv = self.linalg.splu(self.Pr.astype(complex)).solve
+            u0_hat[...] = self._PR_inv(u0_hat)
 
         rhs_hat = (self.M @ rhs_hat.flatten()).reshape(rhs_hat.shape)
         rhs_hat = self.spectral.put_BCs_in_rhs_hat(rhs_hat)
@@ -245,17 +260,30 @@ class GenericSpectralLinear(Problem):
             A = self.M + dt * self.L
             A = self.Pl @ self.spectral.put_BCs_in_matrix(A) @ self.Pr
 
-        # import numpy as np
-        # if A.shape[0] < 200:
-        #     import matplotlib.pyplot as plt
+            # if A.shape[0] < 200e20:
+            #     import matplotlib.pyplot as plt
 
-        #     # M = self.spectral.put_BCs_in_matrix(self.L.copy())
-        #     M = A  # self.L
-        #     im = plt.imshow((M / abs(M)).real)
-        #     # im = plt.imshow(np.log10(abs(A.toarray())).real)
-        #     # im = plt.imshow(((A.toarray())).real)
-        #     plt.colorbar(im)
-        #     plt.show()
+            #     # M = self.spectral.put_BCs_in_matrix(self.L.copy())
+            #     M = A  # self.L
+            #     im = plt.spy(M)
+            #     plt.show()
+
+        if 'ilu' in self.solver_type.lower():
+            if dt not in self.cached_factorizations.keys():
+                if len(self.cached_factorizations) >= self.max_cached_factorizations:
+                    to_evict = list(self.cached_factorizations.keys())[0]
+                    self.cached_factorizations.pop(to_evict)
+                    self.logger.debug(f'Evicted matrix factorization for {to_evict=:.6f} from cache')
+                iLU = self.linalg.spilu(
+                    A, **{**self.preconditioner_args, 'drop_tol': dt * self.preconditioner_args['drop_tol']}
+                )
+                self.cached_factorizations[dt] = self.linalg.LinearOperator(A.shape, iLU.solve)
+                self.logger.debug(f'Cached incomplete LU factorization for {dt=:.6f}')
+                self.work_counters['factorizations']()
+            M = self.cached_factorizations[dt]
+        else:
+            M = None
+        info = 0
 
         if self.solver_type.lower() == 'cached_direct':
             if dt not in self.cached_factorizations.keys():
@@ -271,15 +299,7 @@ class GenericSpectralLinear(Problem):
 
         elif self.solver_type.lower() == 'direct':
             _sol_hat = sp.linalg.spsolve(A, rhs_hat)
-        elif self.solver_type.lower() == 'lsqr':
-            lsqr = sp.linalg.lsqr(
-                A,
-                rhs_hat,
-                x0=u0_hat,
-                **self.solver_args,
-            )
-            _sol_hat = lsqr[0]
-        elif self.solver_type.lower() == 'gmres':
+        elif 'gmres' in self.solver_type.lower():
             _sol_hat, _ = sp.linalg.gmres(
                 A,
                 rhs_hat,
@@ -287,41 +307,29 @@ class GenericSpectralLinear(Problem):
                 **self.solver_args,
                 callback=self.work_counters[self.solver_type],
                 callback_type='pr_norm',
+                M=M,
             )
-        elif self.solver_type.lower() == 'gmres+ilu':
-            linalg = self.spectral.linalg
-
-            if dt not in self.cached_factorizations.keys():
-                if len(self.cached_factorizations) >= self.max_cached_factorizations:
-                    to_evict = list(self.cached_factorizations.keys())[0]
-                    self.cached_factorizations.pop(to_evict)
-                    self.logger.debug(f'Evicted matrix factorization for {to_evict=:.6f} from cache')
-                iLU = linalg.spilu(A, drop_tol=dt * 1e-4, fill_factor=100)
-                self.cached_factorizations[dt] = linalg.LinearOperator(A.shape, iLU.solve)
-                self.logger.debug(f'Cached matrix factorization for {dt=:.6f}')
-                self.work_counters['factorizations']()
-
-            _sol_hat, _ = linalg.gmres(
+        elif self.solver_type.lower() == 'cg':
+            _sol_hat, info = sp.linalg.cg(
+                A, rhs_hat, x0=u0_hat, **self.solver_args, callback=self.work_counters[self.solver_type]
+            )
+        elif 'bicgstab' in self.solver_type.lower():
+            _sol_hat, info = self.linalg.bicgstab(
                 A,
                 rhs_hat,
                 x0=u0_hat,
                 **self.solver_args,
                 callback=self.work_counters[self.solver_type],
-                callback_type='pr_norm',
-                M=self.cached_factorizations[dt],
-            )
-        elif self.solver_type.lower() == 'cg':
-            _sol_hat, _ = sp.linalg.cg(
-                A, rhs_hat, x0=u0_hat, **self.solver_args, callback=self.work_counters[self.solver_type]
+                M=M,
             )
         else:
             raise NotImplementedError(f'Solver {self.solver_type=} not implemented in {type(self).__name__}!')
 
+        if info != 0:
+            self.logger.warn(f'{self.solver_type} not converged! {info=}')
+
         sol_hat = self.spectral.u_init_forward
         sol_hat[...] = (self.Pr @ _sol_hat).reshape(sol_hat.shape)
-
-        if self.useGPU:
-            self.xp.cuda.Device().synchronize()
 
         if self.spectral_space:
             return sol_hat
@@ -337,8 +345,8 @@ class GenericSpectralLinear(Problem):
     def setUpFieldsIO(self):
         Rectilinear.setupMPI(
             comm=self.comm,
-            iLoc=[me.start for me in self.local_slice],
-            nLoc=[me.stop - me.start for me in self.local_slice],
+            iLoc=[me.start for me in self.local_slice(False)],
+            nLoc=[me.stop - me.start for me in self.local_slice(False)],
         )
 
     def getOutputFile(self, fileName):

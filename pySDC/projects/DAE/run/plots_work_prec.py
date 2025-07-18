@@ -153,5 +153,8 @@ def plot_work_vs_error_sdc_radau(
 
 
 if __name__ == "__main__":
-    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="work_precision")
-    plots_work_vs_error(**config_linear)
+    # config_linear = get_configs(problem_name="LINEAR-TEST", config_type="work_precision")
+    # plots_work_vs_error(**config_linear)
+
+    config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="work_precision")
+    plots_work_vs_error(**config_andrews)

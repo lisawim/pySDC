@@ -1,19 +1,14 @@
 from pySDC.core.errors import ParameterError
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
-from pySDC.projects.DAE.misc.hooksDAE import (
-    LogGlobalErrorPreIterDifferentialVariable,
-    LogGlobalErrorPreIterationAlgebraicVariable,
-    LogGlobalErrorPostIterDiff,
-    LogGlobalErrorPostIterAlg,
-)
 
 
 def get_configs(problem_name, config_type):
     if config_type == "work_precision":
-        sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
         test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
 
         if problem_name == "ANDREWS-SQUEEZER":
+            sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
+
             config = {
                 "hook_class": [LogGlobalErrorPostStep],
                 "num_nodes": 6,
@@ -23,6 +18,8 @@ def get_configs(problem_name, config_type):
             }
 
         elif problem_name == "LINEAR-TEST":
+            sweepers = ["constrainedDAE", "semiImplicitDAE"]
+
             config = {
                 "hook_class": [LogGlobalErrorPostStep],
                 "num_nodes": 6,

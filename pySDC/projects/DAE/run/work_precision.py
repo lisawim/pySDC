@@ -4,7 +4,13 @@ import dill
 import os
 import subprocess
 
-from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision
+from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
+
+
+QI_PARALLEL = ["MIN-SR-NS", "MIN-SR-S"]
+QI_SERIAL = ["IE", "LU", "Picard"]
+RADAU_METHODS = ["RadauIIA5", "RadauIIA7", "RadauIIA9"]
 
 
 def build_args_list(args, hook_class):
@@ -28,19 +34,18 @@ def build_args_list(args, hook_class):
     return args_list
 
 
-def run_all_simulations(config):
+def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs):
     python_exec = sys.executable
 
-    output_dir = "data" + "/" + f"{config.problem_name}" + "/" + "results"
+    output_dir = "data" + "/" + f"{problem_name}" + "/" + "results"
     os.makedirs(output_dir, exist_ok=True)
 
-    n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500]
-    # n_steps_list = [50, 100, 200, 500, 1000]
-    dt_list = [config.Tend / n_steps for n_steps in n_steps_list]
+    t0 = 0.0
+    dt_list, Tend = choose_time_step_sizes(problem_name)
 
     all_stats = {}
 
-    fname = f"results_experiment_{config.num_nodes}.pkl"
+    fname = f"results_experiment_{num_nodes}.pkl"
     path = os.path.join(output_dir, fname)
 
     if not os.path.exists(path):
@@ -51,35 +56,35 @@ def run_all_simulations(config):
 
     assert os.path.getsize(path) > 0
 
-    args = {"problem_name": config.problem_name}
+    args = {"problem_name": problem_name}
 
-    for sweeper_type in config.sweepers:
+    for sweeper_type in sweepers:
 
-        for QI in config.test_methods:
+        for QI in test_methods:
             key = f"{sweeper_type}_{QI}"
             all_stats[key] = {}
 
-            if QI in config.radau_methods:
+            if QI in RADAU_METHODS:
                 sweeper_type = "fullyImplicitDAE"
 
-            use_mpi = True if QI in config.qDeltas_parallel else False
+            use_mpi = True if QI in QI_PARALLEL else False
 
             args.update({
-                "t0": config.t0,
+                "t0": t0,
                 "dt_list": dt_list,
-                "Tend": config.Tend,
+                "Tend": Tend,
                 "use_mpi": use_mpi,
                 "QI": QI,
                 "sweeper_type": sweeper_type,
-                "problem_name": config.problem_name,
-                "num_nodes": str(config.num_nodes),
+                "problem_name": problem_name,
+                "num_nodes": str(num_nodes),
                 "output_dir": output_dir,
             })
 
-            args_list = build_args_list(args, config.hook_class)
+            args_list = build_args_list(args, hook_class)
 
             cmd = (
-                ["mpiexec", "-n", str(config.num_nodes), python_exec, "run_single_experiment.py"] + args_list
+                ["mpiexec", "-n", str(num_nodes), python_exec, "run_single_experiment.py"] + args_list
                 if use_mpi
                 else
                 [python_exec, "run_single_experiment.py"] + args_list
@@ -91,5 +96,14 @@ def run_all_simulations(config):
 
 
 if __name__ == "__main__":
-    config = LinearTestWorkPrecision()
-    run_all_simulations(config)
+    sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
+    test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
+
+    args_linear = {
+        "hook_class": [LogGlobalErrorPostStep],
+        "num_nodes": 6,
+        "problem_name": "LINEAR-TEST",
+        "sweepers": sweepers,
+        "test_methods": test_methods,
+    }
+    run_all_simulations(*args_linear)

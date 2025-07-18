@@ -25,7 +25,7 @@ def choose_time_step_sizes(problem_name):
         raise NotImplementedError
 
     dt_list = [Tend / n_steps for n_steps in n_steps_list]
-    return dt_list
+    return dt_list, Tend
 
 def compute_constants_reference_order(dt_list, err_y_iter, err_z_iter, k):
     """Computes constants to shift reference order lines in plot."""
@@ -52,7 +52,7 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
     kwargs = {"e_tol": e_tol, "maxiter": maxiter}
 
     t0 = 0.0
-    dt_list = choose_time_step_sizes(problem_name)
+    dt_list, Tend = choose_time_step_sizes(problem_name)
     dt_list_short = dt_list[3 : 7]
 
     hook_class = [

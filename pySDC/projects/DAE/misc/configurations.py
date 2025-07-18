@@ -8,6 +8,32 @@ from pySDC.projects.DAE.misc.hooksDAE import (
 )
 
 
+def get_configs(problem_name, config_type):
+    if config_type == "work_precision":
+        sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
+        test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
+
+        if problem_name == "ANDREWS-SQUEEZER":
+            config = {
+                "hook_class": [LogGlobalErrorPostStep],
+                "num_nodes": 6,
+                "problem_name": problem_name,
+                "sweepers": sweepers,
+                "test_methods": test_methods,
+            }
+
+        elif problem_name == "LINEAR-TEST":
+            config = {
+                "hook_class": [LogGlobalErrorPostStep],
+                "num_nodes": 6,
+                "problem_name": problem_name,
+                "sweepers": sweepers,
+                "test_methods": test_methods,
+            }
+
+    return config
+
+
 class BaseConfig:
     def __init__(self):
         self._qDeltas_parallel = ["MIN-SR-NS", "MIN-SR-S"]
@@ -68,40 +94,6 @@ class AndrewsBaseConfig(BaseConfig):
         self.t0 = 0.0
         self.Tend = 0.03
         self.problem_name = "ANDREWS-SQUEEZER"
-
-    
-class LinearTestWorkPrecision(LinearTestBaseConfig):
-    def __init__(self):
-        super().__init__()
-
-        self.num_nodes = 6
-        self.hook_class = [LogGlobalErrorPostStep]
-
-        self._sweepers = [
-            "constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"
-        ]
-
-class AndrewsWorkPrecision(AndrewsBaseConfig, LinearTestWorkPrecision):
-    pass
-
-
-class LinearTestOrderIteration(LinearTestBaseConfig):
-    # TODO: Config benötigt feste Anzahl an maxiter für den Lauf! Dies muss dann in utils überschrieben werden,
-    # daher macht es Sinn, dass wir eine BaseClass haben, wo der ControllerStuff gemacht wird!
-    def __init__(self):
-        super().__init__()
-
-        self.num_nodes = 6
-        self.hook_class = [
-            LogGlobalErrorPreIterDifferentialVariable,
-            LogGlobalErrorPreIterationAlgebraicVariable,
-            LogGlobalErrorPostIterDiff,
-            LogGlobalErrorPostIterAlg,
-        ]
-
-        self._sweepers = [
-            "constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"
-        ]
 
 
 class LinearTestScaling(LinearTestBaseConfig):

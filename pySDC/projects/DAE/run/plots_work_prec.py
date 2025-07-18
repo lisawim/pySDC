@@ -5,25 +5,27 @@ import matplotlib.pyplot as plt
 
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.helpers.plot_helper import figsize_by_journal
-from pySDC.projects.DAE.misc.configurations import LinearTestWorkPrecision, AndrewsWorkPrecision
+from pySDC.projects.DAE.misc.configurations import get_configs
 
 from pySDC.projects.DAE.run.work_precision import run_all_simulations
 
 
-def plots_work_vs_error(config):
-    path = "data" + "/" + f"{config.problem_name}" + "/" + "results" + "/" + f"results_experiment_{config.num_nodes}.pkl"
-    run_all_simulations(config)
+def plots_work_vs_error(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs):
+    """Generates plots for work vs error study."""
+
+    path = "data" + "/" + f"{problem_name}" + "/" + "results" + "/" + f"results_experiment_{num_nodes}.pkl"
+    run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
 
     with open(path, "rb") as f:
         all_stats = dill.load(f)
 
-    plot_work_vs_error_single(all_stats, config)
+    plot_work_vs_error_single(all_stats, problem_name, test_methods)
 
-    plot_work_vs_error_sdc_radau(all_stats, config)
+    plot_work_vs_error_sdc_radau(all_stats, problem_name, sweepers)
 
 
 def plot_work_vs_error_single(
-        all_stats, config, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"
+        all_stats, problem_name, test_methods, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"
     ):
     """Plots work vs error for one single SDC variant (default is SDC-C)."""
 
@@ -32,7 +34,7 @@ def plot_work_vs_error_single(
     my_setup_mpl(fontsize=10)
     colors, markers, _ = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=figsize)
-    for QI in [q for q in config.test_methods if not q.startswith("RadauIIA")]:
+    for QI in [q for q in test_methods if not q.startswith("RadauIIA")]:
         key = f"{sweeper_type}_{QI}"
         stats = all_stats[key]
 
@@ -56,7 +58,7 @@ def plot_work_vs_error_single(
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.19), ncol=3)
 
     plot_name = "Fig3.eps"  # f"work_vs_error_single.eps"
-    filename = "data" + "/" + f"{config.problem_name}" + "/" + plot_name
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -66,7 +68,8 @@ def plot_work_vs_error_single(
 
 def plot_work_vs_error_sdc_radau(
         all_stats,
-        config,
+        problem_name,
+        sweepers,
         qDelta_best=["LU", "MIN-SR-NS"],
         sweeper_type_best=["constrainedDAE", "fullyImplicitDAE"],
         radau_methods_plot=["RadauIIA5", "RadauIIA7"],
@@ -82,7 +85,7 @@ def plot_work_vs_error_sdc_radau(
     fig, axs = plt.subplots(1, 2, figsize=figsize)
 
     for QI in qDelta_best:
-        for sweeper_type in config.sweepers:
+        for sweeper_type in sweepers:
             key = f"{sweeper_type}_{QI}"
             stats = all_stats[key]
 
@@ -141,7 +144,7 @@ def plot_work_vs_error_sdc_radau(
     fig.legend(unique.values(), unique.keys(), loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
 
     plot_name = "Fig4.eps"
-    filename = "data" + "/" + f"{config.problem_name}" + "/" + plot_name
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -150,6 +153,5 @@ def plot_work_vs_error_sdc_radau(
 
 
 if __name__ == "__main__":
-    config_work_prec = LinearTestWorkPrecision()
-    # config_work_prec = AndrewsWorkPrecision()
-    plots_work_vs_error(config_work_prec)
+    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="work_precision")
+    plots_work_vs_error(**config_linear)

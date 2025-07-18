@@ -14,15 +14,27 @@ from pySDC.projects.DAE.misc.hooksDAE import (
 
 
 def choose_time_step_sizes(problem_name):
-    if problem_name == "LINEAR-TEST":
+    """Returns time step sizes suitable for each problem."""
+    if problem_name == "ANDREWS-SQUEEZER":
+        n_steps_list = [30, 60, 100, 300, 600, 1000, 3000, 6000]
+        Tend = 0.03
+    elif problem_name == "LINEAR-TEST":
         n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500]
         Tend = 1.0
-        dt_list = [Tend / n_steps for n_steps in n_steps_list]
     else:
         raise NotImplementedError
+
+    dt_list = [Tend / n_steps for n_steps in n_steps_list]
     return dt_list
 
+def compute_constants_reference_order(dt_list, err_y_iter, err_z_iter, k):
+    """Computes constants to shift reference order lines in plot."""
 
+    dt_ref  = dt_list[0]
+    err_y_ref, err_z_ref = err_y_iter[0], err_z_iter[0]
+
+    Cy, Cz = err_y_ref / dt_ref ** (k + 1), err_z_ref / dt_ref ** (k + 1)
+    return Cy, Cz
 
 def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
@@ -49,6 +61,8 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
         LogGlobalErrorPostIterDiff,
         LogGlobalErrorPostIterAlg,
     ]
+
+    # Cy, Cz = constants_reference_order(problem_name)
 
     my_setup_mpl(fontsize=8)
 
@@ -105,21 +119,21 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
                 linestyle=linestyles[k % 2],
             )
 
+            Cy, Cz = compute_constants_reference_order(dt_list, err_y_iter, err_z_iter, k)
+
             # Reference order
             axs[0].loglog(
                 dt_list_short,
-                [9e-1 * dt ** (k + 1) for dt in dt_list_short],
+                [Cy * dt ** (k + 1) for dt in dt_list_short],
                 color="black",
                 linestyle="dashed",
-                linewidth=1.5,
             )
 
             axs[1].loglog(
                 dt_list_short,
-                [dt ** (k + 1) for dt in dt_list_short],
+                [Cz * dt ** (k + 1) for dt in dt_list_short],
                 color="black",
                 linestyle="dashed",
-                linewidth=1.2,
             )
 
         for ax in axs:
@@ -144,4 +158,5 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
 
 
 if __name__ == "__main__":
-    run_and_plot_order("LINEAR-TEST")
+    # run_and_plot_order("LINEAR-TEST")
+    run_and_plot_order("ANDREWS-SQUEEZER")

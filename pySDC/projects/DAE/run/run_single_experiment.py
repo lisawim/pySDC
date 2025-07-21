@@ -45,11 +45,13 @@ def main():
     if args.use_mpi:
         comm.Barrier()
 
+        dt_dummy = 1e-4
+
         _ = compute_solution(
             args.problem_name,
             args.t0,
-            dt=1e-1,
-            Tend=1e-1,
+            dt=dt_dummy,
+            Tend=args.t0 + dt_dummy,
             num_nodes=args.num_nodes,
             QI="MIN-SR-NS",
             sweeper_type="constrainedDAE",

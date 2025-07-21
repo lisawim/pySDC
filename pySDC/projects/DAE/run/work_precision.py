@@ -4,8 +4,8 @@ import dill
 import os
 import subprocess
 
-from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
+from pySDC.projects.DAE.misc.configurations import get_configs
 
 
 QI_PARALLEL = ["MIN-SR-NS", "MIN-SR-S"]
@@ -96,14 +96,5 @@ def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_meth
 
 
 if __name__ == "__main__":
-    sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
-    test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
-
-    args_linear = {
-        "hook_class": [LogGlobalErrorPostStep],
-        "num_nodes": 6,
-        "problem_name": "LINEAR-TEST",
-        "sweepers": sweepers,
-        "test_methods": test_methods,
-    }
-    run_all_simulations(*args_linear)
+    config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="work_precision")
+    run_all_simulations(**config_andrews)

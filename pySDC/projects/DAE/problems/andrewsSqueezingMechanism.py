@@ -20,7 +20,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         ):
         """Initialization routine"""
 
-        super().__init__(nvars=27, newton_tol=newton_tol)
+        super().__init__(nvars=14, newton_tol=newton_tol)
         self._makeAttributeAndRegister(
             "newton_tol",
             "index",

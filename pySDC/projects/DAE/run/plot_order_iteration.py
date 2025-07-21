@@ -36,6 +36,36 @@ def compute_constants_reference_order(dt_list, err_y_iter, err_z_iter, k):
     Cy, Cz = err_y_ref / dt_ref ** (k + 1), err_z_ref / dt_ref ** (k + 1)
     return Cy, Cz
 
+def sync_ylim(axs, min_y_set=1e-15):
+    """Synchronize y-axis limits across all subplots by finding the global min/max."""
+    min_y, max_y = None, None
+
+    # Find global min/max y-limits across all axes
+    for ax in axs:
+        y_limits = ax.get_ylim()
+
+        # Ignore non-positive values for log scale
+        if ax.get_yscale() == "log":
+            y_limits = [y for y in y_limits if y > 0]  
+            if not y_limits:
+                continue
+
+        if min_y is None or y_limits[0] < min_y:
+            min_y = y_limits[0]
+        if max_y is None or y_limits[1] > max_y:
+            max_y = y_limits[1]
+
+    # Apply the same limits to all subplots
+    for ax in axs:
+        if ax.get_yscale() == "log":
+            if min_y is not None and min_y <= 0:
+                min_y = min_y_set
+            ax.set_ylim(min_y, max_y)
+        else:
+            ax.set_ylim(min_y, max_y)
+
+    return axs
+
 def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
@@ -61,8 +91,6 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
         LogGlobalErrorPostIterDiff,
         LogGlobalErrorPostIterAlg,
     ]
-
-    # Cy, Cz = constants_reference_order(problem_name)
 
     my_setup_mpl(fontsize=8)
 
@@ -126,6 +154,7 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
                 dt_list_short,
                 [Cy * dt ** (k + 1) for dt in dt_list_short],
                 color="black",
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -133,6 +162,7 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
                 dt_list_short,
                 [Cz * dt ** (k + 1) for dt in dt_list_short],
                 color="black",
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -144,16 +174,25 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
         axs[0].set_ylabel("local truncation error in y")
         axs[1].set_ylabel("local truncation error in z")
 
+        axs = sync_ylim(axs, min_y_set=1e-15)
+
         handles, labels = axs[0].get_legend_handles_labels()
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
-        plot_name = "Fig2.eps" if QI == "MIN-SR-NS" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.eps"
+        if QI == "MIN-SR-NS":
+            if problem_name == "ANDREWS-SQUEEZER":
+                plot_name = "Fig6.png"
+            elif problem_name == "LINEAR-TEST":
+                plot_name = "Fig3.eps"
+        else:
+            plot_name = f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.png"
+
         filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        fig.savefig(filename, dpi=400, bbox_inches="tight", format="eps")
+        fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
 
 

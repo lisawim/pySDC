@@ -7,7 +7,7 @@ def get_configs(problem_name, config_type):
         test_methods = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S", "Picard", "RadauIIA5", "RadauIIA7"]
 
         if problem_name == "ANDREWS-SQUEEZER":
-            sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
+            sweepers = ["constrainedDAE", "semiImplicitDAE"]
 
             config = {
                 "hook_class": [LogGlobalErrorPostStep],
@@ -18,7 +18,7 @@ def get_configs(problem_name, config_type):
             }
 
         elif problem_name == "LINEAR-TEST":
-            sweepers = ["constrainedDAE", "semiImplicitDAE"]
+            sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
 
             config = {
                 "hook_class": [LogGlobalErrorPostStep],

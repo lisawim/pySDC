@@ -56,7 +56,8 @@ def plot_numerical_solution(problem_name, dt=1e-2, num_nodes=3, problem_type="co
         axs.set_ylabel(r'Solution')
 
         axs.set_xlim((0.0, 0.03))
-        axs.set_ylim((-0.7, 0.7))
+        # axs.set_ylim((-0.7, 0.7))
+        axs.set_ylim((-4.0, 4.0))
 
         axs.legend(loc='upper right')
 
@@ -85,4 +86,11 @@ def plot_numerical_solution(problem_name, dt=1e-2, num_nodes=3, problem_type="co
 
 if __name__ == "__main__":
     # plot_numerical_solution("LINEAR-TEST")
-    plot_numerical_solution("ANDREWS-SQUEEZER", dt=1e-5, num_nodes=6, problem_type="fullyImplicitDAE", QI="RadauIIA7", Tend=0.03)
+    plot_numerical_solution(
+        "ANDREWS-SQUEEZER",
+        dt=1e-5,
+        num_nodes=6,
+        problem_type="fullyImplicitDAE",
+        QI="RadauIIA7",
+        Tend=0.03,
+    )

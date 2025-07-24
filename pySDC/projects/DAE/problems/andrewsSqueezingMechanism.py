@@ -655,12 +655,12 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         while n < self.newton_maxiter:
             h = impl_sys_numpy(u)
 
-            # If g is close to 0, then we are done
+            # If h is close to 0, then we are done
             res = np.linalg.norm(h, np.inf)
             if res < self.newton_tol:
                 break
 
-            # Assemble dh - TODO: Implement approximate Jacobian by finite differences
+            # Assemble dh
             dh = self.update_Jacobian(factor)
 
             # Newton direction dx

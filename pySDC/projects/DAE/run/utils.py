@@ -124,7 +124,7 @@ def setup_problem(problem_name, description, sweeper_type, **kwargs):
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-13)
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)
         description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
         description["problem_params"] = {"solver_type": "direct"}
 

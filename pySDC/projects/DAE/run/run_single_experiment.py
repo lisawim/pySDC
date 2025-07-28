@@ -4,6 +4,7 @@ import os
 import numpy as np
 
 from pySDC.projects.DAE import compute_solution
+from pySDC.implementations.hooks.log_solution import LogSolution
 
 from pySDC.helpers.stats_helper import get_sorted
 
@@ -25,6 +26,7 @@ def parse_args():
     parser.add_argument("--num_nodes", type=int, default=3)
     parser.add_argument("--use_mpi", action="store_true")
     parser.add_argument("--hook_class", nargs='+', type=parse_hook, default=[])
+    # parser.add_argument("--skip_residual_computation", type=str, )
     parser.add_argument("--output_dir", type=str, required=True)
 
     return parser.parse_args()
@@ -41,6 +43,9 @@ def main():
     else:
         rank = 0
 
+    hook_class = args.hook_class
+    hook_class += [LogSolution]
+
     # Dummy run to avoid start overhead
     if args.use_mpi:
         comm.Barrier()
@@ -56,14 +61,16 @@ def main():
             QI="MIN-SR-NS",
             sweeper_type="constrainedDAE",
             use_mpi=args.use_mpi,
-            hook_class=args.hook_class,
+            hook_class=hook_class,
             measure=False,
         )
 
     if args.use_mpi:
         comm.Barrier()
 
-    max_errors = [] if rank == 0 else None
+    all_max_global_error_full = [] if rank == 0 else None
+    q_max_final_error_full = [] if rank == 0 else None
+    all_max_global_res_full = [] if rank == 0 else None
     wallclock_times = [] if rank == 0 else None
 
     if rank == 0:
@@ -85,7 +92,8 @@ def main():
                 args.QI,
                 args.sweeper_type,
                 args.use_mpi,
-                hook_class=args.hook_class,
+                hook_class=hook_class,
+                skip_residual_computation=(),
                 measure=True,
             )
 
@@ -110,7 +118,8 @@ def main():
                     args.QI,
                     args.sweeper_type,
                     args.use_mpi,
-                    hook_class=args.hook_class,
+                    hook_class=hook_class,
+                    skip_residual_computation=(),
                     measure=True,
                 )
 
@@ -119,7 +128,33 @@ def main():
 
         if rank == 0:
             err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
-            max_errors.append(max(err_values))
+            all_max_global_error_full.append(max(err_values))
+
+            res_values = [me[1] for me in get_sorted(solution_stats, type=f"residual_post_step", sortby="time")]
+            all_max_global_res_full.append(max(res_values))
+
+            # Store solution at Tend = 0.03 (for Andrews' problem)
+            if args.problem_name == "ANDREWS-SQUEEZER":
+                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import qend_ref_testset
+
+                u_val = get_sorted(solution_stats, type="u", sortby="time")
+                t = np.array([me[0] for me in u_val])
+                q = np.array([me[1].diff[: 7] for me in u_val])
+
+                i = np.searchsorted(t, args.Tend)
+                if i < len(t) and np.isclose(t[i], args.Tend, atol=1e-14):
+                    ind = i
+                elif i > 0 and np.isclose(t[i-1], args.Tend, atol=1e-14):
+                    ind = i - 1
+                else:
+                    print("No suitable entry found.")
+
+                t_ref = t[ind]
+                qend_ref = qend_ref_testset(t_ref)
+
+                qend = q[ind, :]
+                qend_max_final_err = max(abs(qend - qend_ref))
+                q_max_final_error_full.append(qend_max_final_err)
 
     if rank == 0:
         fname = f"results_experiment_{args.num_nodes}.pkl"
@@ -133,9 +168,13 @@ def main():
 
         key = f"{args.sweeper_type}_{args.QI}"
         all_stats[key] = {
-            "max_errors": max_errors,
+            "all_max_global_error": all_max_global_error_full,
+            "all_max_global_res": all_max_global_res_full,
             "wc_times": wallclock_times,
         }
+
+        if args.problem_name == "ANDREWS-SQUEEZER":
+            all_stats[key].update({"q_max_final_error": q_max_final_error_full})
 
         with open(path, "wb") as f:
             dill.dump(all_stats, f)

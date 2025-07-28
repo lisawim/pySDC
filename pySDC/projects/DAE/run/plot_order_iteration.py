@@ -5,12 +5,6 @@ from pySDC.helpers.stats_helper import get_sorted
 from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.run.utils import compute_solution
 from pySDC.projects.DAE import my_setup_mpl
-from pySDC.projects.DAE.misc.hooksDAE import (
-    LogGlobalErrorPreIterDifferentialVariable,
-    LogGlobalErrorPreIterationAlgebraicVariable,
-    LogGlobalErrorPostIterDiff,
-    LogGlobalErrorPostIterAlg,
-)
 
 
 def choose_time_step_sizes(problem_name):
@@ -67,6 +61,15 @@ def sync_ylim(axs, min_y_set=1e-15):
     return axs
 
 def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
+    """Plots the order in each iteration."""
+
+    from pySDC.projects.DAE.misc.hooksDAE import (
+        LogGlobalErrorPreIterDifferentialVariable,
+        LogGlobalErrorPreIterationAlgebraicVariable,
+        LogGlobalErrorPostIterDiff,
+        LogGlobalErrorPostIterAlg,
+    )
+
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
     colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
@@ -196,6 +199,194 @@ def run_and_plot_order(problem_name="LINEAR-TEST", journal="Springer_Scientific_
         plt.close(fig)
 
 
+def plot_order_andrews(journal="Springer_Scientific_Computing"):
+    """Plots the order in each iteration for Andrews' problem"""
+
+    from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
+        LogGlobalErrorPreIterPosition,
+        LogGlobalErrorPreIterVelocity,
+        LogGlobalErrorPreIterAcceleration,
+        LogGlobalErrorPreIterLagrangeMultipliers,
+        LogGlobalErrorPostIterPosition,
+        LogGlobalErrorPostIterVelocity,
+        LogGlobalErrorPostIterAcceleration,
+        LogGlobalErrorPostIterLagrangeMultipliers,
+    )
+    problem_name = "ANDREWS-SQUEEZER"
+    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
+
+    colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
+    markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
+    linestyles = ["solid", "dotted"]
+
+    sweeper_type = "constrainedDAE"
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
+    num_nodes = 3
+    maxiter = 2 * num_nodes - 1
+    e_tol = -1
+
+    kwargs = {"e_tol": e_tol, "maxiter": maxiter}
+
+    t0 = 0.0
+    dt_list, Tend = choose_time_step_sizes(problem_name)
+    dt_list_short = dt_list[3 : 7]
+
+    hook_class = [
+        LogGlobalErrorPreIterPosition,
+        LogGlobalErrorPreIterVelocity,
+        LogGlobalErrorPreIterAcceleration,
+        LogGlobalErrorPreIterLagrangeMultipliers,
+        LogGlobalErrorPostIterPosition,
+        LogGlobalErrorPostIterVelocity,
+        LogGlobalErrorPostIterAcceleration,
+        LogGlobalErrorPostIterLagrangeMultipliers,
+    ]
+
+    my_setup_mpl(fontsize=8)
+
+    for q, QI in enumerate(QI_list):
+        errors_pos, errors_vel = [], []
+        errors_acc, errors_lag = [], []
+
+        fig, axs = plt.subplots(2, 2, figsize=figsize)
+        ax_flatten = axs.flatten()
+
+        for dt in dt_list:
+            solution_stats = compute_solution(
+                problem_name,
+                t0,
+                dt,
+                t0 + dt,
+                num_nodes,
+                QI,
+                sweeper_type,
+                False,
+                hook_class=hook_class,
+                measure=False,
+                **kwargs,
+            )
+
+            err_pos_values_spread = [me[1] for me in get_sorted(solution_stats, type=f"e_global_position_pre_iteration", sortby="iter")][0]
+            err_vel_values_spread = [me[1] for me in get_sorted(solution_stats, type=f"e_global_velocity_pre_iteration", sortby="iter")][0]
+            err_acc_values_spread = [me[1] for me in get_sorted(solution_stats, type=f"e_global_acceleration_pre_iteration", sortby="iter")][0]
+            err_lag_values_spread = [me[1] for me in get_sorted(solution_stats, type=f"e_global_lagrange_pre_iteration", sortby="iter")][0]
+
+            err_pos_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_position_post_iteration", sortby="iter")]
+            err_vel_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_velocity_post_iteration", sortby="iter")]
+            err_acc_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_acceleration_post_iteration", sortby="iter")]
+            err_lag_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_lagrange_post_iteration", sortby="iter")]
+
+            err_pos_values.insert(0, err_pos_values_spread)
+            err_vel_values.insert(0, err_vel_values_spread)
+            err_acc_values.insert(0, err_acc_values_spread)
+            err_lag_values.insert(0, err_lag_values_spread)
+
+            errors_pos.append(err_pos_values)
+            errors_vel.append(err_vel_values)
+            errors_acc.append(err_acc_values)
+            errors_lag.append(err_lag_values)
+
+        for k in range(maxiter + 1):
+            err_pos_iter = [res[k] for res in errors_pos]
+            err_vel_iter = [res[k] for res in errors_vel]
+            err_acc_iter = [res[k] for res in errors_acc]
+            err_lag_iter = [res[k] for res in errors_lag]
+
+            ax_flatten[0].loglog(
+                dt_list,
+                err_pos_iter,
+                color=colors[k],
+                marker=markers[k],
+                linestyle=linestyles[k % 2],
+                label=f"k = {k}",
+            )
+
+            ax_flatten[1].loglog(
+                dt_list,
+                err_vel_iter,
+                color=colors[k],
+                marker=markers[k],
+                linestyle=linestyles[k % 2],
+            )
+
+            ax_flatten[2].loglog(
+                dt_list,
+                err_acc_iter,
+                color=colors[k],
+                marker=markers[k],
+                linestyle=linestyles[k % 2],
+            )
+
+            ax_flatten[3].loglog(
+                dt_list,
+                err_lag_iter,
+                color=colors[k],
+                marker=markers[k],
+                linestyle=linestyles[k % 2],
+            )
+
+            C_pos, C_vel = compute_constants_reference_order(dt_list, err_pos_iter, err_vel_iter, k)
+            C_acc, C_lag = compute_constants_reference_order(dt_list, err_acc_iter, err_lag_iter, k)
+
+            # Reference order
+            ax_flatten[0].loglog(
+                dt_list_short,
+                [C_pos * dt ** (k + 1) for dt in dt_list_short],
+                color="black",
+                linewidth=1.0,
+                linestyle="dashed",
+            )
+
+            ax_flatten[1].loglog(
+                dt_list_short,
+                [C_vel * dt ** (k + 1) for dt in dt_list_short],
+                color="black",
+                linewidth=1.0,
+                linestyle="dashed",
+            )
+
+            ax_flatten[2].loglog(
+                dt_list_short,
+                [C_acc * dt ** (k + 1) for dt in dt_list_short],
+                color="black",
+                linewidth=1.0,
+                linestyle="dashed",
+            )
+
+            ax_flatten[3].loglog(
+                dt_list_short,
+                [C_lag * dt ** (k + 1) for dt in dt_list_short],
+                color="black",
+                linewidth=1.0,
+                linestyle="dashed",
+            )
+
+        for ax in ax_flatten:
+            ax.tick_params(axis="both", which="minor", bottom=False, left=False)
+
+            ax.set_xlabel(r"$\Delta t$")
+
+        ax_flatten[0].set_ylabel("local truncation error in q")
+        ax_flatten[1].set_ylabel("local truncation error in v")
+        ax_flatten[2].set_ylabel("local truncation error in w")
+        ax_flatten[3].set_ylabel(r"local truncation error in $\lambda$")
+
+        ax_flatten = sync_ylim(ax_flatten, min_y_set=1e-15)
+
+        handles, labels = ax_flatten[0].get_legend_handles_labels()
+
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
+
+        plot_name = "Fig6.eps" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}.png"
+
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
+        file_path = Path(filename)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        fig.savefig(filename, dpi=400, bbox_inches="tight")
+        plt.close(fig)
+
+
 if __name__ == "__main__":
     # run_and_plot_order("LINEAR-TEST")
-    run_and_plot_order("ANDREWS-SQUEEZER")
+    plot_order_andrews()

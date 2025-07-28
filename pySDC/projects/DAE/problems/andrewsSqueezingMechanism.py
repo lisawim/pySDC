@@ -3,8 +3,265 @@ from pathlib import Path
 from scipy.optimize import root
 
 from pySDC.core.errors import ProblemError
+from pySDC.core.hooks import Hooks
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
+
+
+# Problem specific hooks
+class LogGlobalErrorPreIterPosition(Hooks):
+    """Logs global error of position variables after prediction."""
+
+    def pre_iteration(self, step, level_number):
+        r"""
+        Default routine called before each iteration.
+
+        Parameters
+        ----------
+        step : pySDC.core.step.Step
+            Current step.
+        level_number : pySDC.core.level.Level
+            Current level number.
+        """
+
+        super().pre_iteration(step, level_number)
+
+        # some abbreviations
+        L = step.levels[level_number]
+        P = L.prob
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_position = abs(upde.diff[: 7] - L.u[-1].diff[: 7])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_position_pre_iteration",
+            value=e_global_position,
+        )
+
+
+class LogGlobalErrorPreIterVelocity(Hooks):
+    """Logs global error of velocity variables after prediction."""
+
+    def pre_iteration(self, step, level_number):
+        r"""
+        Default routine called before each iteration.
+
+        Parameters
+        ----------
+        step : pySDC.core.step.Step
+            Current step.
+        level_number : pySDC.core.level.Level
+            Current level number.
+        """
+
+        super().pre_iteration(step, level_number)
+
+        # some abbreviations
+        L = step.levels[level_number]
+        P = L.prob
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_velocity = abs(upde.diff[7 : 14] - L.u[-1].diff[7 : 14])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_velocity_pre_iteration",
+            value=e_global_velocity,
+        )
+
+
+class LogGlobalErrorPreIterAcceleration(Hooks):
+    """Logs global error of acceleration variables after prediction."""
+
+    def pre_iteration(self, step, level_number):
+        r"""
+        Default routine called before each iteration.
+
+        Parameters
+        ----------
+        step : pySDC.core.step.Step
+            Current step.
+        level_number : pySDC.core.level.Level
+            Current level number.
+        """
+
+        super().pre_iteration(step, level_number)
+
+        # some abbreviations
+        L = step.levels[level_number]
+        P = L.prob
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_acceleration = abs(upde.alg[: 7] - L.u[-1].alg[: 7])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_acceleration_pre_iteration",
+            value=e_global_acceleration,
+        )
+
+
+class LogGlobalErrorPreIterLagrangeMultipliers(Hooks):
+    """Logs global error of Lagrange multipliers after prediction."""
+
+    def pre_iteration(self, step, level_number):
+        r"""
+        Default routine called before each iteration.
+
+        Parameters
+        ----------
+        step : pySDC.core.step.Step
+            Current step.
+        level_number : pySDC.core.level.Level
+            Current level number.
+        """
+
+        super().pre_iteration(step, level_number)
+
+        # some abbreviations
+        L = step.levels[level_number]
+        P = L.prob
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_lagrange = abs(upde.alg[7 : 13] - L.u[-1].alg[7 : 13])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_lagrange_pre_iteration",
+            value=e_global_lagrange,
+        )
+
+
+class LogGlobalErrorPostIterPosition(Hooks):
+    """Logs global error of position variables after iterations."""
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_position = abs(upde.diff[: 7] - L.uend.diff[: 7])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_position_post_iteration",
+            value=e_global_position,
+        )
+
+
+class LogGlobalErrorPostIterVelocity(Hooks):
+    """Logs global error of velocity variables after iterations."""
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_velocity = abs(upde.diff[7 : 14] - L.uend.diff[7 : 14])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_velocity_post_iteration",
+            value=e_global_velocity,
+        )
+
+
+class LogGlobalErrorPostIterAcceleration(Hooks):
+    """Logs global error of acceleration variables after iterations."""
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_acceleration = abs(upde.alg[: 7] - L.uend.alg[: 7])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_acceleration_post_iteration",
+            value=e_global_acceleration,
+        )
+
+
+class LogGlobalErrorPostIterLagrangeMultipliers(Hooks):
+    """Logs global error of Lagrange multipliers after iterations."""
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        upde = P.u_exact(step.time + step.dt)
+        e_global_lagrange = abs(upde.alg[7 : 13] - L.uend.alg[7 : 13])
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_global_lagrange_post_iteration",
+            value=e_global_lagrange,
+        )
+
+def qend_ref_testset(t):
+    """Returns solution of Andrews' problem for q-values at end of interval."""
+
+    assert np.isclose(t, 0.03, atol=1e-14)
+
+    return np.array([
+        0.1581077119629904 * 1e2,
+        -0.1575637105984298 * 1e2,
+        0.4082224013073101 * 1e-1,
+        -0.5347301163226948,
+        0.5244099658805304,
+        0.5347301163226948,
+        0.1048080741042263 * 10,
+    ])
 
 
 class AndrewsSqueezingMechanismDAE(ProblemDAE):
@@ -60,9 +317,9 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         else:
             raise FileNotFoundError("Could not locate data directory.")
 
-        self.t_ref = np.load(path_to_data / "t_solve_andrews_3.npy")
-        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_3.npy")
-        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_3.npy")
+        self.t_ref = np.load(path_to_data / "t_solve_andrews_constrainedDAE.npy")
+        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_constrainedDAE.npy")
+        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_constrainedDAE.npy")
 
     def _init_masses_and_inertias(self):
         """Sets the attributes with values of masses and inertias."""
@@ -719,7 +976,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             me.alg[0 : 7] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
             me.alg[7 : 13] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
 
-        if t > 0.0:
+        elif t > 0.0:
             i = np.searchsorted(self.t_ref, t)
 
             if i < len(self.t_ref) and np.isclose(self.t_ref[i], t, atol=1e-14):

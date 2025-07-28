@@ -203,15 +203,10 @@ def plot_order_andrews(journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration for Andrews' problem"""
 
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
-        LogGlobalErrorPreIterPosition,
-        LogGlobalErrorPreIterVelocity,
-        LogGlobalErrorPreIterAcceleration,
-        LogGlobalErrorPreIterLagrangeMultipliers,
-        LogGlobalErrorPostIterPosition,
-        LogGlobalErrorPostIterVelocity,
-        LogGlobalErrorPostIterAcceleration,
-        LogGlobalErrorPostIterLagrangeMultipliers,
+        LogGlobalErrorPreIterMechanicalVars,
+        LogGlobalErrorPostIterMechanicalVars,
     )
+
     problem_name = "ANDREWS-SQUEEZER"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
 
@@ -232,14 +227,8 @@ def plot_order_andrews(journal="Springer_Scientific_Computing"):
     dt_list_short = dt_list[3 : 7]
 
     hook_class = [
-        LogGlobalErrorPreIterPosition,
-        LogGlobalErrorPreIterVelocity,
-        LogGlobalErrorPreIterAcceleration,
-        LogGlobalErrorPreIterLagrangeMultipliers,
-        LogGlobalErrorPostIterPosition,
-        LogGlobalErrorPostIterVelocity,
-        LogGlobalErrorPostIterAcceleration,
-        LogGlobalErrorPostIterLagrangeMultipliers,
+        LogGlobalErrorPreIterMechanicalVars,
+        LogGlobalErrorPostIterMechanicalVars,
     ]
 
     my_setup_mpl(fontsize=8)

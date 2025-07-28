@@ -9,8 +9,8 @@ from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
 
 # Problem specific hooks
-class LogGlobalErrorPreIterPosition(Hooks):
-    """Logs global error of position variables after prediction."""
+class LogGlobalErrorPreIterMechanicalVars(Hooks):
+    """Logs global error of Andrews' squeezer components after prediction."""
 
     def pre_iteration(self, step, level_number):
         r"""
@@ -32,6 +32,9 @@ class LogGlobalErrorPreIterPosition(Hooks):
 
         upde = P.u_exact(step.time + step.dt)
         e_global_position = abs(upde.diff[: 7] - L.u[-1].diff[: 7])
+        e_global_velocity = abs(upde.diff[7 : 14] - L.u[-1].diff[7 : 14])
+        e_global_acceleration = abs(upde.alg[: 7] - L.u[-1].alg[: 7])
+        e_global_lagrange = abs(upde.alg[7 : 13] - L.u[-1].alg[7 : 13])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -43,31 +46,6 @@ class LogGlobalErrorPreIterPosition(Hooks):
             value=e_global_position,
         )
 
-
-class LogGlobalErrorPreIterVelocity(Hooks):
-    """Logs global error of velocity variables after prediction."""
-
-    def pre_iteration(self, step, level_number):
-        r"""
-        Default routine called before each iteration.
-
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
-        """
-
-        super().pre_iteration(step, level_number)
-
-        # some abbreviations
-        L = step.levels[level_number]
-        P = L.prob
-
-        upde = P.u_exact(step.time + step.dt)
-        e_global_velocity = abs(upde.diff[7 : 14] - L.u[-1].diff[7 : 14])
-
         self.add_to_stats(
             process=step.status.slot,
             time=L.time + L.dt,
@@ -78,31 +56,6 @@ class LogGlobalErrorPreIterVelocity(Hooks):
             value=e_global_velocity,
         )
 
-
-class LogGlobalErrorPreIterAcceleration(Hooks):
-    """Logs global error of acceleration variables after prediction."""
-
-    def pre_iteration(self, step, level_number):
-        r"""
-        Default routine called before each iteration.
-
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
-        """
-
-        super().pre_iteration(step, level_number)
-
-        # some abbreviations
-        L = step.levels[level_number]
-        P = L.prob
-
-        upde = P.u_exact(step.time + step.dt)
-        e_global_acceleration = abs(upde.alg[: 7] - L.u[-1].alg[: 7])
-
         self.add_to_stats(
             process=step.status.slot,
             time=L.time + L.dt,
@@ -112,31 +65,6 @@ class LogGlobalErrorPreIterAcceleration(Hooks):
             type="e_global_acceleration_pre_iteration",
             value=e_global_acceleration,
         )
-
-
-class LogGlobalErrorPreIterLagrangeMultipliers(Hooks):
-    """Logs global error of Lagrange multipliers after prediction."""
-
-    def pre_iteration(self, step, level_number):
-        r"""
-        Default routine called before each iteration.
-
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
-        """
-
-        super().pre_iteration(step, level_number)
-
-        # some abbreviations
-        L = step.levels[level_number]
-        P = L.prob
-
-        upde = P.u_exact(step.time + step.dt)
-        e_global_lagrange = abs(upde.alg[7 : 13] - L.u[-1].alg[7 : 13])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -149,7 +77,7 @@ class LogGlobalErrorPreIterLagrangeMultipliers(Hooks):
         )
 
 
-class LogGlobalErrorPostIterPosition(Hooks):
+class LogGlobalErrorPostIterMechanicalVars(Hooks):
     """Logs global error of position variables after iterations."""
 
     def post_iteration(self, step, level_number):
@@ -162,6 +90,9 @@ class LogGlobalErrorPostIterPosition(Hooks):
 
         upde = P.u_exact(step.time + step.dt)
         e_global_position = abs(upde.diff[: 7] - L.uend.diff[: 7])
+        e_global_velocity = abs(upde.diff[7 : 14] - L.uend.diff[7 : 14])
+        e_global_acceleration = abs(upde.alg[: 7] - L.uend.alg[: 7])
+        e_global_lagrange = abs(upde.alg[7 : 13] - L.uend.alg[7 : 13])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -173,21 +104,6 @@ class LogGlobalErrorPostIterPosition(Hooks):
             value=e_global_position,
         )
 
-
-class LogGlobalErrorPostIterVelocity(Hooks):
-    """Logs global error of velocity variables after iterations."""
-
-    def post_iteration(self, step, level_number):
-        super().post_iteration(step, level_number)
-
-        L = step.levels[level_number]
-        P = L.prob
-
-        L.sweep.compute_end_point()
-
-        upde = P.u_exact(step.time + step.dt)
-        e_global_velocity = abs(upde.diff[7 : 14] - L.uend.diff[7 : 14])
-
         self.add_to_stats(
             process=step.status.slot,
             time=L.time + L.dt,
@@ -197,21 +113,6 @@ class LogGlobalErrorPostIterVelocity(Hooks):
             type="e_global_velocity_post_iteration",
             value=e_global_velocity,
         )
-
-
-class LogGlobalErrorPostIterAcceleration(Hooks):
-    """Logs global error of acceleration variables after iterations."""
-
-    def post_iteration(self, step, level_number):
-        super().post_iteration(step, level_number)
-
-        L = step.levels[level_number]
-        P = L.prob
-
-        L.sweep.compute_end_point()
-
-        upde = P.u_exact(step.time + step.dt)
-        e_global_acceleration = abs(upde.alg[: 7] - L.uend.alg[: 7])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -223,21 +124,6 @@ class LogGlobalErrorPostIterAcceleration(Hooks):
             value=e_global_acceleration,
         )
 
-
-class LogGlobalErrorPostIterLagrangeMultipliers(Hooks):
-    """Logs global error of Lagrange multipliers after iterations."""
-
-    def post_iteration(self, step, level_number):
-        super().post_iteration(step, level_number)
-
-        L = step.levels[level_number]
-        P = L.prob
-
-        L.sweep.compute_end_point()
-
-        upde = P.u_exact(step.time + step.dt)
-        e_global_lagrange = abs(upde.alg[7 : 13] - L.uend.alg[7 : 13])
-
         self.add_to_stats(
             process=step.status.slot,
             time=L.time + L.dt,
@@ -247,6 +133,7 @@ class LogGlobalErrorPostIterLagrangeMultipliers(Hooks):
             type="e_global_lagrange_post_iteration",
             value=e_global_lagrange,
         )
+
 
 def qend_ref_testset(t):
     """Returns solution of Andrews' problem for q-values at end of interval."""

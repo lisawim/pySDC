@@ -6,6 +6,7 @@ from pySDC.core.errors import ProblemError
 from pySDC.core.hooks import Hooks
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
+from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 # Problem specific hooks
@@ -31,10 +32,14 @@ class LogGlobalErrorPreIterMechanicalVars(Hooks):
         P = L.prob
 
         upde = P.u_exact(step.time + step.dt)
-        e_global_position = abs(upde.diff[: 7] - L.u[-1].diff[: 7])
-        e_global_velocity = abs(upde.diff[7 : 14] - L.u[-1].diff[7 : 14])
-        e_global_acceleration = abs(upde.alg[: 7] - L.u[-1].alg[: 7])
-        e_global_lagrange = abs(upde.alg[7 : 13] - L.u[-1].alg[7 : 13])
+
+        uend_ex = upde.flatten()
+        uend = L.u[-1].flatten()
+
+        e_global_position = abs(uend_ex[: 7] - uend[: 7])
+        e_global_velocity = abs(uend_ex[7 : 14] - uend[7 : 14])
+        e_global_acceleration = abs(uend_ex[14 : 21] - uend[14 : 21])
+        e_global_lagrange = abs(uend_ex[21 :] - uend[21 :])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -89,10 +94,14 @@ class LogGlobalErrorPostIterMechanicalVars(Hooks):
         L.sweep.compute_end_point()
 
         upde = P.u_exact(step.time + step.dt)
-        e_global_position = abs(upde.diff[: 7] - L.uend.diff[: 7])
-        e_global_velocity = abs(upde.diff[7 : 14] - L.uend.diff[7 : 14])
-        e_global_acceleration = abs(upde.alg[: 7] - L.uend.alg[: 7])
-        e_global_lagrange = abs(upde.alg[7 : 13] - L.uend.alg[7 : 13])
+
+        uend_ex = upde.flatten()
+        uend = L.u[-1].flatten()
+
+        e_global_position = abs(uend_ex[: 7] - uend[: 7])
+        e_global_velocity = abs(uend_ex[7 : 14] - uend[7 : 14])
+        e_global_acceleration = abs(uend_ex[14 : 21] - uend[14 : 21])
+        e_global_lagrange = abs(uend_ex[21 :] - uend[21 :])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -154,6 +163,7 @@ def qend_ref_testset(t):
 class AndrewsSqueezingMechanismDAE(ProblemDAE):
     def __init__(
             self,
+            nvars=14,
             newton_tol=1e-14,
             index=1,
             newton_maxiter=10,
@@ -164,7 +174,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         ):
         """Initialization routine"""
 
-        super().__init__(nvars=14, newton_tol=newton_tol)
+        super().__init__(nvars=nvars, newton_tol=newton_tol)
         self._makeAttributeAndRegister(
             "newton_tol",
             "index",
@@ -179,12 +189,19 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.work_counters["rhs"] = WorkCounter()
         self.work_counters[self.solver_type] = WorkCounter()
 
+        self._allocate_internal_arrays()
+
+        self._init_external_input()
         self._init_masses_and_inertias()
         self._init_geometrical_params()
         self._init_coordinates()
 
-        self.fa = 0.01421
-        self.mom = 0.033
+        self._load_reference_solution()
+
+        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
+
+    def _allocate_internal_arrays(self):
+        """Allocates memory for internal working arrays used during evaluation."""
 
         self.M = np.zeros((7, 7))
         self.G = np.zeros((6, 7))
@@ -192,21 +209,10 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.g = np.zeros(6)
         self.gqqv = np.zeros(6)
 
-        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
+    def _init_external_input(self):
+        """Initializes constant external forces or moments."""
 
-        for path in [
-            Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
-            Path("/beegfs/wimmer/pySDC/projects/DAE/data/")
-        ]:
-            if path.exists():
-                path_to_data = path
-                break
-        else:
-            raise FileNotFoundError("Could not locate data directory.")
-
-        self.t_ref = np.load(path_to_data / "t_solve_andrews_constrainedDAE.npy")
-        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_constrainedDAE.npy")
-        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_constrainedDAE.npy")
+        self.mom = 0.033
 
     def _init_masses_and_inertias(self):
         """Sets the attributes with values of masses and inertias."""
@@ -257,6 +263,8 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.zf = 0.02
         self.zt = 0.04
 
+        self.fa = 0.01421
+
     def _init_coordinates(self):
         """Sets attributes for coordinates."""
 
@@ -266,6 +274,24 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.yb = 0.03273
         self.xc = 0.014
         self.yc = 0.072
+
+    def _load_reference_solution(self):
+        """Loads reference solution from stored files."""
+
+        for path in [
+            Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
+            Path("/beegfs/wimmer/pySDC/projects/DAE/data/")
+        ]:
+            if path.exists():
+                path_to_data = path
+                break
+        else:
+            raise FileNotFoundError("Could not locate data directory.")
+
+        self.t_ref = np.load(path_to_data / "t_solve_andrews_constrainedDAE.npy")
+        self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_constrainedDAE.npy")
+        self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_constrainedDAE.npy")
+
 
     def eval_f(self, u, du, t):
         r"""
@@ -910,6 +936,211 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         du_ex.diff[0 : 7] = v[:]
         du_ex.diff[7 : 14] = w[:]
         du_ex.alg[:] = self.algebraicConstraints(u0, t)[:]
+        return du_ex
+
+
+class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDAE):
+    dtype_u = mesh
+    dtype_f = mesh
+
+    def __init__(
+            self,
+            nvars=27,
+            newton_tol=1e-14,
+            index=1,
+            newton_maxiter=10,
+            solver_type="hybr",
+            stop_at_maxiter=False,
+            stop_at_nan=False,
+            verbose=False,
+        ):
+        """Initialization routine"""
+
+        ProblemDAE.__init__(self, nvars=nvars, newton_tol=newton_tol)
+
+        self._makeAttributeAndRegister(
+            "newton_tol",
+            "index",
+            "newton_maxiter",
+            "solver_type",
+            "stop_at_maxiter",
+            "stop_at_nan",
+            "verbose",
+            localVars=locals(),
+        )
+
+        self.work_counters["rhs"] = WorkCounter()
+        self.work_counters[self.solver_type] = WorkCounter()
+
+        AndrewsSqueezingMechanismDAE._allocate_internal_arrays(self)
+
+        AndrewsSqueezingMechanismDAE._init_external_input(self)
+        AndrewsSqueezingMechanismDAE._init_masses_and_inertias(self)
+        AndrewsSqueezingMechanismDAE._init_geometrical_params(self)
+        AndrewsSqueezingMechanismDAE._init_coordinates(self)
+
+        AndrewsSqueezingMechanismDAE._load_reference_solution(self)
+
+    def eval_f(self, u, du, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        du : dtype_u
+            Current values of the derivative of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains 27 components).
+        """
+
+        # Shortcuts
+        q, v = u[: 7], u[7 : 14]
+        w = u[14 : 21]
+
+        dq, dv = du[: 7], du[7 : 14]
+
+        # Get matrices and functions for algebraic part of right-hand side
+        self.getM(q)
+        self.get_func(q, v)
+        self.getG(q)
+
+        f = self.dtype_f(self.init)
+        f[: 7] = dq[:] - v[:]
+        f[7 : 14] = dv[:] - w[:]
+
+        f[14 :] = self.algebraicConstraints(u, t)[:]
+
+        return f
+
+    def algebraicConstraints(self, u, t):
+        r"""
+        Returns the algebraic constraints of the semi-explicit DAE system.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            Algebraic part of right-hand side of f (contains 13 components).
+        """
+
+        # Shortcuts
+        q, v = u[: 7], u[7 : 14]
+        w, l = u[14 : 21], u[21 :]
+
+        # Get matrices and functions for algebraic part of right-hand side
+        self.getM(q)
+        self.get_func(q, v)
+        self.getG(q)
+
+        f = self.dtype_f(self.init)
+
+        f[14 : 21] = self.M.dot(w) - self.func + self.G.T.dot(l)
+        if self.index == 3:
+            self.get_g(q)
+
+            f[21 :] = self.g
+
+        elif self.index == 2:
+            f[21 :] = self.G.dot(v)
+
+        elif self.index == 1:
+            self.get_gqq(q, v)
+
+            f[21 :] = self.gqqv + self.G.dot(w)
+        else:
+            raise NotImplementedError
+
+        return f[14 :]
+
+    def u_exact(self, t, **kwargs):
+        r"""
+        Routine for the exact solution at time :math:`t`.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
+
+        Returns
+        -------
+        me : dtype_u
+            Exact solution.
+        """
+
+        me = self.dtype_u(self.init)
+        if t == 0.0:
+            me[: 7] = (
+                -0.0617138900142764496358948458001,
+                0,
+                0.455279819163070380255912382449,
+                0.222668390165885884674473185609,
+                0.487364979543842550225598953530,
+                -0.222668390165885884674473185609,
+                1.23054744454982119249735015568,
+            )  # q
+            me[7 : 14] = (0, 0, 0, 0, 0, 0, 0)  # v = q'
+            me[14 : 21] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
+            me[21 :] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
+
+        elif t > 0.0:
+            i = np.searchsorted(self.t_ref, t)
+
+            if i < len(self.t_ref) and np.isclose(self.t_ref[i], t, atol=1e-14):
+                ind = i
+            elif i > 0 and np.isclose(self.t_ref[i-1], t, atol=1e-14):
+                ind = i - 1
+            else:
+                print("No suitable entry found.")
+
+            u_ref_diff = self.u_diff_ref[ind, :]
+            u_ref_alg = self.u_alg_ref[ind, :]
+
+            me[: 7] = u_ref_diff[0 : 7]  # q
+            me[7 : 14] = u_ref_diff[7 : 14]  # v
+
+            me[14 : 21] = u_ref_alg[0 : 7]  # w
+            me[21 :] = u_ref_alg[7 : 13]  # l
+
+        return me
+
+    def du_exact(self, t):
+        r"""
+        Routine for the initial condition of derivative of exact solution
+        at time :math:`t`. Required for Runge-Kutta methods.
+
+        Parameters
+        ----------
+        t : float
+            Time of the exact solution.
+
+        Returns
+        -------
+        du_ex : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Derivative of exact solution.
+        """
+
+        assert t == 0.0, f"ERROR: Only initial condition at time 0.0 available!"
+
+        u0 = self.u_exact(t)
+        v, w = u0[7 : 14], u0[14 : 21]
+
+        du_ex = self.dtype_f(self.init)
+        du_ex[: 7] = v[:]
+        du_ex[7 : 14] = w[:]
+        du_ex[14 :] = self.algebraicConstraints(u0, t)[:]
         return du_ex
 
 

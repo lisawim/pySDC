@@ -139,7 +139,8 @@ def main():
 
                 u_val = get_sorted(solution_stats, type="u", sortby="time")
                 t = np.array([me[0] for me in u_val])
-                q = np.array([me[1].diff[: 7] for me in u_val])
+                u = np.array([me[1].flatten() for me in u_val])
+                q = u[:, : 7]
 
                 i = np.searchsorted(t, args.Tend)
                 if i < len(t) and np.isclose(t[i], args.Tend, atol=1e-14):

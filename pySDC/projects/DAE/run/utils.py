@@ -97,7 +97,7 @@ def my_plot_style_config():
 
     return colors, markers, sweeper_labels
 
-def setup_problem(problem_name, description, sweeper_type, **kwargs):
+def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
 
     if problem_name == "ANDREWS-SQUEEZER":
@@ -106,7 +106,10 @@ def setup_problem(problem_name, description, sweeper_type, **kwargs):
         elif sweeper_type == "embeddedDAE":
             from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAEEmbedded as problem
         elif sweeper_type == "fullyImplicitDAE":
-            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAE as problem
+            if QI.startswith("RadauIIA"):
+                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAE_Radau as problem
+            else:
+                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAE as problem
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import SemiImplicitAndrewsSqueezingMechanismDAE as problem
 
@@ -241,7 +244,7 @@ def compute_solution(
     description = {}
     description["level_params"] = {"dt": dt}
 
-    description = setup_problem(problem_name, description, sweeper_type, **kwargs)
+    description = setup_problem(problem_name, QI, description, sweeper_type, **kwargs)
 
     if QI in config.qDeltas:
         description = setup_sweeper_sdc(

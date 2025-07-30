@@ -1065,6 +1065,15 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
 
         return f[14 :]
 
+    def solve_collocation_system(self, F, f_init, t, dt, L, M, N, Qmat, sweep, sys, u0_full):
+        """Solves the collocation system for Radau solver."""
+
+        def impl_sys(du, **kwargs):
+            return F(du, t, dt, L, M, N, self, Qmat, sweep, sys, u0_full, **kwargs)
+
+        du_new = root(impl_sys, f_init.flatten(), method="hybr", tol=1e-14)
+        return du_new.x
+
     def u_exact(self, t, **kwargs):
         r"""
         Routine for the exact solution at time :math:`t`.

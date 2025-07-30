@@ -198,7 +198,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         self._load_reference_solution()
 
-        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
+        self._init_nvars()
 
     def _allocate_internal_arrays(self):
         """Allocates memory for internal working arrays used during evaluation."""
@@ -274,6 +274,11 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.yb = 0.03273
         self.xc = 0.014
         self.yc = 0.072
+
+    def _init_nvars(self):
+        """Initializes the number of the differential variables in problem."""
+
+        self.nq, self.nv, self.nw, self.nl = 7, 7, 7, 6
 
     def _load_reference_solution(self):
         """Loads reference solution from stored files."""
@@ -960,6 +965,7 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
 
         self._makeAttributeAndRegister(
             "newton_tol",
+            "nvars",
             "index",
             "newton_maxiter",
             "solver_type",
@@ -978,6 +984,11 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         AndrewsSqueezingMechanismDAE._init_masses_and_inertias(self)
         AndrewsSqueezingMechanismDAE._init_geometrical_params(self)
         AndrewsSqueezingMechanismDAE._init_coordinates(self)
+        AndrewsSqueezingMechanismDAE._init_nvars(self)
+
+        self.I0 = np.zeros((self.nvars, self.nvars))
+        self.I0[: self.nq, : self.nq] = np.eye(self.nq)
+        self.I0[self.nq : self.nq + self.nv, self.nq : self.nq + self.nv] = np.eye(self.nv)
 
         AndrewsSqueezingMechanismDAE._load_reference_solution(self)
 
@@ -1065,14 +1076,164 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
 
         return f[14 :]
 
-    def solve_collocation_system(self, F, f_init, t, dt, L, M, N, Qmat, sweep, sys, u0_full):
-        """Solves the collocation system for Radau solver."""
+    def dg(self, dt, M, Qmat):
+        r"""
+        Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
+        the right-hand side of the DAE system is approximated. Here, the derivatives of
+        :math:`f`, :math:`M` and :math:`G` are neglected.
 
-        def impl_sys(du, **kwargs):
-            return F(du, t, dt, L, M, N, self, Qmat, sweep, sys, u0_full, **kwargs)
+        Parameters
+        ----------
+        dt : float
+            Time step size.
+        Qmat : np.2darray
+            Spectral integration matrix
 
-        du_new = root(impl_sys, f_init.flatten(), method="hybr", tol=1e-14)
-        return du_new.x
+        Returns
+        -------
+        J : np.2darray
+            Jacobian.
+        """
+
+        if self.index == 3:
+            J_approx = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        self.G,
+                        np.zeros((self.nl, self.nv)),
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ]
+                ]
+            )
+
+        elif self.index == 2:
+            J_approx = np.block(
+                [
+                    [
+                        np.eye(self.nq),
+                        np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.eye(self.nv),
+                        np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        self.G,
+                        np.zeros((self.nl, self.nw)),
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+
+        elif self.index == 1:
+            J_approx = np.block(
+                [
+                    [
+                        np.zeros((self.nq, self.nq)),
+                        np.eye(self.nv),
+                        np.zeros((self.nq, self.nw)),
+                        np.zeros((self.nq, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nv, self.nq)),
+                        np.zeros((self.nv, self.nv)),
+                        np.eye(self.nw),
+                        np.zeros((self.nv, self.nl)),
+                    ],
+                    [
+                        np.zeros((self.nw, self.nq)),
+                        np.zeros((self.nw, self.nv)),
+                        self.M,
+                        self.G.T,
+                    ],
+                    [
+                        np.zeros((self.nl, self.nq)),
+                        np.zeros((self.nl, self.nv)),
+                        self.G,
+                        np.zeros((self.nl, self.nl)),
+                    ],
+                ]
+            )
+        else:
+            raise NotImplementedError
+
+        J = np.kron(np.identity(M), self.I0) - dt * np.kron(Qmat[1 :, 1 :], J_approx)
+
+        return J
+
+    # def solve_collocation_system(self, F, f_init, t, dt, L, M, N, Qmat, sweep, sys, u0_full):
+    #     """Solves the collocation system for Radau solver."""
+
+    #     def impl_sys(du, **kwargs):
+    #         return F(du, t, dt, L, M, N, self, Qmat, sweep, sys, u0_full, **kwargs)
+
+    #     du = f_init.flatten()
+
+    #     n = 0
+    #     res = 99
+    #     while n < self.newton_maxiter:
+    #         g = impl_sys(du)
+
+    #         # If h is close to 0, then we are done
+    #         res = np.linalg.norm(g, np.inf)
+    #         if res < self.newton_tol:
+    #             break
+    #         print(res)
+    #         # Assemble dh
+    #         dg = self.dg(dt, M, Qmat)
+
+    #         # Newton direction dx
+    #         dx = np.linalg.solve(dg, g)
+
+    #         # Newton update: u1 = u0 - g/dg
+    #         du -= dx
+
+    #         # Increase iteration per one
+    #         n += 1
+    #         self.work_counters["newton"]()
+
+    #     if np.isnan(res) and self.stop_at_nan:
+    #         raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
+    #     elif np.isnan(res):
+    #         self.logger.warning("Newton got nan after %i iterations..." % n)
+    #     if n == self.newton_maxiter and self.verbose:
+    #         msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
+    #         if self.stop_at_maxiter:
+    #             raise ProblemError(msg)
+    #         else:
+    #             self.logger.warning(msg)
+
+    #     return du
 
     def u_exact(self, t, **kwargs):
         r"""

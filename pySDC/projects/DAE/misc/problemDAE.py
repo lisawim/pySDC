@@ -75,6 +75,15 @@ class ProblemDAE(Problem):
         self.work_counters['newton'].niter += opt.nfev
         return me
 
+    def solve_collocation_system(self, F, f_init, t, dt, L, M, N, Qmat, sweep, sys, u0_full):
+        """Solves the collocation system for Radau solver."""
+
+        def impl_sys(du, **kwargs):
+            return F(du, t, dt, L, M, N, self, Qmat, sweep, sys, u0_full, **kwargs)
+
+        du_new = root(impl_sys, f_init.flatten(), method="hybr", tol=1e-14)
+        return du_new.x
+
     def du_exact(self, t):
         r"""
         Routine for the derivative of the exact solution at time :math:`t \leq 1`.

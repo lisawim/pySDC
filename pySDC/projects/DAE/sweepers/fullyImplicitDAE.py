@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import optimize
 
 from pySDC.core.errors import ParameterError
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit

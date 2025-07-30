@@ -58,14 +58,20 @@ def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_meth
 
     args = {"problem_name": problem_name}
 
+    radau_executed = {name: False for name in RADAU_METHODS}
+
     for sweeper_type in sweepers:
 
         for QI in test_methods:
+            if QI in RADAU_METHODS:
+                if radau_executed[QI]:
+                    continue
+
+                sweeper_type = "fullyImplicitDAE"
+                radau_executed[QI] = True
+
             key = f"{sweeper_type}_{QI}"
             all_stats[key] = {}
-
-            if QI in RADAU_METHODS:
-                sweeper_type = "fullyImplicitDAE"
 
             use_mpi = True if QI in QI_PARALLEL else False
 

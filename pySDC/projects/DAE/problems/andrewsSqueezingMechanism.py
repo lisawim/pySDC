@@ -655,7 +655,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         else:
             raise ProblemError(f"Unknown solver_type: {self.solver_type}")
 
-    def update_Jacobian(self, factor):
+    def dg(self, factor):
         r"""
         Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
         the right-hand side of the DAE system is approximated. Here, the derivatives of
@@ -823,18 +823,18 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         n = 0
         res = 99
         while n < self.newton_maxiter:
-            h = impl_sys_numpy(u)
+            g = impl_sys_numpy(u)
 
             # If h is close to 0, then we are done
-            res = np.linalg.norm(h, np.inf)
+            res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
             # Assemble dh
-            dh = self.update_Jacobian(factor)
+            dg = self.dg(factor)
 
             # Newton direction dx
-            dx = np.linalg.solve(dh, h)
+            dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
             u.diff[: 14] -= dx[: 14]
@@ -1148,7 +1148,7 @@ class SemiImplicitAndrewsSqueezingMechanismDAE(AndrewsSqueezingMechanismDAE):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def update_Jacobian(self, factor):
+    def dg(self, factor):
         r"""
         Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
         the right-hand side of the DAE system is approximated. Here, the derivatives of
@@ -1345,23 +1345,23 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             q, v = u.diff[0 : 7], u.diff[7 : 14]
             w = u.alg[0 : 7]
 
-            h1 = q[:] - factor * v[:] - rhs_diff1[:]
-            h2 = v[:] - factor * w[:] - rhs_diff2[:]
+            g1 = q[:] - factor * v[:] - rhs_diff1[:]
+            g2 = v[:] - factor * w[:] - rhs_diff2[:]
             f_alg = self.algebraicConstraints(u, t)[: 13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
-            h = np.array([*h1, *h2, *f_alg])
+            g = np.array([*g1, *g2, *f_alg])
 
             # If g is close to 0, then we are done
-            res = np.linalg.norm(h, np.inf)
+            res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
             # Assemble dh
-            dh = self.update_Jacobian(factor)
+            dg = self.dg(factor)
 
             # Newton direction dx
-            dx = np.linalg.solve(dh, h)
+            dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
             u.diff[: 14] -= dx[: 14]
@@ -1463,7 +1463,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         self.work_counters["hybr"].niter += opt.nfev
         return solution
 
-    def update_Jacobian(self, factor):
+    def dg(self, factor):
         r"""
         Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
         the right-hand side of the DAE system is approximated. Here, the derivatives of
@@ -1606,23 +1606,23 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             q, v = u.diff[: 7], u.diff[7 : 14]
             w = u.alg[: 7]
 
-            h1 = q - factor * v - rhs.diff[: 7]
-            h2 = v - factor * w - rhs.diff[7 : 14]
-            h3 = -factor * self.algebraicConstraints(u, t)[:13] - rhs.alg[:13]
+            g1 = q - factor * v - rhs.diff[: 7]
+            g2 = v - factor * w - rhs.diff[7 : 14]
+            g3 = -factor * self.algebraicConstraints(u, t)[:13] - rhs.alg[:13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
-            h = np.array([*h1, *h2, *h3])
+            g = np.array([*g1, *g2, *g3])
 
             # If g is close to 0, then we are done
-            res = np.linalg.norm(h, np.inf)
+            res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
             # # Assemble dh 
-            dh = self.update_Jacobian(factor)
+            dg = self.dg(factor)
 
             # Newton direction dx
-            dx = np.linalg.solve(dh, h)
+            dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
             u.diff[0 : 14] -= dx[0 : 14]
@@ -1720,7 +1720,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         self.work_counters["hybr"].niter += opt.nfev
         return solution
 
-    def update_Jacobian(self, factor):
+    def dg(self, factor):
         r"""
         Updates the Jacobian for the system to be solved by Newton. Note that the Jacobian of
         the right-hand side of the DAE system is approximated. Here, the derivatives of

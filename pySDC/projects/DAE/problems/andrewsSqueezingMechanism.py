@@ -951,9 +951,9 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
     def __init__(
             self,
             nvars=27,
-            newton_tol=1e-14,
+            newton_tol=5e-12,
             index=1,
-            newton_maxiter=10,
+            newton_maxiter=20,
             solver_type="hybr",
             stop_at_maxiter=False,
             stop_at_nan=False,
@@ -1113,11 +1113,11 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
                     [
                         np.zeros((self.nw, self.nq)),
                         np.zeros((self.nw, self.nv)),
-                        self.M,
-                        self.G.T,
+                        -self.M,
+                        -self.G.T,
                     ],
                     [
-                        self.G,
+                        -self.G,
                         np.zeros((self.nl, self.nv)),
                         np.zeros((self.nl, self.nw)),
                         np.zeros((self.nl, self.nl)),
@@ -1143,12 +1143,12 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
                     [
                         np.zeros((self.nw, self.nq)),
                         np.zeros((self.nw, self.nv)),
-                        self.M,
-                        self.G.T,
+                        -self.M,
+                        -self.G.T,
                     ],
                     [
                         np.zeros((self.nl, self.nq)),
-                        self.G,
+                        -self.G,
                         np.zeros((self.nl, self.nw)),
                         np.zeros((self.nl, self.nl)),
                     ],
@@ -1173,13 +1173,13 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
                     [
                         np.zeros((self.nw, self.nq)),
                         np.zeros((self.nw, self.nv)),
-                        self.M,
-                        self.G.T,
+                        -self.M,
+                        -self.G.T,
                     ],
                     [
                         np.zeros((self.nl, self.nq)),
                         np.zeros((self.nl, self.nv)),
-                        self.G,
+                        -self.G,
                         np.zeros((self.nl, self.nl)),
                     ],
                 ]
@@ -1191,49 +1191,54 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
 
         return J
 
-    # def solve_collocation_system(self, F, f_init, t, dt, L, M, N, Qmat, sweep, sys, u0_full):
-    #     """Solves the collocation system for Radau solver."""
+    def solve_collocation_system(self, F, f_init, t, dt, M, Qmat, sweep, u0_full):
+        """Solves the collocation system for Radau solver."""
 
-    #     def impl_sys(du, **kwargs):
-    #         return F(du, t, dt, L, M, N, self, Qmat, sweep, sys, u0_full, **kwargs)
+        def impl_sys(du, **kwargs):
+            return F(du, t, dt, M, self, Qmat, sweep, u0_full, **kwargs)
 
-    #     du = f_init.flatten()
+        du = f_init.copy()
 
-    #     n = 0
-    #     res = 99
-    #     while n < self.newton_maxiter:
-    #         g = impl_sys(du)
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            g = impl_sys(du)
 
-    #         # If h is close to 0, then we are done
-    #         res = np.linalg.norm(g, np.inf)
-    #         if res < self.newton_tol:
-    #             break
-    #         print(res)
-    #         # Assemble dh
-    #         dg = self.dg(dt, M, Qmat)
+            # If g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+            if res < self.newton_tol:
+                break
 
-    #         # Newton direction dx
-    #         dx = np.linalg.solve(dg, g)
+            # Assemble dg
+            dg = self.dg(dt, M, Qmat)
 
-    #         # Newton update: u1 = u0 - g/dg
-    #         du -= dx
+            # # Newton direction dx
+            dx = np.linalg.solve(dg, g)
 
-    #         # Increase iteration per one
-    #         n += 1
-    #         self.work_counters["newton"]()
+            # Newton update: u1 = u0 - g/dg
+            du_reshape = []
+            for m in range(M):
+                du_reshape.append(self.dtype_f(du[m]))
+                du_reshape[-1] -= dx[m * self.nvars : (m + 1) * self.nvars]
 
-    #     if np.isnan(res) and self.stop_at_nan:
-    #         raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
-    #     elif np.isnan(res):
-    #         self.logger.warning("Newton got nan after %i iterations..." % n)
-    #     if n == self.newton_maxiter and self.verbose:
-    #         msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
-    #         if self.stop_at_maxiter:
-    #             raise ProblemError(msg)
-    #         else:
-    #             self.logger.warning(msg)
+            du = du_reshape.copy()
 
-    #     return du
+            # Increase iteration per one
+            n += 1
+            self.work_counters["newton"]()
+
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
+        elif np.isnan(res):
+            self.logger.warning("Newton got nan after %i iterations..." % n)
+        if n == self.newton_maxiter and self.verbose:
+            msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
+            if self.stop_at_maxiter:
+                raise ProblemError(msg)
+            else:
+                self.logger.warning(msg)
+
+        return du
 
     def u_exact(self, t, **kwargs):
         r"""

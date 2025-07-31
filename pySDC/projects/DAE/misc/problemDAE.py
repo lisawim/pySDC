@@ -75,14 +75,26 @@ class ProblemDAE(Problem):
         self.work_counters['newton'].niter += opt.nfev
         return me
 
-    def solve_collocation_system(self, F, f_init, t, dt, L, M, N, Qmat, sweep, sys, u0_full):
+    def solve_collocation_system(self, F, f_init, t, dt, M, Qmat, sweep, u0_full):
         """Solves the collocation system for Radau solver."""
 
         def impl_sys(du, **kwargs):
-            return F(du, t, dt, L, M, N, self, Qmat, sweep, sys, u0_full, **kwargs)
+            du_reshape = []
+            for m in range(M):
+                du_reshape.append(self.dtype_f(self.init))
+                du_reshape[-1] += du[m * self.nvars : (m + 1) * self.nvars]
 
-        du_new = root(impl_sys, f_init.flatten(), method="hybr", tol=1e-14)
-        return du_new.x
+            return F(du_reshape, t, dt, M, self, Qmat, sweep, u0_full, **kwargs)
+
+        f_init_flatten = np.concatenate([f_val.flatten() for f_val in f_init])
+        du_new = root(impl_sys, f_init_flatten, method="hybr", tol=1e-14)
+
+        du_new_reshape = []
+        for m in range(M):
+            du_new_reshape.append(self.dtype_f(self.init))
+            du_new_reshape[-1] += du_new.x[m * self.nvars : (m + 1) * self.nvars]
+
+        return du_new_reshape
 
     def du_exact(self, t):
         r"""

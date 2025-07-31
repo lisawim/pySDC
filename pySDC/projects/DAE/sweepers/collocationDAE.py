@@ -12,12 +12,6 @@ class CollocationDAE(RungeKuttaDAE):
     def __init__(self, params):
         super().__init__(params)
 
-        # Store number of nodes here since in parent class num_nodes will be overwritten
-        self.M = params['num_nodes']
-
-        self.newton_tol = 1e-14
-        self.newton_maxiter = 11
-
     def update_nodes(self):
         """
         Update the u- and f-values at the collocation nodes -> corresponds to a single sweep over all nodes.
@@ -84,19 +78,14 @@ class CollocationDAE(RungeKuttaDAE):
 
         local_du_approx = [du[m].copy() for m in range(M)]
 
-        local_u_approx = [u0_full[m].copy() for m in range(M)]
-
         # Applying quadrature to local approximation of u
-        for m in range(M):
-            for j in range(M):
-                local_u_approx[m] += dt * Qmat[m + 1, j + 1] * local_du_approx[j]
+        local_u_approx = [
+            u0_full[m].copy() + dt * sum(Qmat[m + 1, j + 1] * du[j] for j in range(M))
+            for m in range(M)
+        ]
 
-        sys = []
-        for m in range(M):
-            # Get the system and do flattening
-            tau_m = t + dt * sweep.coll.nodes[m + 1]
-            f_eval = P.eval_f(local_u_approx[m], local_du_approx[m], tau_m)
-            sys.append(P.dtype_f(f_eval))
+        taus = t + dt * sweep.coll.nodes[1:]
+        sys = [P.dtype_f(P.eval_f(u, du_, tau)) for u, du_, tau in zip(local_u_approx, local_du_approx, taus)]
 
         sys_flatten = np.concatenate([sys_val.flatten() for sys_val in sys])
         return sys_flatten

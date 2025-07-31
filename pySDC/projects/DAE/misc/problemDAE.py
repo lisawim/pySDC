@@ -79,20 +79,16 @@ class ProblemDAE(Problem):
         """Solves the collocation system for Radau solver."""
 
         def impl_sys(du, **kwargs):
-            du_reshape = []
-            for m in range(M):
-                du_reshape.append(self.dtype_f(self.init))
-                du_reshape[-1] += du[m * self.nvars : (m + 1) * self.nvars]
+            du_matrix = du.reshape((M, self.nvars))
+            du_reshape = [self.dtype_f(self.init) + du_m for du_m in du_matrix]
 
             return F(du_reshape, t, dt, M, self, Qmat, sweep, u0_full, **kwargs)
 
         f_init_flatten = np.concatenate([f_val.flatten() for f_val in f_init])
         du_new = root(impl_sys, f_init_flatten, method="hybr", tol=1e-14)
 
-        du_new_reshape = []
-        for m in range(M):
-            du_new_reshape.append(self.dtype_f(self.init))
-            du_new_reshape[-1] += du_new.x[m * self.nvars : (m + 1) * self.nvars]
+        dx_matrix = du_new.x.reshape((M, self.nvars))
+        du_new_reshape = [self.dtype_f(self.init) + dx_m for dx_m in dx_matrix]
 
         return du_new_reshape
 

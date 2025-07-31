@@ -1216,10 +1216,8 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
             dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
-            du_reshape = []
-            for m in range(M):
-                du_reshape.append(self.dtype_f(du[m]))
-                du_reshape[-1] -= dx[m * self.nvars : (m + 1) * self.nvars]
+            dx_matrix = dx.reshape((M, self.nvars))
+            du_reshape = [self.dtype_f(du_m) - dx_m for du_m, dx_m in zip(du, dx_matrix)]
 
             du = du_reshape.copy()
 

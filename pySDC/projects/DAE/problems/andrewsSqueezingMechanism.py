@@ -822,7 +822,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         def impl_sys_numpy(u_me, **kwargs):
             sys = impl_sys(u_me, self, factor, rhs, t, **kwargs)
-            sys_numpy = np.array([*sys.diff[:14], *sys.alg[:13]])
+            sys_numpy = np.concatenate((sys.diff[:14], sys.alg[:13]))
             return sys_numpy
 
         n = 0
@@ -860,9 +860,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             else:
                 self.logger.warning(msg)
 
-        solution = self.dtype_u(self.init)
-        solution[:] = u[:]
-        return solution
+        return u.copy()
 
     def u_exact(self, t, **kwargs):
         r"""
@@ -1509,21 +1507,20 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
         u = self.dtype_u(u0)
 
-        rhs_diff1, rhs_diff2 = rhs.diff[0 : 7], rhs.diff[7 : 14]
+        rhs_diff1, rhs_diff2 = rhs.diff[: 7], rhs.diff[7 : 14]
 
         n = 0
         res = 99
         while n < self.newton_maxiter:
             # Shortcuts
-            q, v = u.diff[0 : 7], u.diff[7 : 14]
-            w = u.alg[0 : 7]
+            q, v, w = u.diff[: 7], u.diff[7 : 14], u.alg[: 7]
 
-            g1 = q[:] - factor * v[:] - rhs_diff1[:]
-            g2 = v[:] - factor * w[:] - rhs_diff2[:]
+            g1 = q - factor * v - rhs_diff1
+            g2 = v - factor * w - rhs_diff2
             f_alg = self.algebraicConstraints(u, t)[: 13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
-            g = np.array([*g1, *g2, *f_alg])
+            g = np.concatenate((g1, g2, f_alg))
 
             # If g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -1555,9 +1552,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             else:
                 self.logger.warning(msg)
 
-        solution = self.dtype_u(self.init)
-        solution[:] = u[:]
-        return solution
+        return u.copy()
 
     def solve_with_hybr(self, rhs, factor, u0, t, impl_sys=None):
         r"""
@@ -1587,7 +1582,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
         solution = self.dtype_u(self.init)
 
-        rhs_diff1, rhs_diff2 = rhs.diff[0 : 7], rhs.diff[7 : 14]
+        rhs_diff1, rhs_diff2 = rhs.diff[: 7], rhs.diff[7 : 14]
 
         # Form the function, such that the solution to the nonlinear problem is a root of it
         def andrews_dae(u):
@@ -1599,8 +1594,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             self.get_func(q, v)
             self.getG(q)
 
-            f1 = q[:] - factor * v[:] - rhs_diff1[:]
-            f2 = v[:] - factor * w[:] - rhs_diff2[:]
+            f1 = q - factor * v - rhs_diff1
+            f2 = v - factor * w - rhs_diff2
             f3 = self.M.dot(w) - self.func + self.G.T.dot(l)
             if self.index == 3:
                 self.get_g(q)
@@ -1617,11 +1612,11 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             else:
                 raise NotImplementedError
 
-            return np.array([*f1, *f2, *f3, *f4])
+            return np.concatenate((f1, f2, f3, f4))
 
-        q0, v0 = u0.diff[0 : 7], u0.diff[7 : 14]
-        w0, lamb0 = u0.alg[0 : 7], u0.alg[7 : 13]
-        u0_vec = np.array([*q0, *v0, *w0, *lamb0])
+        q0, v0 = u0.diff[: 7], u0.diff[7 : 14]
+        w0, lamb0 = u0.alg[: 7], u0.alg[7 : 13]
+        u0_vec = np.concatenate((q0, v0, w0, lamb0))
 
         opt = root(
             andrews_dae,
@@ -1784,7 +1779,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             g3 = -factor * self.algebraicConstraints(u, t)[:13] - rhs.alg[:13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
-            g = np.array([*g1, *g2, *g3])
+            g = np.concatenate((g1, g2, g3))
 
             # If g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -1798,7 +1793,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
-            u.diff[0 : 14] -= dx[0 : 14]
+            u.diff[: 14] -= dx[: 14]
             u.alg[0 : 13] -= dx[14 : 27]
 
             # Increase iteration per one
@@ -1876,7 +1871,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             else:
                 raise NotImplementedError
 
-            return np.array([*f1, *f2, *f3, *f4])
+            return np.concatenate((f1, f2, f3, f4))
 
         u0_vec = np.array([*u0.diff[: 14], *u0.alg[: 13]])
 

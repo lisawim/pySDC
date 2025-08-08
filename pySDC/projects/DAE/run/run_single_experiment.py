@@ -70,7 +70,6 @@ def main():
 
     all_max_global_error_full = [] if rank == 0 else None
     q_max_final_error_full = [] if rank == 0 else None
-    all_max_global_res_full = [] if rank == 0 else None
     wallclock_times = [] if rank == 0 else None
 
     if rank == 0:
@@ -93,7 +92,6 @@ def main():
                 args.sweeper_type,
                 args.use_mpi,
                 hook_class=hook_class,
-                skip_residual_computation=(),
                 measure=True,
             )
 
@@ -119,7 +117,6 @@ def main():
                     args.sweeper_type,
                     args.use_mpi,
                     hook_class=hook_class,
-                    skip_residual_computation=(),
                     measure=True,
                 )
 
@@ -129,9 +126,6 @@ def main():
         if rank == 0:
             err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
             all_max_global_error_full.append(max(err_values))
-
-            res_values = [me[1] for me in get_sorted(solution_stats, type=f"residual_post_step", sortby="time")]
-            all_max_global_res_full.append(max(res_values))
 
             # Store solution at Tend = 0.03 (for Andrews' problem)
             if args.problem_name == "ANDREWS-SQUEEZER":
@@ -170,7 +164,6 @@ def main():
         key = f"{args.sweeper_type}_{args.QI}"
         all_stats[key] = {
             "all_max_global_error": all_max_global_error_full,
-            "all_max_global_res": all_max_global_res_full,
             "wc_times": wallclock_times,
         }
 

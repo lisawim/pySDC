@@ -58,7 +58,7 @@ def plot_work_vs_error_single(
     ):
     """Plots work vs error for one single SDC variant (default is SDC-C)."""
 
-    plot_names = {"LINEAR-TEST": "Fig3", "ANDREWS-SQUEEZER": "Fig7"}
+    plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig7"}
 
     figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
 
@@ -112,7 +112,7 @@ def plot_work_vs_error_sdc_radau(
     ):
     """Plots work vs error for all SDC-variants with best observed qDelta and Radau methods."""
 
-    plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig8"}
+    plot_names = {"LINEAR-TEST": "Fig5", "ANDREWS-SQUEEZER": "Fig8"}
 
     figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
 

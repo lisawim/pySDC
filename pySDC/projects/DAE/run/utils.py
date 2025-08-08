@@ -123,7 +123,10 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
         elif sweeper_type == "embeddedDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEEmbedded as problem
         elif sweeper_type == "fullyImplicitDAE":
-            from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAE as problem
+            if QI.startswith("RadauIIA"):
+                from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAE_Radau as problem
+            else:
+                from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAE as problem
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 

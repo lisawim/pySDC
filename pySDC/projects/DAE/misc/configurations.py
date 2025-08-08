@@ -18,7 +18,7 @@ def get_configs(problem_name, config_type):
             }
 
         elif problem_name == "LINEAR-TEST":
-            sweepers = ["constrainedDAE", "fullyImplicitDAE", "semiImplicitDAE"]
+            sweepers = ["constrainedDAE", "semiImplicitDAE"]
 
             config = {
                 "hook_class": [LogGlobalErrorPostStep],

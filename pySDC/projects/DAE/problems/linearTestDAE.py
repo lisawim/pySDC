@@ -479,16 +479,116 @@ class LinearTestDAE_Radau(LinearTestDAE, ProblemDAE):
             Jacobian.
         """
 
-        J_approx = np.array([
-            [self.lamb_diff, self.lamb_alg],
-            [-self.lamb_diff, self.lamb_alg]
-        ])
-        J = np.kron(np.identity(M), self.Id0) - dt * np.kron(Qmat[1 :, 1 :], J_approx)
+        # TODO: Why is J_approx for Newton different to direct solve?
+        if self.solver_type == "direct":
+            J_approx = self.A
+        elif self.solver_type == "newton":
+            J_approx = np.array([
+                [self.lamb_diff, self.lamb_alg],
+                [-self.lamb_diff, self.lamb_alg]
+            ])
 
+        J = np.kron(np.identity(M), self.Id0) - dt * np.kron(Qmat[1 :, 1 :], J_approx)
         return J
 
     def solve_collocation_system(self, F, f_init, t, dt, M, Qmat, sweep, u0_full):
-        """Solves the collocation system for Radau solver."""
+        r"""
+        Dispatcher that selects the appropriate solver backend based on ``self.solver_type``.
+        Possible solvers are:
+
+        - "direct": solves the system via a direct linear solver (e.g., NumPy's `linalg.solve`)
+        - "newton": solves the system via a custom Newton-Raphson method
+
+        Parameters
+        ----------
+        F : callable function
+            Collocation system to solve.
+        f_init : list of dtype_f
+            Initial guess for iterative solver.
+        t : float
+            Current time of numerical solution.
+        dt : float
+            Time step size.
+        M : int
+            Number of collocation nodes.
+        Qmat : np.2darray
+            Spectral integration matrix.
+        sweep : pySDC.core.sweeper
+            Sweeper.
+        u0_full : list of dtype_u
+            Contains initial condition at each collocation node.
+
+        Returns
+        -------
+         : list of pySDC.implementations.datatype_classes.mesh.mesh
+            Numerical solution of the linear system.
+        """
+
+        if self.solver_type == "direct":
+            return self.solve_direct(dt, M, Qmat, u0_full)
+        elif self.solver_type == "newton":
+            return self.solve_with_newton(F, f_init, t, dt, M, Qmat, sweep, u0_full)
+        else:
+            raise ProblemError(f"Unknown solver_type: {self.solver_type}")
+
+    def solve_direct(self, dt, M, Qmat, u0_full):
+        r"""
+        Direct solver for the linear system using NumPy's ``linalg.solve``.
+
+        Parameters
+        ----------
+        dt : float
+            Time step size.
+        M : int
+            Number of collocation nodes.
+        Qmat : np.2darray
+            Spectral integration matrix.
+        sweep : pySDC.core.sweeper
+            Sweeper.
+        u0_full : list of dtype_u
+            Contains initial condition at each collocation node.
+
+        Returns
+        -------
+        du : list of pySDC.implementations.datatype_classes.mesh.mesh
+            Numerical solution of the linear system.
+        """
+
+        dg = self.dg(dt, M, Qmat)
+        b = np.array([self.A @ u0_full[m].copy() for m in range(M)]).flatten()
+
+        du = np.linalg.solve(dg, b)
+        du = du.reshape((M, self.nvars))
+        return du
+
+    def solve_with_newton(self, F, f_init, t, dt, M, Qmat, sweep, u0_full):
+        r"""
+        Newton's method to solve the linear system.
+
+        Parameters
+        ----------
+        F : callable function
+            Collocation system to solve.
+        f_init : list of dtype_f
+            Initial guess for iterative solver.
+        t : float
+            Current time of numerical solution.
+        dt : float
+            Time step size.
+        M : int
+            Number of collocation nodes.
+        Qmat : np.2darray
+            Spectral integration matrix.
+        sweep : pySDC.core.sweeper
+            Sweeper.
+        u0_full : list of dtype_u
+            Contains initial condition at each collocation node.
+
+        Returns
+        -------
+        du : list of pySDC.implementations.datatype_classes.mesh.mesh
+            Numerical solution of the linear system.
+        """
 
         def impl_sys(du, **kwargs):
             return F(du, t, dt, M, self, Qmat, sweep, u0_full, **kwargs)

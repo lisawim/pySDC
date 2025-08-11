@@ -60,11 +60,11 @@ def plot_work_vs_error_single(
 
     plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig7"}
 
-    figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
+    figsize = figsize_by_journal(journal, scale=0.5, ratio=0.9)
 
     ylabel = get_ylabel_based_on_metric(metric_key)
 
-    my_setup_mpl(fontsize=10)
+    my_setup_mpl(fontsize=8)
     colors, markers, _ = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     for QI in [q for q in test_methods if not q.startswith("RadauIIA")]:
@@ -88,7 +88,7 @@ def plot_work_vs_error_single(
     ax.tick_params(axis="both", which="minor", bottom=False, left=False)
     ax.set_xlabel("wall-clock time")
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.19), ncol=3)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3)
 
     plot_name = plot_names[problem_name]
     filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format

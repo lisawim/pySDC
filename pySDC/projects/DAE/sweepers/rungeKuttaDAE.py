@@ -104,6 +104,26 @@ class RungeKuttaDAE(RungeKutta):
         lvl.status.unlocked = True
         lvl.status.updated = True
 
+    def get_full_f(self, f):
+        """
+        Get the full right hand side as a `mesh` from the right hand side
+
+        Args:
+            f (dtype_f): Right hand side at a single node
+
+        Returns:
+            mesh: Full right hand side as a mesh
+        """
+        if type(f).__name__ in ['mesh', 'MeshDAE']:
+            return f
+        elif type(f).__name__.lower() in ['imex_mesh']:
+            return f.impl + f.expl
+        elif f is None:
+            prob = self.level.prob
+            return self.get_full_f(prob.dtype_f(prob.init, val=0))
+        else:
+            raise NotImplementedError(f'Type \"{type(f)}\" not implemented in Runge-Kutta sweeper')
+
     def integrate(self):
         r"""
         Returns the solution by integrating its gradient (fundamental theorem of calculus) at each collocation node.

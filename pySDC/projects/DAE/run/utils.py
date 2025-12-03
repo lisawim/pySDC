@@ -6,6 +6,9 @@ logger = logging.getLogger(__name__)
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
+from pySDC.projects.PinTSimE.switch_estimator import SwitchEstimator
+from pySDC.implementations.convergence_controller_classes.basic_restarting import BasicRestartingNonMPI
+
 def my_setup_mpl(fontsize=16):
     "Setting up my personal settings for plotting."
 
@@ -99,6 +102,22 @@ def my_plot_style_config():
 
     return colors, markers, sweeper_labels
 
+def setup_convergence_controllers(description):
+    convergence_controllers = {}
+    switch_estimator_params = {
+        "tol": 1e-10,
+        "alpha": 1.0,
+    }
+    convergence_controllers.update({SwitchEstimator: switch_estimator_params})
+
+    restarting_params = {
+        "max_restarts": 5,
+        "crash_after_max_restarts": False,
+    }
+    convergence_controllers.update({BasicRestartingNonMPI: restarting_params})
+    description["convergence_controllers"] = convergence_controllers
+    return description
+
 def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
 
@@ -190,6 +209,8 @@ def compute_solution(
 
     description = {}
     description["level_params"] = {"dt": dt}
+
+    description = setup_convergence_controllers(description)
 
     description = setup_problem(problem_name, QI, description, sweeper_type, **kwargs)
 

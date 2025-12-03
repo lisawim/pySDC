@@ -64,6 +64,7 @@ class GenericSpectralLinear(Problem):
         max_cached_factorizations=12,
         spectral_space=True,
         real_spectral_coefficients=False,
+        heterogeneous=False,
         debug=False,
     ):
         """
@@ -81,6 +82,7 @@ class GenericSpectralLinear(Problem):
             max_cached_factorizations (int): Number of matrix decompositions to cache before starting eviction
             spectral_space (bool): If yes, the solution will not be transformed back after solving and evaluating the RHS, and is expected as input in spectral space to these functions
             real_spectral_coefficients (bool): If yes, allow only real values in spectral space, otherwise, allow complex.
+            heterogeneous (bool): If yes, perform memory intensive sparse matrix operations on CPU
             debug (bool): Make additional tests at extra computational cost
         """
         solver_args = {} if solver_args is None else solver_args
@@ -100,6 +102,7 @@ class GenericSpectralLinear(Problem):
             'comm',
             'spectral_space',
             'real_spectral_coefficients',
+            'heterogeneous',
             'debug',
             localVars=locals(),
         )
@@ -126,6 +129,34 @@ class GenericSpectralLinear(Problem):
 
         self.cached_factorizations = {}
 
+        if self.heterogeneous:
+            self.__heterogeneous_setup = False
+
+        self.logger.debug('Finished GenericSpectralLinear __init__')
+
+    def heterogeneous_setup(self):
+        if self.heterogeneous and not self.__heterogeneous_setup:
+
+            CPU_only = ['BC_line_zero_matrix', 'BCs']
+            both = ['Pl', 'Pr', 'L', 'M']
+
+            self.logger.debug(f'Starting heterogeneous setup. Moving {CPU_only} and copying {both} to CPU')
+
+            if self.useGPU:
+                for key in CPU_only:
+                    self.logger.debug(f'Moving {key} to CPU')
+                    setattr(self.spectral, key, getattr(self.spectral, key).get())
+
+                for key in both:
+                    self.logger.debug(f'Copying {key} to CPU')
+                    setattr(self, f'{key}_CPU', getattr(self, key).get())
+            else:
+                for key in both:
+                    setattr(self, f'{key}_CPU', getattr(self, key))
+
+            self.logger.debug('Done with heterogeneous setup')
+        self.__heterogeneous_setup = True
+
     def __getattr__(self, name):
         """
         Pass requests on to the helper if they are not directly attributes of this class for convenience.
@@ -138,21 +169,20 @@ class GenericSpectralLinear(Problem):
         """
         return getattr(self.spectral, name)
 
-    def _setup_operator(self, LHS, diag=False):
+    def _setup_operator(self, LHS):
         """
         Setup a sparse linear operator by adding relationships. See documentation for ``GenericSpectralLinear.setup_L`` to learn more.
 
         Args:
             LHS (dict): Equations to be added to the operator
-            diag (bool): Whether operator is block-diagonal
 
         Returns:
             sparse linear operator
         """
-        operator = self.spectral.get_empty_operator_matrix(diag=diag)
+        operator = self.spectral.get_empty_operator_matrix()
         for line, equation in LHS.items():
-            self.spectral.add_equation_lhs(operator, line, equation, diag=diag)
-        return self.spectral.convert_operator_matrix_to_operator(operator, diag=diag)
+            self.spectral.add_equation_lhs(operator, line, equation)
+        return self.spectral.convert_operator_matrix_to_operator(operator)
 
     def setup_L(self, LHS):
         """
@@ -173,14 +203,16 @@ class GenericSpectralLinear(Problem):
             LHS (dict): Dictionary containing the equations.
         """
         self.L = self._setup_operator(LHS)
+        self.logger.debug('Set up L matrix')
 
-    def setup_M(self, LHS, diag=True):
+    def setup_M(self, LHS):
         '''
         Setup mass matrix, see documentation of ``GenericSpectralLinear.setup_L``.
         '''
         diff_index = list(LHS.keys())
         self.diff_mask = [me in diff_index for me in self.components]
-        self.M = self._setup_operator(LHS, diag=diag)
+        self.M = self._setup_operator(LHS)
+        self.logger.debug('Set up M matrix')
 
     def setup_preconditioner(self, Dirichlet_recombination=True, left_preconditioner=True):
         """
@@ -190,34 +222,49 @@ class GenericSpectralLinear(Problem):
             Dirichlet_recombination (bool): Basis conversion for right preconditioner. Useful for Chebychev and Ultraspherical methods. 10/10 would recommend.
             left_preconditioner (bool): If True, it will interleave the variables and reverse the Kronecker product
         """
-        sp = self.spectral.sparse_lib
         N = np.prod(self.init[0][1:])
-
-        Id = sp.eye(N)
-        Pl_lhs = {comp: {comp: Id} for comp in self.components}
-        self.Pl = self._setup_operator(Pl_lhs, diag=True)
+        if self.useGPU:
+            from cupy_backends.cuda.libs.cusparse import CuSparseError as MemError
+        else:
+            MemError = MemoryError
 
         if left_preconditioner:
-            # reverse Kronecker product
+            self.logger.debug(f'Setting up left preconditioner with {N} local degrees of freedom')
 
+            # reverse Kronecker product
             if self.spectral.useGPU:
-                R = self.Pl.get().tolil() * 0
+                import scipy.sparse as sp
             else:
-                R = self.Pl.tolil() * 0
+                sp = self.spectral.sparse_lib
+
+            R = sp.lil_matrix((self.ncomponents * N,) * 2, dtype=int)
 
             for j in range(self.ncomponents):
                 for i in range(N):
-                    R[i * self.ncomponents + j, j * N + i] = 1.0
+                    R[i * self.ncomponents + j, j * N + i] = 1
 
-            self.Pl = self.spectral.sparse_lib.csc_matrix(R)
+            self.Pl = self.spectral.sparse_lib.csc_matrix(R, dtype=complex)
+
+            self.logger.debug('Finished setup of left preconditioner')
+        else:
+            Id = self.spectral.sparse_lib.eye(N)
+            Pl_lhs = {comp: {comp: Id} for comp in self.components}
+            self.Pl = self._setup_operator(Pl_lhs)
 
         if Dirichlet_recombination and type(self.axes[-1]).__name__ in ['ChebychevHelper', 'UltrasphericalHelper']:
+            self.logger.debug('Using Dirichlet recombination as right preconditioner')
             _Pr = self.spectral.get_Dirichlet_recombination_matrix(axis=-1)
         else:
-            _Pr = Id
+            _Pr = self.spectral.sparse_lib.eye(N)
 
         Pr_lhs = {comp: {comp: _Pr} for comp in self.components}
-        self.Pr = self._setup_operator(Pr_lhs, diag=True) @ self.Pl.T
+        operator = self._setup_operator(Pr_lhs)
+
+        try:
+            self.Pr = operator @ self.Pl.T
+        except MemError:
+            self.logger.debug('Setting up right preconditioner on CPU due to memory error')
+            self.Pr = self.spectral.sparse_lib.csc_matrix(operator.get() @ self.Pl.T.get())
 
     def solve_system(self, rhs, dt, u0=None, *args, skip_itransform=False, **kwargs):
         """
@@ -232,6 +279,8 @@ class GenericSpectralLinear(Problem):
         """
 
         sp = self.spectral.sparse_lib
+
+        self.heterogeneous_setup()
 
         if self.spectral_space:
             rhs_hat = rhs.copy()
@@ -257,8 +306,19 @@ class GenericSpectralLinear(Problem):
         rhs_hat = self.Pl @ rhs_hat.flatten()
 
         if dt not in self.cached_factorizations.keys() or not self.solver_type.lower() == 'cached_direct':
-            A = self.M + dt * self.L
-            A = self.Pl @ self.spectral.put_BCs_in_matrix(A) @ self.Pr
+            if self.heterogeneous:
+                M = self.M_CPU
+                L = self.L_CPU
+                Pl = self.Pl_CPU
+                Pr = self.Pr_CPU
+            else:
+                M = self.M
+                L = self.L
+                Pl = self.Pl
+                Pr = self.Pr
+
+            A = M + dt * L
+            A = Pl @ self.spectral.put_BCs_in_matrix(A) @ Pr
 
             # if A.shape[0] < 200e20:
             #     import matplotlib.pyplot as plt
@@ -290,7 +350,22 @@ class GenericSpectralLinear(Problem):
                 if len(self.cached_factorizations) >= self.max_cached_factorizations:
                     self.cached_factorizations.pop(list(self.cached_factorizations.keys())[0])
                     self.logger.debug(f'Evicted matrix factorization for {dt=:.6f} from cache')
-                self.cached_factorizations[dt] = self.spectral.linalg.factorized(A)
+
+                if self.heterogeneous:
+                    import scipy.sparse as sp
+
+                    cpu_decomp = sp.linalg.splu(A)
+
+                    if self.useGPU:
+                        from cupyx.scipy.sparse.linalg import SuperLU
+
+                        solver = SuperLU(cpu_decomp).solve
+                    else:
+                        solver = cpu_decomp.solve
+                else:
+                    solver = self.spectral.linalg.factorized(A)
+
+                self.cached_factorizations[dt] = solver
                 self.logger.debug(f'Cached matrix factorization for {dt=:.6f}')
                 self.work_counters['factorizations']()
 
@@ -344,7 +419,7 @@ class GenericSpectralLinear(Problem):
 
     def setUpFieldsIO(self):
         Rectilinear.setupMPI(
-            comm=self.comm,
+            comm=self.comm.commMPI if self.useGPU else self.comm,
             iLoc=[me.start for me in self.local_slice(False)],
             nLoc=[me.stop - me.start for me in self.local_slice(False)],
         )

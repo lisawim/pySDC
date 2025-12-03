@@ -97,6 +97,7 @@ class SpectralHelper1D:
 
         if useGPU:
             self.setup_GPU()
+            self.logger.debug('Set up for GPU')
         else:
             self.setup_CPU(useFFTW=useFFTW)
 
@@ -159,6 +160,10 @@ class SpectralHelper1D:
         raise NotImplementedError()
 
     def get_integration_matrix(self):
+        raise NotImplementedError()
+
+    def get_integration_weights(self):
+        """Weights for integration across entire domain"""
         raise NotImplementedError()
 
     def get_wavenumbers(self):
@@ -312,14 +317,13 @@ class ChebychevHelper(SpectralHelper1D):
         '''
         N = N if N else self.N
         sp = self.sparse_lib
-        xp = self.xp
 
         def get_forward_conv(name):
             if name == 'T2U':
-                mat = (sp.eye(N) - sp.diags(xp.ones(N - 2), offsets=+2)).tocsc() / 2.0
+                mat = (sp.eye(N) - sp.eye(N, k=2)).tocsc() / 2.0
                 mat[:, 0] *= 2
             elif name == 'D2T':
-                mat = sp.eye(N) - sp.diags(xp.ones(N - 2), offsets=+2)
+                mat = sp.eye(N) - sp.eye(N, k=2)
             elif name[0] == name[-1]:
                 mat = self.sparse_lib.eye(self.N)
             else:
@@ -379,6 +383,16 @@ class ChebychevHelper(SpectralHelper1D):
         else:
             raise NotImplementedError(f'This function allows to integrate only from x=0, you attempted from x={lbnd}.')
         return S
+
+    def get_integration_weights(self):
+        """Weights for integration across entire domain"""
+        n = self.xp.arange(self.N, dtype=float)
+
+        weights = (-1) ** n + 1
+        weights[2:] /= 1 - (n**2)[2:]
+
+        weights /= 2 / self.L
+        return weights
 
     def get_differentiation_matrix(self, p=1):
         '''
@@ -536,6 +550,8 @@ class ChebychevHelper(SpectralHelper1D):
             return self.get_integ_BC_row(**kwargs)
         elif kind.lower() == 'dirichlet':
             return self.get_Dirichlet_BC_row(**kwargs)
+        elif kind.lower() == 'neumann':
+            return self.get_Neumann_BC_row(**kwargs)
         else:
             return super().get_BC(kind)
 
@@ -575,6 +591,27 @@ class ChebychevHelper(SpectralHelper1D):
         else:
             raise NotImplementedError(f'Don\'t know how to generate Dirichlet BC\'s at {x=}!')
 
+    def get_Neumann_BC_row(self, x):
+        """
+        Get a row for generating Neumann BCs at x with T polynomials.
+
+        Args:
+            x (float): Position of the boundary condition
+
+        Returns:
+            self.xp.ndarray: Row to put into a matrix
+        """
+        n = self.xp.arange(self.N, dtype='D')
+        nn = n**2
+        if x == -1:
+            me = nn
+            me[1:] *= (-1) ** n[:-1]
+            return me
+        elif x == 1:
+            return nn
+        else:
+            raise NotImplementedError(f'Don\'t know how to generate Neumann BC\'s at {x=}!')
+
     def get_Dirichlet_recombination_matrix(self):
         '''
         Get matrix for Dirichlet recombination, which changes the basis to have sparse boundary conditions.
@@ -585,9 +622,8 @@ class ChebychevHelper(SpectralHelper1D):
         '''
         N = self.N
         sp = self.sparse_lib
-        xp = self.xp
 
-        return sp.eye(N) - sp.diags(xp.ones(N - 2), offsets=+2)
+        return sp.eye(N) - sp.eye(N, k=2)
 
 
 class UltrasphericalHelper(ChebychevHelper):
@@ -632,7 +668,7 @@ class UltrasphericalHelper(ChebychevHelper):
 
         if lmbda == 0:
             sp = scipy.sparse
-            mat = ((sp.eye(N) - sp.diags(np.ones(N - 2), offsets=+2)) / 2.0).tolil()
+            mat = ((sp.eye(N) - sp.eye(N, k=2)) / 2.0).tolil()
             mat[:, 0] *= 2
         else:
             sp = self.sparse_lib
@@ -786,6 +822,12 @@ class FFTHelper(SpectralHelper1D):
         k = self.xp.array(self.get_wavenumbers(), dtype='complex128')
         k[0] = 1j * self.L
         return self.linalg.matrix_power(self.sparse_lib.diags(1 / (1j * k)), p)
+
+    def get_integration_weights(self):
+        """Weights for integration across entire domain"""
+        weights = self.xp.zeros(self.N)
+        weights[0] = self.L / self.N
+        return weights
 
     def get_plan(self, u, forward, *args, **kwargs):
         if self.fft_lib.__name__ == 'mpi4py_fft.fftw':
@@ -985,7 +1027,6 @@ class SpectralHelper:
         self.BCs = None
 
         self.fft_cache = {}
-        self.fft_dealias_shape_cache = {}
 
         self.logger = logging.getLogger(name='Spectral Discretization')
         if debug:
@@ -1135,7 +1176,7 @@ class SpectralHelper:
 
         ndim = len(self.axes)
         if ndim == 1:
-            return self.sparse_lib.csc_matrix(BC)
+            mat = self.sparse_lib.csc_matrix(BC)
         elif ndim == 2:
             axis2 = (axis + 1) % ndim
 
@@ -1151,8 +1192,8 @@ class SpectralHelper:
             ] * ndim
             mats[axis] = self.get_local_slice_of_1D_matrix(BC, axis=axis)
             mats[axis2] = Id
-            return self.sparse_lib.csc_matrix(self.sparse_lib.kron(*mats))
-        if ndim == 3:
+            mat = self.sparse_lib.csc_matrix(self.sparse_lib.kron(*mats))
+        elif ndim == 3:
             mats = [
                 None,
             ] * ndim
@@ -1170,11 +1211,13 @@ class SpectralHelper:
 
             mats[axis] = self.get_local_slice_of_1D_matrix(BC, axis=axis)
 
-            return self.sparse_lib.csc_matrix(self.sparse_lib.kron(mats[0], self.sparse_lib.kron(*mats[1:])))
+            mat = self.sparse_lib.csc_matrix(self.sparse_lib.kron(mats[0], self.sparse_lib.kron(*mats[1:])))
         else:
             raise NotImplementedError(
                 f'Matrix expansion for boundary conditions not implemented for {ndim} dimensions!'
             )
+        mat = self.eliminate_zeros(mat)
+        return mat
 
     def remove_BC(self, component, equation, axis, kind, line=-1, scalar=False, **kwargs):
         """
@@ -1192,6 +1235,7 @@ class SpectralHelper:
             scalar (bool): Put the BC in all space positions in the other direction
         """
         _BC = self.get_BC(axis=axis, kind=kind, line=line, scalar=scalar, **kwargs)
+        _BC = self.eliminate_zeros(_BC)
         self.BC_mat[self.index(equation)][self.index(component)] -= _BC
 
         if scalar:
@@ -1269,11 +1313,12 @@ class SpectralHelper:
 
         diags = self.xp.ones(self.BCs.shape[0])
         diags[self.BC_zero_index] = 0
-        self.BC_line_zero_matrix = sp.diags(diags)
+        self.BC_line_zero_matrix = sp.diags(diags).tocsc()
 
         # prepare BCs in spectral space to easily add to the RHS
         rhs_BCs = self.put_BCs_in_rhs(self.u_init)
-        self.rhs_BCs_hat = self.transform(rhs_BCs)
+        self.rhs_BCs_hat = self.transform(rhs_BCs).view(self.xp.ndarray)
+        del self.BC_rhs_mask
 
     def check_BCs(self, u):
         """
@@ -1326,7 +1371,7 @@ class SpectralHelper:
             Generate a mask where we need to set values in the rhs in spectral space to zero, such that can replace them
             by the boundary conditions. The mask is then cached.
             """
-            self._rhs_hat_zero_mask = self.newDistArray().astype(bool)
+            self._rhs_hat_zero_mask = self.newDistArray(forward_output=True).astype(bool).view(self.xp.ndarray)
 
             for axis in range(self.ndim):
                 for bc in self.full_BCs:
@@ -1375,7 +1420,7 @@ class SpectralHelper:
 
         return rhs
 
-    def add_equation_lhs(self, A, equation, relations, diag=False):
+    def add_equation_lhs(self, A, equation, relations):
         """
         Add the left hand part (that you want to solve implicitly) of an equation to a list of lists of sparse matrices
         that you will convert to an operator later.
@@ -1410,16 +1455,31 @@ class SpectralHelper:
             A (list of lists of sparse matrices): The operator to be
             equation (str): The equation of the component you want this in
             relations: (dict): Relations between quantities
-            diag (bool): Whether operator is block-diagonal
         """
         for k, v in relations.items():
-            if diag:
-                assert k == equation, 'You are trying to put a non-diagonal equation into a diagonal operator'
-                A[self.index(equation)] = v
-            else:
-                A[self.index(equation)][self.index(k)] = v
+            A[self.index(equation)][self.index(k)] = v
 
-    def convert_operator_matrix_to_operator(self, M, diag=False):
+    def eliminate_zeros(self, A):
+        """
+        Eliminate zeros from sparse matrix. This can reduce memory footprint of matrices somewhat.
+        Note: At the time of writing, there are memory problems in the cupy implementation of `eliminate_zeros`.
+        Therefore, this function copies the matrix to host, eliminates the zeros there and then copies back to GPU.
+
+        Args:
+            A: sparse matrix to be pruned
+
+        Returns:
+            CSC sparse matrix
+        """
+        if self.useGPU:
+            A = A.get()
+        A = A.tocsc()
+        A.eliminate_zeros()
+        if self.useGPU:
+            A = self.sparse_lib.csc_matrix(A)
+        return A
+
+    def convert_operator_matrix_to_operator(self, M):
         """
         Promote the list of lists of sparse matrices to a single sparse matrix that can be used as linear operator.
         See documentation of `SpectralHelper.add_equation_lhs` for an example.
@@ -1431,14 +1491,12 @@ class SpectralHelper:
             sparse linear operator
         """
         if len(self.components) == 1:
-            if diag:
-                return M[0]
-            else:
-                return M[0][0]
-        elif diag:
-            return self.sparse_lib.block_diag(M, format='csc')
+            op = M[0][0]
         else:
-            return self.sparse_lib.block_array(M, format='csc')
+            op = self.sparse_lib.bmat(M, format='csc')
+
+        op = self.eliminate_zeros(op)
+        return op
 
     def get_wavenumbers(self):
         """
@@ -1461,7 +1519,7 @@ class SpectralHelper:
     def get_pfft(self, axes=None, padding=None, grid=None):
         if self.ndim == 1 or self.comm is None:
             return None
-        from mpi4py_fft import PFFT
+        from mpi4py_fft import PFFT, newDistArray
 
         axes = tuple(i for i in range(self.ndim)) if axes is None else axes
         padding = list(padding if padding else [1.0 for _ in range(self.ndim)])
@@ -1493,6 +1551,10 @@ class SpectralHelper:
             transforms=transforms,
             grid=grid,
         )
+
+        # do a transform to do the planning
+        _u = newDistArray(pfft, forward_output=False)
+        pfft.backward(pfft.forward(_u))
         return pfft
 
     def get_fft(self, axes=None, direction='object', padding=None, shape=None):
@@ -1792,7 +1854,7 @@ class SpectralHelper:
         ndim = len(axes) + 1
 
         if ndim == 1:
-            return matrix
+            mat = matrix
         elif ndim == 2:
             axis = axes[0]
             I1D = sp.eye(self.axes[axis].N)
@@ -1801,7 +1863,7 @@ class SpectralHelper:
             mats[aligned] = self.get_local_slice_of_1D_matrix(matrix, aligned)
             mats[axis] = self.get_local_slice_of_1D_matrix(I1D, axis)
 
-            return sp.kron(*mats)
+            mat = sp.kron(*mats)
         elif ndim == 3:
 
             mats = [None] * ndim
@@ -1810,10 +1872,13 @@ class SpectralHelper:
                 I1D = sp.eye(self.axes[axis].N)
                 mats[axis] = self.get_local_slice_of_1D_matrix(I1D, axis)
 
-            return sp.kron(mats[0], sp.kron(*mats[1:]))
+            mat = sp.kron(mats[0], sp.kron(*mats[1:]))
 
         else:
             raise NotImplementedError(f'Matrix expansion not implemented for {ndim} dimensions!')
+
+        mat = self.eliminate_zeros(mat)
+        return mat
 
     def get_filter_matrix(self, axis, **kwargs):
         """
@@ -1845,6 +1910,7 @@ class SpectralHelper:
             _D = self.axes[axis].get_differentiation_matrix(**kwargs)
             D = D @ self.expand_matrix_ND(_D, axis)
 
+        self.logger.debug(f'Set up differentiation matrix along axes {axes} with kwargs {kwargs}')
         return D
 
     def get_integration_matrix(self, axes):
@@ -1908,4 +1974,5 @@ class SpectralHelper:
             _C = self.axes[axis].get_basis_change_matrix(**kwargs)
             C = C @ self.expand_matrix_ND(_C, axis)
 
+        self.logger.debug(f'Set up basis change matrix along axes {axes} with kwargs {kwargs}')
         return C

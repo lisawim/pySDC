@@ -140,6 +140,35 @@ def test_integration_matrix(N):
 
 
 @pytest.mark.base
+@pytest.mark.parametrize('x0', [-1, 0])
+@pytest.mark.parametrize('x1', [0.789, 1])
+@pytest.mark.parametrize('N', [4, 7])
+def test_integral_whole_interval(x0, x1, N):
+    import numpy as np
+    from pySDC.helpers.spectral_helper import ChebychevHelper
+    from qmat.lagrange import LagrangeApproximation
+
+    cheby = ChebychevHelper(N, x0=x0, x1=x1)
+    x = cheby.get_1dgrid()
+
+    coeffs = np.random.random(N)
+    coeffs[-1] = 0
+
+    u_hat = coeffs
+    u = cheby.itransform(u_hat)
+
+    weights = cheby.get_integration_weights()
+    integral = weights @ u_hat
+
+    # generate a reference solution with qmat
+    lag = LagrangeApproximation(points=x)
+    Q = lag.getIntegrationMatrix(intervals=[(x0, x1)])
+    integral_ref = (Q @ u)[0]
+
+    assert np.isclose(integral, integral_ref)
+
+
+@pytest.mark.base
 @pytest.mark.parametrize('N', [4])
 @pytest.mark.parametrize('d', [1, 2, 3])
 def test_transform(N, d):
@@ -419,5 +448,25 @@ def test_tau_method2D_diffusion(nz, nx, bc_val, plotting=False):
         ), f'Solution is incorrectly transformed back to real space at x={x[i]}'
 
 
-if __name__ == '__main__':
-    test_transform_cupy()
+@pytest.mark.base
+@pytest.mark.parametrize('N', [4, 7, 32])
+@pytest.mark.parametrize('x', [-1, 1])
+@pytest.mark.parametrize('v', [2, 3])
+def test_Neumann_BCs(N, x, v):
+    from pySDC.helpers.spectral_helper import ChebychevHelper
+    import numpy as np
+
+    helper = ChebychevHelper(N)
+
+    BC = helper.get_BC('Neumann', x=x)
+
+    grid = helper.get_1dgrid()
+    u = grid**v
+
+    u_hat = helper.transform(u)
+
+    value_at_BC = np.sum(u_hat * BC, axis=0)
+    if v % 2 == 1:
+        assert np.isclose(value_at_BC, v)
+    else:
+        assert np.isclose(value_at_BC, x * v)

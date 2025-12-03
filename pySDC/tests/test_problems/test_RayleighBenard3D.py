@@ -11,7 +11,7 @@ def test_eval_f(nx, nz, direction, spectral_space):
     import numpy as np
     from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
 
-    P = RayleighBenard3D(nx=nx, ny=nx, nz=nz, Rayleigh=1, spectral_space=spectral_space)
+    P = RayleighBenard3D(nx=nx, ny=nx, nz=nz, Rayleigh=1, spectral_space=spectral_space, Lx=1, Ly=1, Lz=1)
     iu, iv, iw, ip, iT = P.index(['u', 'v', 'w', 'p', 'T'])
     X, Y, Z = P.X, P.Y, P.Z
     cos, sin = np.cos, np.sin
@@ -192,6 +192,48 @@ def test_Poisson_problem_w():
 
 
 @pytest.mark.mpi4py
+@pytest.mark.parametrize('solver_type', ['gmres+ilu', 'bicgstab+ilu'])
+@pytest.mark.parametrize('N', [4, 16])
+@pytest.mark.parametrize('left_preconditioner', [True, False])
+@pytest.mark.parametrize('Dirichlet_recombination', [True, False])
+def test_solver_convergence(solver_type, N, left_preconditioner, Dirichlet_recombination):
+    import numpy as np
+    from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
+
+    fill_factor = 5 if left_preconditioner or Dirichlet_recombination else 10
+
+    P = RayleighBenard3D(
+        nx=N,
+        ny=N,
+        nz=N,
+        solver_type=solver_type,
+        solver_args={'atol': 1e-10, 'rtol': 0},
+        preconditioner_args={'fill_factor': fill_factor, 'drop_tol': 1e-4},
+        left_preconditioner=left_preconditioner,
+        Dirichlet_recombination=Dirichlet_recombination,
+    )
+    P_direct = RayleighBenard3D(nx=N, ny=N, nz=N, solver_type='cached_direct')
+
+    u0 = P.u_exact(0, noise_level=1.0e-3)
+
+    dt = 1.0e-3
+    u_direct = P_direct.solve_system(u0.copy(), dt)
+    u_good_ig = P.solve_system(u0.copy(), dt, u0=u_direct.copy())
+    assert P.work_counters[P.solver_type].niter == 0
+    assert np.allclose(u_good_ig, u_direct)
+
+    u = P.solve_system(u0.copy(), dt, u0=u0.copy())
+
+    error = abs(u - u_direct)
+    assert error <= P.solver_args['atol'] * 1e3, error
+
+    if 'ilu' in solver_type.lower():
+        size_LU = P_direct.cached_factorizations[dt].__sizeof__()
+        size_iLU = P.cached_factorizations[dt].__sizeof__()
+        assert size_iLU < size_LU, 'iLU does not require less memory than LU!'
+
+
+@pytest.mark.mpi4py
 def test_libraries():
     from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
     from mpi4py_fft import fftw
@@ -231,9 +273,158 @@ def test_banded_matrix(preconditioning):
         ), 'One-sided bandwidth of LU decomposition is larger than that of the full matrix!'
 
 
+@pytest.mark.cupy
+def test_heterogeneous_implementation(N=8, useGPU=True):
+    from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
+
+    params = {'nx': N, 'ny': N, 'nz': N, 'useGPU': useGPU}
+    gpu = RayleighBenard3D(**params)
+    het = RayleighBenard3D(**params, heterogeneous=True)
+
+    xp = gpu.xp
+
+    u0 = gpu.u_exact()
+
+    f = [me.eval_f(u0) for me in [gpu, het]]
+    assert xp.allclose(*f)
+
+    un = [me.solve_system(u0, 1e-3) for me in [gpu, het]]
+    assert xp.allclose(*un)
+
+
+@pytest.mark.mpi4py
+@pytest.mark.parametrize('c', [0, 1, 3.14])
+def test_Nusselt_number_computation(c, N=6):
+    from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
+
+    prob = RayleighBenard3D(nx=N, ny=N, nz=N, dealiasing=1.0, spectral_space=False, Rayleigh=1.0, Prandtl=1.0)
+    xp = prob.xp
+    iu, iw, iT = prob.index(['u', 'w', 'T'])
+
+    # temperature gradient and perturbed velocity
+    u = prob.u_init
+    u[iT, ...] = 3 * prob.Z**2 + 1
+    u[iw] = c * (1 + xp.sin(prob.Y / prob.axes[1].L * 2 * xp.pi))
+    Nu = prob.compute_Nusselt_numbers(u)
+
+    for key, expect in zip(['t', 'b', 'V', 'thermal'], [prob.Lz * (3 + 1) * c - 6, c, c * (1 + 1) - 3, 12]):
+        assert xp.isclose(Nu[key], expect), f'Expected Nu_{key}={expect}, but got {Nu[key]}'
+
+    # zero
+    u = prob.u_init
+    Nu = prob.compute_Nusselt_numbers(u)
+    for key in ['t', 'b', 'V', 'thermal']:
+        assert xp.isclose(Nu[key], 0), f'Unexpected non-zero Nusselt number in {key} in constant zero profile'
+    assert xp.isclose(Nu['kinetic'], 1), 'Unexpected non-one kinetic Nusselt number in constant zero profile'
+
+    # constant gradient
+    u = prob.u_init
+    u[iT] = prob.Z**2 + 1
+    u[iu] = c * xp.sqrt(5) / 3 * prob.Z**3 + c
+    Nu = prob.compute_Nusselt_numbers(u)
+
+    for key, expect in zip(['t', 'b', 'V', 'thermal', 'kinetic'], [-prob.Lz * 2, 0, -1, 4 / 3, 1 + c**2]):
+        assert xp.isclose(Nu[key], expect), f'Expected Nu_{key}={expect}, but got {Nu[key]} with T=z**2!'
+
+    # gradient plus fluctuations
+    u = prob.u_init
+    u[iT] = prob.Z * (1 + xp.sin(prob.X / prob.axes[0].L * 2 * xp.pi) * xp.sin(prob.Y / prob.axes[1].L * 2 * xp.pi))
+    Nu = prob.compute_Nusselt_numbers(u)
+
+    for key in [
+        't',
+        'b',
+        'V',
+    ]:
+        assert xp.isclose(Nu[key], -1), f'Expected Nu_{key}=-1, but got {Nu[key]} with T=z*(1+sin(x)+sin(y))!'
+    assert xp.isclose(Nu['kinetic'], 1), f'Expected Nu_kinetic=1, but got {Nu["kinetic"]} with T=z*(1+sin(x)+sin(y))!'
+
+    # constant temperature and perturbed velocity
+    u = prob.u_init
+    u[iT, ...] = 1
+    u[iw] = c * (1 + xp.sin(prob.Y / prob.axes[1].L * 2 * xp.pi))
+    Nu = prob.compute_Nusselt_numbers(u)
+
+    for key in ['t', 'b', 'V']:
+        assert xp.isclose(Nu[key], c), f'Expected Nu_{key}={c}, but got {Nu[key]} with constant T and perturbed w!'
+    assert xp.isclose(
+        Nu['thermal'], 0
+    ), f'Expected Nu_thermal=0, but got {Nu["thermal"]} with constant T and perturbed w!'
+
+
+@pytest.mark.mpi4py
+@pytest.mark.mpi(ranks=[1, 2, 5])
+def test_spectrum_computation(mpi_ranks):
+    from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
+
+    N = 5
+    prob = RayleighBenard3D(nx=N, ny=N, nz=2, dealiasing=1.0, spectral_space=False, Rayleigh=1.0)
+    xp = prob.xp
+    iu, iv = prob.index(['u', 'v'])
+
+    num_k = int(N // 2) + 1
+
+    u = prob.u_exact() * 0
+    u[iu] = 1
+    ks, spectrum = prob.get_frequency_spectrum(u)
+
+    expect_spectrum = xp.zeros((prob.nz, num_k))
+    expect_spectrum[:, 0] = 1
+
+    assert len(ks) == num_k
+    assert xp.allclose(spectrum[iv], 0)
+    assert xp.allclose(spectrum[iu], expect_spectrum)
+
+    assert N >= 5
+    u = prob.u_exact() * 0
+    u[iu] = xp.sin(prob.Y * 2 * xp.pi / prob.axes[1].L)
+    ks, spectrum = prob.get_frequency_spectrum(u)
+    assert xp.allclose(spectrum[iu, :, 2:], 0)
+    assert not xp.allclose(spectrum[iu, :, :2], 0)
+
+    assert N >= 5
+    u = prob.u_exact() * 0
+    u[iu] = xp.sin(prob.X * 2 * xp.pi / prob.axes[0].L) * xp.sin(prob.Y * 2 * xp.pi / prob.axes[1].L)
+    ks, spectrum = prob.get_frequency_spectrum(u)
+    assert xp.allclose(spectrum[iu, :, 2:], 0)
+    assert xp.allclose(spectrum[iu, :, 0], 0)
+    assert not xp.allclose(spectrum[iu, :, 1], 0)
+
+    assert N >= 5
+    u = prob.u_exact() * 0
+    u[iu] = xp.sin(prob.X * 4 * xp.pi / prob.axes[0].L) * xp.sin(prob.Y * 2 * xp.pi / prob.axes[1].L)
+    ks, spectrum = prob.get_frequency_spectrum(u)
+    assert not xp.allclose(spectrum[iu, :, 1:], 0)
+    assert xp.allclose(spectrum[iu, :, 0], 0)
+
+
+@pytest.mark.mpi4py
+def test_vertical_profiles():
+    from pySDC.implementations.problem_classes.RayleighBenard3D import RayleighBenard3D
+
+    N = 4
+    prob = RayleighBenard3D(nx=N, ny=N, nz=4, dealiasing=1.0, spectral_space=False, Rayleigh=1.0)
+    xp = prob.xp
+    iu, iv = prob.index(['u', 'v'])
+    X, Y, Z = prob.X, prob.Y, prob.Z
+    z = Z[0, 0]
+
+    u = prob.u_init_physical
+    u[iu] = (Z**2) * (1 + xp.sin(X * 2 * xp.pi / prob.Lx) + xp.sin(Y * 2 * xp.pi / prob.Ly))
+    expect = z**2
+
+    profile = prob.get_vertical_profiles(u, 'u')
+    assert xp.allclose(expect, profile['u'])
+
+
 if __name__ == '__main__':
     # test_eval_f(2**2, 2**1, 'x', False)
     # test_libraries()
     # test_Poisson_problems(4, 'u')
     # test_Poisson_problem_w()
-    test_banded_matrix(False)
+    # test_solver_convergence('bicgstab+ilu', 32, False, True)
+    # test_banded_matrix(False)
+    # test_heterogeneous_implementation()
+    # test_Nusselt_number_computation(N=6, c=3)
+    test_vertical_profiles()
+    # test_spectrum_computation(None)

@@ -169,8 +169,13 @@ class LinearTestDAE(ProblemDAE):
 
         f = self.dtype_f(self.init)
         f.diff[0] = du_diff - self.lamb_diff * u_diff - self.lamb_alg * u_alg
-        f.alg[0] = self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        f.alg[0] = self.algebraic_constraints(u, t)
         return f
+
+    def algebraic_constraints(self, u, t):
+        u_diff, u_alg = u.diff[0], u.alg[0]
+        g = self.lamb_diff * u_diff - self.lamb_alg * u_alg
+        return g
 
     def solve_system(self, impl_sys, rhs, factor, u0, t):
         r"""
@@ -329,10 +334,10 @@ class LinearTestDAE(ProblemDAE):
                 break
 
             # Inverse of dg
-            dg_inv = self.dg_inv(factor)
+            dg = self.dg(factor)
 
             # Newton update: u1 = u0 - g/dg
-            dx = dg_inv @ g
+            dx = np.linalg.solve(dg, g)
 
             u.diff[0] -= dx[0]
             u.alg[0] -= dx[1]
@@ -798,7 +803,7 @@ class LinearTestDAEConstrained(LinearTestDAE):
         y, z = u.diff[0], u.alg[0]
 
         f1 = self.lamb_diff * y + self.lamb_alg * z
-        f2 = self.lamb_diff * y - self.lamb_alg * z
+        f2 = self.algebraic_constraints(u, t)
         return np.array([f1, f2])
 
     def g(self, factor, u, t, rhs):
@@ -915,10 +920,13 @@ class LinearTestDAEConstrained(LinearTestDAE):
             Numerical solution of the linear system.
         """
 
-        b = np.array([rhs.diff[0], rhs.alg[0]])
+        b = np.array([rhs.diff[0], 0.0])
 
         dg = self.dg(factor)
         u = np.linalg.solve(dg, b)
+
+        # res = dg @ u - b
+        # print(np.abs(res))
 
         solution = self.dtype_u(self.init)
         solution.diff[0] = u[0]

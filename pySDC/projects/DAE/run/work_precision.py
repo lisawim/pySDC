@@ -6,11 +6,7 @@ import subprocess
 
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
 from pySDC.projects.DAE.misc.configurations import get_configs
-
-
-QI_PARALLEL = ["MIN-SR-NS", "MIN-SR-S"]
-QI_SERIAL = ["IE", "LU", "Picard"]
-RADAU_METHODS = ["RadauIIA5", "RadauIIA7", "RadauIIA9"]
+from pySDC.projects.DAE.misc.methods_config import QI_PARALLEL, RADAU_METHODS, RK_METHODS
 
 
 def build_args_list(args, hook_class):
@@ -58,17 +54,16 @@ def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_meth
 
     args = {"problem_name": problem_name}
 
-    radau_executed = {name: False for name in RADAU_METHODS}
+    is_executed = {name: False for name in RADAU_METHODS + RK_METHODS}
 
     for sweeper_type in sweepers:
-
         for QI in test_methods:
-            if QI in RADAU_METHODS:
-                if radau_executed[QI]:
+            if QI in RADAU_METHODS + RK_METHODS:
+                if is_executed[QI]:
                     continue
 
-                sweeper_type = "fullyImplicitDAE"
-                radau_executed[QI] = True
+                sweeper_type = "fullyImplicitDAE" if QI in RADAU_METHODS else "constrainedDAE"
+                is_executed[QI] = True
 
             key = f"{sweeper_type}_{QI}"
             all_stats[key] = {}

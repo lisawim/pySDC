@@ -1,5 +1,6 @@
 import numpy as np
 
+from pySDC.core.errors import ProblemError
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 
@@ -63,7 +64,7 @@ class DiscontinuousTestDAE(ProblemDAE):
         self.t_switch_exact = np.arccosh(50)
         self.t_switch = None
         self.nswitches = 0
-        self.work_counters['rhs'] = WorkCounter()
+        self.work_counters["rhs"] = WorkCounter()
 
     def eval_f(self, u, du, t):
         r"""
@@ -202,3 +203,146 @@ class DiscontinuousTestDAE(ProblemDAE):
         Setter to update the number of switches if one is found.
         """
         self.nswitches += 1
+
+
+class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the implicit representation of the problem, i.e., :math:`F(u, u', t)`.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        du : dtype_u
+            Current values of the derivative of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains two components).
+        """
+
+        y, z = u.diff[0], u.alg[0]
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        h = 2 * y - 100
+        f = self.dtype_f(self.init)
+        f.diff[0] = 0.0 if h >= 0 or t >= t_switch else z
+        f.alg[0] = y**2 - z**2 - 1
+        self.work_counters['rhs']()
+        return f
+
+    def g(self, factor, u, t, rhs):
+        r"""
+        Function of implicit system to be solved arising in ``genericImplicitConstrained``.
+
+        Parameters
+        ----------
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+        u : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Current numerical solution.
+        t : float
+            Current time.
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side for the implicit system.
+
+        Returns
+        -------
+        np.1darray
+            Function :math:`g`.
+        """
+
+        y, z = u.diff[0], u.alg[0]
+
+        g1 = y - factor * z - rhs.diff[0]
+        g2 = y ** 2 - z ** 2 - 1
+        return np.array([g1, g2])
+
+    def dg(self, factor, u):
+        r"""
+        Jacobian of function :math:`g`.
+
+        Parameters
+        ----------
+        factor : float
+            Abbrev. for the node-to-node stepsize (or any other factor required).
+
+        Returns
+        -------
+        np.2darray
+            Jacobian matrix.
+        """
+
+        y, z = u.diff[0], u.alg[0]
+        return np.array([
+            [1, -factor],
+            [2 * y, -2 * z],
+        ])
+
+    def solve_system(self, rhs, factor, u0, t):
+        r"""
+        Newton's method to solve the linear system.
+
+        Parameters
+        ----------
+        rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Right-hand side of the implicit system to be solved.
+        factor : float
+            Step size-related factor (e.g., node-to-node step size).
+        u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Initial guess for the solution.
+        t : float
+            Current time.
+
+        Returns
+        -------
+        solution : pySDC.projects.DAE.misc.meshDAE.MeshDAE
+            Numerical solution of the linear system.
+        """
+
+        u = self.dtype_u(u0)
+
+        # Start newton iteration
+        n = 0
+        res = 99
+        while n < self.newton_maxiter:
+            # Form the function g(u), such that the solution to the nonlinear problem is a root of g
+            g = self.g(factor, u, t, rhs)
+
+            # If g is close to 0, then we are done
+            res = np.linalg.norm(g, np.inf)
+            if res < self.newton_tol:
+                break
+
+            # Inverse of dg
+            dg = self.dg(factor, u)
+
+            # Newton update: u1 = u0 - g/dg
+            dx = np.linalg.solve(dg, g)
+
+            u.diff[0] -= dx[0]
+            u.alg[0] -= dx[1]
+
+            n += 1
+            self.work_counters[self.solver_type]()
+
+        if np.isnan(res) and self.stop_at_nan:
+            raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
+        elif np.isnan(res):
+            self.logger.warning("Newton got nan after %i iterations..." % n)
+        if n == self.newton_maxiter:
+            msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
+            if self.stop_at_maxiter:
+                raise ProblemError(msg)
+            else:
+                self.logger.warning(msg)
+
+        solution = self.dtype_u(self.init)
+        solution[:] = u[:]
+        return solution

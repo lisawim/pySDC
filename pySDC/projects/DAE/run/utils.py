@@ -1,0 +1,229 @@
+from mpi4py import MPI
+import time
+import matplotlib.pyplot as plt
+import logging
+logger = logging.getLogger(__name__)
+
+from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
+
+def my_setup_mpl(fontsize=16):
+    "Setting up my personal settings for plotting."
+
+    plt.rcParams["axes.labelsize"] = fontsize
+    plt.rcParams["xtick.labelsize"] = fontsize
+    plt.rcParams["ytick.labelsize"] = fontsize
+    plt.rcParams['legend.fontsize'] = fontsize
+    plt.rcParams['axes.titlesize'] = fontsize
+
+    plt.rcParams['xtick.minor.visible'] = False
+    plt.rcParams['ytick.minor.visible'] = False
+
+    plt.rcParams['lines.linewidth'] = 1.0
+    plt.rcParams["lines.solid_capstyle"] = "round"
+    plt.rcParams["lines.markeredgewidth"] = 0.5
+    plt.rcParams["lines.markeredgecolor"] = "black"
+    plt.rcParams["lines.markersize"] = 2.9
+    
+
+    # sets fig.tight_layout()
+    plt.rcParams["figure.autolayout"] = True
+
+
+def my_plot_style_config():
+    """Defines plot-specific stuff."""
+
+    colors = {
+        "constrainedDAE_EE": "forestgreen",
+        "constrainedDAE_IE": "gold",
+        "constrainedDAE_LU": "orange",
+        "constrainedDAE_MIN-SR-NS": "firebrick",
+        "constrainedDAE_MIN-SR-S": "purple",
+        "constrainedDAE_Picard": "dodgerblue",
+        "constrainedDAE_DOPRI5": "darkmagenta",
+        "embeddedDAE_IE": "royalblue",
+        "embeddedDAE_LU": "green",
+        "embeddedDAE_MIN-SR-NS": "plum",
+        "embeddedDAE_MIN-SR-S": "coral",
+        "embeddedDAE_Picard": "darkcyan",
+        "fullyImplicitDAE_IE": "limegreen",
+        "fullyImplicitDAE_LU": "darkturquoise",
+        "fullyImplicitDAE_MIN-SR-NS": "slategrey",
+        "fullyImplicitDAE_MIN-SR-S": "pink",
+        "fullyImplicitDAE_Picard": "sandybrown",
+        "fullyImplicitDAE_RadauIIA5": "darkcyan",
+        "fullyImplicitDAE_RadauIIA7": "black",
+        "fullyImplicitDAE_RadauIIA9": "lightskyblue",
+        "semiImplicitDAE_EE": "palevioletred",
+        "semiImplicitDAE_IE": "yellow",
+        "semiImplicitDAE_LU": "royalblue",
+        "semiImplicitDAE_MIN-SR-NS": "mediumseagreen",
+        "semiImplicitDAE_MIN-SR-S": "khaki",
+        "semiImplicitDAE_Picard": "darkmagenta",
+    }
+
+    markers = {
+        "constrainedDAE_EE": "D",
+        "constrainedDAE_IE": "o",
+        "constrainedDAE_LU": "s",
+        "constrainedDAE_MIN-SR-NS": "^",
+        "constrainedDAE_MIN-SR-S": "d",
+        "constrainedDAE_Picard": "H",
+        "constrainedDAE_DOPRI5": "p",
+        "embeddedDAE_IE": "D",
+        "embeddedDAE_LU": "<",
+        "embeddedDAE_MIN-SR-NS": "H",
+        "embeddedDAE_MIN-SR-S": "o",
+        "embeddedDAE_Picard": "v",
+        "fullyImplicitDAE_IE": "s",
+        "fullyImplicitDAE_LU": "p",
+        "fullyImplicitDAE_MIN-SR-NS": "X",
+        "fullyImplicitDAE_MIN-SR-S": "*",
+        "fullyImplicitDAE_Picard": "<",
+        "fullyImplicitDAE_RadauIIA5": "D",
+        "fullyImplicitDAE_RadauIIA7": "v",
+        "fullyImplicitDAE_RadauIIA9": "H",
+        "semiImplicitDAE_EE": "o",
+        "semiImplicitDAE_IE": "d",
+        "semiImplicitDAE_LU": "8",
+        "semiImplicitDAE_MIN-SR-NS": "s",
+        "semiImplicitDAE_MIN-SR-S": "^",
+        "semiImplicitDAE_Picard": "D",
+    }
+
+    sweeper_labels = {
+        "constrainedDAE": "SDC-C",
+        "embeddedDAE": "SDC-E",
+        "fullyImplicitDAE": "FI-SDC",
+        "semiImplicitDAE": "SI-SDC",
+    }
+
+    return colors, markers, sweeper_labels
+
+def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
+    """Sets up the problem with certain parameters."""
+
+    if problem_name == "DISC-TEST":
+        if sweeper_type == "constrainedDAE":
+            from pySDC.projects.DAE.problems.discontinuousTestDAE import DiscontinuousTestDAEConstrained as problem
+        elif sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.discontinuousTestDAE import DiscontinuousTestDAE as problem
+
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
+
+    description["problem_class"] = problem
+    return description
+
+def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
+    """Import the SDC sweeper class."""
+
+    if use_mpi:
+        if sweeper_type == "constrainedDAE":
+            from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
+        elif sweeper_type == "embeddedDAE":
+            from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
+        elif sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.sweepers.fullyImplicitDAEMPI import FullyImplicitDAEMPI as sweeper
+        elif sweeper_type == "semiImplicitDAE":
+            from pySDC.projects.DAE.sweepers.semiImplicitDAEMPI import SemiImplicitDAEMPI as sweeper
+    else:
+        if sweeper_type == "constrainedDAE":
+            from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained as sweeper
+        elif sweeper_type == "embeddedDAE":
+            from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded as sweeper
+        elif sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE as sweeper
+        elif sweeper_type == "semiImplicitDAE":
+            from pySDC.projects.DAE.sweepers.semiImplicitDAE import SemiImplicitDAE as sweeper
+
+    return sweeper
+
+def setup_sweeper_sdc(
+        description,
+        num_nodes=3,
+        sweeper_type="constrainedDAE",
+        QI="LU",
+        use_mpi=False,
+        **kwargs,
+    ):
+    """Sets up the SDC sweeper with certain parameters."""
+
+    skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
+
+    sdc_sweeper = get_sweeper_class_sdc(use_mpi, sweeper_type)
+    description["sweeper_class"] = sdc_sweeper
+
+    description["sweeper_params"] = {
+        "quad_type": "RADAU-RIGHT",
+        "num_nodes": num_nodes,
+        "QI": QI,
+        "initial_guess": kwargs.get("initial_guess", "spread"),
+        "skip_residual_computation": kwargs.get("skip_residual_computation", skip_residual_computation_default),
+    }
+
+    description["level_params"].update({"nsweeps": 1, "restol": -1})
+
+    # MPI-related checks
+    if use_mpi and "comm" in kwargs:
+        comm = kwargs["comm"]
+        description["sweeper_params"]["comm"] = comm
+        assert num_nodes == comm.Get_size(), (
+            f"Mismatch: {num_nodes} nodes, but {comm.Get_size()} MPI processes."
+        )
+
+    return description
+
+def compute_solution(
+        problem_name,
+        t0,
+        dt,
+        Tend,
+        num_nodes,
+        QI,
+        sweeper_type,
+        use_mpi=False,
+        hook_class=[],
+        measure=True,
+        **kwargs,
+    ):
+    comm = kwargs.get("comm", None)
+
+    description = {}
+    description["level_params"] = {"dt": dt}
+
+    description = setup_problem(problem_name, QI, description, sweeper_type, **kwargs)
+
+    description = setup_sweeper_sdc(
+        description, num_nodes, sweeper_type, QI, use_mpi, **kwargs
+    )
+
+    # instantiate controller
+    logger_level = kwargs.get("logger_level", 30)
+    controller_params = {"logger_level": logger_level, "hook_class": hook_class}
+
+    controller = controller_nonMPI(num_procs=1, controller_params=controller_params, description=description)
+
+    P = controller.MS[0].levels[0].prob
+    uinit = P.u_exact(t0)
+
+    # Using MPI does imply adding a communicator
+    if use_mpi:
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        comm.Barrier()             # alle Prozesse bereit
+        t_start = MPI.Wtime()
+    elif measure:
+        t_start = time.time()
+
+    # call main function to get things done...
+    _, solution_stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
+
+    if use_mpi:
+        comm.Barrier()
+        t_end = MPI.Wtime()
+        return (t_end - t_start), solution_stats
+    elif measure:
+        t_end = time.time()
+        return (t_end - t_start), solution_stats
+
+    return solution_stats

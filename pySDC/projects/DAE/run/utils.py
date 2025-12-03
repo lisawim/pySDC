@@ -1,11 +1,12 @@
 from mpi4py import MPI
 import time
 import matplotlib.pyplot as plt
+import logging
+logger = logging.getLogger(__name__)
 
-from pySDC.projects.DAE.misc.configurations import BaseConfig
+from pySDC.projects.DAE.misc.methods_config import QI_SERIAL, QI_PARALLEL, RADAU_METHODS, RK_METHODS
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
-
 
 def my_setup_mpl(fontsize=16):
     "Setting up my personal settings for plotting."
@@ -19,11 +20,11 @@ def my_setup_mpl(fontsize=16):
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False
 
-    plt.rcParams['lines.linewidth'] = 1.2
+    plt.rcParams['lines.linewidth'] = 1.0
     plt.rcParams["lines.solid_capstyle"] = "round"
-    plt.rcParams["lines.markeredgewidth"] = 0.8
+    plt.rcParams["lines.markeredgewidth"] = 0.5
     plt.rcParams["lines.markeredgecolor"] = "black"
-    plt.rcParams["lines.markersize"] = 4
+    plt.rcParams["lines.markersize"] = 2.9
     
 
     # sets fig.tight_layout()
@@ -37,11 +38,13 @@ def my_plot_style_config():
     """Defines plot-specific stuff."""
 
     colors = {
+        "constrainedDAE_EE": "forestgreen",
         "constrainedDAE_IE": "gold",
         "constrainedDAE_LU": "orange",
         "constrainedDAE_MIN-SR-NS": "firebrick",
         "constrainedDAE_MIN-SR-S": "purple",
         "constrainedDAE_Picard": "dodgerblue",
+        "constrainedDAE_DOPRI5": "darkmagenta",
         "embeddedDAE_IE": "royalblue",
         "embeddedDAE_LU": "green",
         "embeddedDAE_MIN-SR-NS": "plum",
@@ -52,22 +55,25 @@ def my_plot_style_config():
         "fullyImplicitDAE_MIN-SR-NS": "slategrey",
         "fullyImplicitDAE_MIN-SR-S": "pink",
         "fullyImplicitDAE_Picard": "sandybrown",
-        "fullyImplicitDAE_RadauIIA5": "palegreen",
+        "fullyImplicitDAE_RadauIIA5": "darkcyan",
         "fullyImplicitDAE_RadauIIA7": "black",
         "fullyImplicitDAE_RadauIIA9": "lightskyblue",
+        "semiImplicitDAE_EE": "palevioletred",
         "semiImplicitDAE_IE": "yellow",
-        "semiImplicitDAE_LU": "darkmagenta",
+        "semiImplicitDAE_LU": "royalblue",
         "semiImplicitDAE_MIN-SR-NS": "mediumseagreen",
         "semiImplicitDAE_MIN-SR-S": "khaki",
-        "semiImplicitDAE_Picard": "red",
+        "semiImplicitDAE_Picard": "darkmagenta",
     }
 
     markers = {
+        "constrainedDAE_EE": "D",
         "constrainedDAE_IE": "o",
         "constrainedDAE_LU": "s",
         "constrainedDAE_MIN-SR-NS": "^",
         "constrainedDAE_MIN-SR-S": "d",
-        "constrainedDAE_Picard": "*",
+        "constrainedDAE_Picard": "H",
+        "constrainedDAE_DOPRI5": "p",
         "embeddedDAE_IE": "D",
         "embeddedDAE_LU": "<",
         "embeddedDAE_MIN-SR-NS": "H",
@@ -81,6 +87,7 @@ def my_plot_style_config():
         "fullyImplicitDAE_RadauIIA5": "D",
         "fullyImplicitDAE_RadauIIA7": "v",
         "fullyImplicitDAE_RadauIIA9": "H",
+        "semiImplicitDAE_EE": "o",
         "semiImplicitDAE_IE": "d",
         "semiImplicitDAE_LU": "8",
         "semiImplicitDAE_MIN-SR-NS": "s",
@@ -134,10 +141,29 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
         description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
         description["problem_params"] = {"solver_type": "direct"}
 
+    elif problem_name == "REACTION-DIFFUSION":
+        if sweeper_type == "constrainedDAE":
+            from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAEConstrained as problem
+        elif sweeper_type == "fullyImplicitDAE":
+            if QI.startswith("RadauIIA"):
+                from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAE_Radau as problem
+            else:
+                from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAE as problem
+        elif sweeper_type == "semiImplicitDAE":
+            from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
+
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-11)  # for M > 5 we need to set e_tol = 1e-12!
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 25)}
+        description["problem_params"] = {
+            "nvars": kwargs.get("nvars", 256),
+            "newton_tol": 1.3e-11,  # 1e-14,
+        }
+        if not QI.startswith("RadauIIA"):
+            description["problem_params"]["spectral"] = kwargs.get("spectral", True)
+
     description["problem_class"] = problem
 
     return description
-
 
 def get_sweeper_class_coll_method(QI: str):
     """Import the collocation sweeper class."""
@@ -150,7 +176,14 @@ def get_sweeper_class_coll_method(QI: str):
         from pySDC.projects.DAE.sweepers.collocationDAE import RadauIIA9DAE as sweeper
 
     return sweeper
-    
+
+def get_sweeper_class_rk_method(QI: str):
+    """Import the collocation sweeper class."""
+
+    if QI == "DOPRI5":
+        from pySDC.projects.DAE.sweepers.rungeKuttaAllowingExplicitSolve import DOPRI5 as sweeper
+
+    return sweeper
 
 def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
     """Import the SDC sweeper class."""
@@ -214,13 +247,31 @@ def setup_sweeper_sdc(
 def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", num_nodes=3, QI="RadauIIA5"):
     """Sets up the RadauIIA sweeper with certain parameters."""
 
-    assert sweeper_type == "fullyImplicitDAE", (
-        "Incorrect problem type! For collocation method use 'fullyImplicitDAE'!"
-    )
+    if sweeper_type != "fullyImplicitDAE":
+        sweeper_type == "fullyImplicitDAE"
+        logger.warning(f"For {QI} sweeper_type is set to 'fullyImplicitDAE'")
 
     skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
 
     coll_sweeper = get_sweeper_class_coll_method(QI)
+    description["sweeper_class"] = coll_sweeper
+
+    description["level_params"].update({"restol": -1, "e_tol": -1, "nsweeps": 1})
+    description["step_params"]["maxiter"] = 1
+    description["sweeper_params"] = {"skip_residual_computation": skip_residual_computation_default}
+
+    return description
+
+def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", num_nodes=3, QI="RadauIIA5"):
+    """Sets up the RadauIIA sweeper with certain parameters."""
+
+    if sweeper_type != "constrainedDAE":
+        sweeper_type == "constrainedDAE"
+        logger.warning(f"For {QI} sweeper_type is set to 'constrainedDAE'")
+
+    skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
+
+    coll_sweeper = get_sweeper_class_rk_method(QI)
     description["sweeper_class"] = coll_sweeper
 
     description["level_params"].update({"restol": -1, "e_tol": -1, "nsweeps": 1})
@@ -239,22 +290,26 @@ def compute_solution(
         sweeper_type,
         use_mpi=False,
         hook_class=[],
-        config=BaseConfig(),
         measure=True,
         **kwargs,
     ):
+    comm = kwargs.get("comm", None)
 
     description = {}
     description["level_params"] = {"dt": dt}
 
     description = setup_problem(problem_name, QI, description, sweeper_type, **kwargs)
 
-    if QI in config.qDeltas:
+    if QI in QI_SERIAL + QI_PARALLEL:
         description = setup_sweeper_sdc(
             description, num_nodes, sweeper_type, QI, use_mpi, **kwargs
         )
-    elif QI in config.radau_methods:
+    elif QI in RADAU_METHODS:
         description = setup_sweeper_coll_method(
+            description, sweeper_type, num_nodes, QI
+        )
+    elif QI in RK_METHODS:
+        description = setup_sweeper_rk_method(
             description, sweeper_type, num_nodes, QI
         )
 
@@ -267,8 +322,10 @@ def compute_solution(
     P = controller.MS[0].levels[0].prob
     uinit = P.u_exact(t0)
 
+    # Using MPI does imply adding a communicator
     if use_mpi:
-        comm = MPI.COMM_WORLD
+        if comm is None:
+            comm = MPI.COMM_WORLD
         comm.Barrier()             # alle Prozesse bereit
         t_start = MPI.Wtime()
     elif measure:

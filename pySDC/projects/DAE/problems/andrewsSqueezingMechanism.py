@@ -319,7 +319,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         # Shortcuts
         q, v = u.diff[: 7], u.diff[7 : 14]
-        w = u.alg[: 7]
+        w, la = u.alg[: 7], u.alg[7 : 13]
 
         dq, dv = du.diff[0 : 7], du.diff[7 : 14]
 
@@ -327,10 +327,10 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         f.diff[0 : 7] = dq[:] - v[:]
         f.diff[7 : 14] = dv[:] - w[:]
 
-        f.alg[:] = self.algebraicConstraints(u, t)
+        f.alg[: 13] = self.algebraic_constraints(u, t)
         return f
 
-    def algebraicConstraints(self, u, t):
+    def algebraic_constraints(self, u, t):
         r"""
         Returns the algebraic constraints of the semi-explicit DAE system.
 
@@ -348,8 +348,8 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         """
 
         # Shortcuts
-        q, v = u.diff[0 : 7], u.diff[7 : 14]
-        w, l = u.alg[0 : 7], u.alg[7 : 13]
+        q, v = u.diff[: 7], u.diff[7 : 14]
+        w, la = u.alg[: 7], u.alg[7 : 13]
 
         # Get matrices and functions for algebraic part of right-hand side
         self.getM(q)
@@ -357,7 +357,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.getG(q)
 
         f = self.dtype_f(self.init)
-        f.alg[0 : 7] = self.M.dot(w) - self.func + self.G.T.dot(l)
+        f.alg[0 : 7] = self.M.dot(w) - self.func + self.G.T.dot(la)
         if self.index == 3:
             self.get_g(q)
 
@@ -373,7 +373,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         else:
             raise NotImplementedError
 
-        return f.alg[:]
+        return f.alg[: 13]
 
     def get_func(self, q, v):
         r"""
@@ -933,12 +933,12 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         u0 = self.u_exact(t)
         q, v = u0.diff[: 7], u0.diff[7 : 14]
-        w = u0.alg[: 7]
+        w, la = u0.alg[: 7], u0.alg[7 : 13]
 
         du_ex = self.dtype_f(self.init)
         du_ex.diff[0 : 7] = v[:]
         du_ex.diff[7 : 14] = w[:]
-        du_ex.alg[:] = self.algebraicConstraints(u0, t)[:]
+        du_ex.alg[: 13] = self.algebraic_constraints(u0, t)
         return du_ex
 
 
@@ -1024,11 +1024,11 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         f[: 7] = dq[:] - v[:]
         f[7 : 14] = dv[:] - w[:]
 
-        f[14 :] = self.algebraicConstraints(u, t)[:]
+        f[14 :] = self.algebraic_constraints(u, t)[:]
 
         return f
 
-    def algebraicConstraints(self, u, t):
+    def algebraic_constraints(self, u, t):
         r"""
         Returns the algebraic constraints of the semi-explicit DAE system.
 
@@ -1311,7 +1311,7 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         du_ex = self.dtype_f(self.init)
         du_ex[: 7] = v[:]
         du_ex[7 : 14] = w[:]
-        du_ex[14 :] = self.algebraicConstraints(u0, t)[:]
+        du_ex[14 :] = self.algebraic_constraints(u0, t)[:]
         return du_ex
 
 
@@ -1450,14 +1450,14 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         """
 
         # Shortcuts
-        v = u.diff[7 : 14]
-        w = u.alg[0 : 7]
+        q, v = u.diff[: 7], u.diff[7 : 14]
+        w, la = u.alg[: 7], u.alg[7 : 13]
 
         f = self.dtype_f(self.init)
-        f.diff[0 : 7] = v[:]
+        f.diff[: 7] = v[:]
         f.diff[7 : 14] = w[:]
 
-        f.alg[:] = self.algebraicConstraints(u, t)
+        f.alg[: 13] = self.algebraic_constraints(u, t)
         self.work_counters["rhs"]()
         return f
 
@@ -1513,11 +1513,11 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         res = 99
         while n < self.newton_maxiter:
             # Shortcuts
-            q, v, w = u.diff[: 7], u.diff[7 : 14], u.alg[: 7]
+            q, v, w, la = u.diff[: 7], u.diff[7 : 14], u.alg[: 7], u.alg[7 : 13]
 
             g1 = q - factor * v - rhs_diff1
             g2 = v - factor * w - rhs_diff2
-            f_alg = self.algebraicConstraints(u, t)[: 13]
+            f_alg = self.algebraic_constraints(u, t)
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
             g = np.concatenate((g1, g2, f_alg))
@@ -1772,11 +1772,11 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         while n < self.newton_maxiter:
             # Shortcuts
             q, v = u.diff[: 7], u.diff[7 : 14]
-            w = u.alg[: 7]
+            w, la = u.alg[: 7], u.alg[7 : 13]
 
             g1 = q - factor * v - rhs.diff[: 7]
             g2 = v - factor * w - rhs.diff[7 : 14]
-            g3 = -factor * self.algebraicConstraints(u, t)[:13] - rhs.alg[:13]
+            g3 = -factor * self.algebraic_constraints(u, t)[:] - rhs.alg[:13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
             g = np.concatenate((g1, g2, g3))

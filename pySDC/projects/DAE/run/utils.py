@@ -106,7 +106,7 @@ def setup_convergence_controllers(description):
     convergence_controllers = {}
     switch_estimator_params = {
         "tol": 1e-10,
-        "alpha": 1.0,
+        "alpha": 0.9,#1.0,
     }
     convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 
@@ -127,8 +127,9 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
         elif sweeper_type == "fullyImplicitDAE":
             from pySDC.projects.DAE.problems.discontinuousTestDAE import DiscontinuousTestDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-14)
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 20)}
+        description["problem_params"] = {"newton_tol": 1e-12}
 
     description["problem_class"] = problem
     return description

@@ -1,8 +1,34 @@
 import numpy as np
 
 from pySDC.core.errors import ProblemError
+from pySDC.core.hooks import Hooks
 from pySDC.core.problem import WorkCounter
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
+
+
+class LogEventDiscontinuousTestDAE(Hooks):
+    """
+    Logs the data for the discontinuous test DAE problem containing one discrete event.
+    Note that this logging data is dependent from the problem itself.
+    """
+
+    def post_step(self, step, level_number):
+        super().post_step(step, level_number)
+
+        L = step.levels[level_number]
+
+        L.sweep.compute_end_point()
+
+        h = 2 * L.uend.diff[0] - 100
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=0,
+            sweep=L.status.sweep,
+            type="abs_state_function",
+            value=abs(h),
+        )
 
 
 class DiscontinuousTestDAE(ProblemDAE):
@@ -57,9 +83,24 @@ class DiscontinuousTestDAE(ProblemDAE):
         Appl. Numer. Math. 178, 98-122 (2022).
     """
 
-    def __init__(self, newton_tol=1e-12):
+    def __init__(
+            self,
+            nvars=2,
+            newton_tol=1e-14,
+            newton_maxiter=10,
+            stop_at_maxiter=False,
+            stop_at_nan=False,
+        ):
         """Initialization routine"""
-        super().__init__(nvars=2, newton_tol=newton_tol)
+        super().__init__(nvars=nvars, newton_tol=newton_tol)
+
+        self._makeAttributeAndRegister(
+            "newton_tol",
+            "newton_maxiter",
+            "stop_at_maxiter",
+            "stop_at_nan",
+            localVars=locals(),
+        )
 
         self.t_switch_exact = np.arccosh(50)
         self.t_switch = None
@@ -330,7 +371,7 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
             u.alg[0] -= dx[1]
 
             n += 1
-            self.work_counters[self.solver_type]()
+            self.work_counters["newton"]()
 
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError("Newton got nan after %i iterations, aborting..." % n)

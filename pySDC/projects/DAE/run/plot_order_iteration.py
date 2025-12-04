@@ -23,7 +23,7 @@ def choose_time_step_sizes(problem_name):
         Tend = 1.0
     elif problem_name == "REACTION-DIFFUSION":
         n_steps_list = [50, 100, 200, 500, 1000, 2000, 5000]
-        Tend = 0.5
+        Tend = 0.75  # 0.5
     else:
         raise NotImplementedError
 

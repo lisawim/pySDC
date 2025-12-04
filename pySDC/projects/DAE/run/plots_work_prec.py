@@ -172,7 +172,7 @@ def plot_work_vs_error_sdc_radau(
 
     key_cache = []
 
-    qDelta_best_vs_radau_vs_rk = qDelta_best + ["RadauIIA5"]#radau_methods_plot
+    qDelta_best_vs_radau_vs_rk = qDelta_best + radau_methods_plot
     if include_dopri:
         qDelta_best_vs_radau_vs_rk += ["DOPRI5"]
 

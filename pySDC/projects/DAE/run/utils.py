@@ -152,7 +152,7 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-11)  # for M > 5 we need to set e_tol = 1e-12!
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)  # for M > 5 we need to set e_tol = 1e-12!
         description["step_params"] = {"maxiter": kwargs.get("maxiter", 25)}
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),

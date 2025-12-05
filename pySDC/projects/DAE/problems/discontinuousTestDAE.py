@@ -301,11 +301,14 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
 
         y, z = u.diff[0], u.alg[0]
 
-        g1 = y - factor * z - rhs.diff[0]
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        h = 2 * y - 100
+        g1 = y - factor * z - rhs.diff[0] if h >= 0 or t >= t_switch else y - rhs.diff[0]
         g2 = y ** 2 - z ** 2 - 1
         return np.array([g1, g2])
 
-    def dg(self, factor, u):
+    def dg(self, factor, u, t):
         r"""
         Jacobian of function :math:`g`.
 
@@ -321,8 +324,13 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
         """
 
         y, z = u.diff[0], u.alg[0]
+
+        t_switch = np.inf if self.t_switch is None else self.t_switch
+
+        h = 2 * y - 100
+        dg12 = -factor if h >= 0 or t >= t_switch else 0.0
         return np.array([
-            [1, -factor],
+            [1, dg12],
             [2 * y, -2 * z],
         ])
 
@@ -362,7 +370,7 @@ class DiscontinuousTestDAEConstrained(DiscontinuousTestDAE):
                 break
 
             # Inverse of dg
-            dg = self.dg(factor, u)
+            dg = self.dg(factor, u, t)
 
             # Newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g)

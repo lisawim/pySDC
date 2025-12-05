@@ -106,7 +106,7 @@ def setup_convergence_controllers(description):
     convergence_controllers = {}
     switch_estimator_params = {
         "tol": 1e-10,
-        "alpha": 0.9,#1.0,
+        "alpha": 1.0,
     }
     convergence_controllers.update({SwitchEstimator: switch_estimator_params})
 

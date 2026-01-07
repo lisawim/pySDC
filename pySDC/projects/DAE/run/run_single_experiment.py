@@ -43,8 +43,7 @@ def main():
     else:
         rank = 0
 
-    hook_class = args.hook_class
-    hook_class += [LogSolution]
+    hook_class = args.hook_class + [LogSolution]
 
     # Dummy run to avoid start overhead
     if args.use_mpi:
@@ -83,14 +82,14 @@ def main():
             comm.Barrier()
 
             runtime, solution_stats = compute_solution(
-                args.problem_name,
-                args.t0,
-                dt,
-                args.Tend,
-                args.num_nodes,
-                args.QI,
-                args.sweeper_type,
-                args.use_mpi,
+                problem_name=args.problem_name,
+                t0=args.t0,
+                dt=dt,
+                Tend=args.Tend,
+                num_nodes=args.num_nodes,
+                QI=args.QI,
+                sweeper_type=args.sweeper_type,
+                use_mpi=args.use_mpi,
                 hook_class=hook_class,
                 measure=True,
             )
@@ -98,7 +97,7 @@ def main():
             comm.Barrier()
 
             timing_run = runtime
-            timing_run_full = comm.reduce(timing_run, op=MPI.MAX)
+            timing_run_full = comm.reduce(timing_run, op=MPI.MAX, root=0)
 
             if rank == 0:
                 wallclock_times.append(timing_run_full)
@@ -108,14 +107,14 @@ def main():
                 print(f"- {dt=}..")
 
                 runtime, solution_stats = compute_solution(
-                    args.problem_name,
-                    args.t0,
-                    dt,
-                    args.Tend,
-                    args.num_nodes,
-                    args.QI,
-                    args.sweeper_type,
-                    args.use_mpi,
+                    problem_name=args.problem_name,
+                    t0=args.t0,
+                    dt=dt,
+                    Tend=args.Tend,
+                    num_nodes=args.num_nodes,
+                    QI=args.QI,
+                    sweeper_type=args.sweeper_type,
+                    use_mpi=args.use_mpi,
                     hook_class=hook_class,
                     measure=True,
                 )

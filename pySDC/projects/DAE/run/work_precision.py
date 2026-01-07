@@ -1,4 +1,3 @@
-import numpy as np
 import sys
 import dill
 import os
@@ -28,7 +27,6 @@ def build_args_list(args, hook_class):
         args_list.append(f"--hook_class={hook.__module__}.{hook.__name__}")
 
     return args_list
-
 
 def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs):
     python_exec = sys.executable

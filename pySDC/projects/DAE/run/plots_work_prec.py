@@ -58,10 +58,14 @@ def plots_work_vs_error(
         filename = precomputed_files[problem_name]
         path = os.path.join(base_path, filename)
         if not os.path.exists(path):
-            run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
+            run_all_simulations(
+                hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs
+            )
             path = os.path.join(base_path, f"results_experiment_{num_nodes}.pkl")
     else:
-        run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
+        run_all_simulations(
+            hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs
+        )
         path = os.path.join(base_path, f"results_experiment_{num_nodes}.pkl")
 
     with open(path, "rb") as f:
@@ -461,6 +465,8 @@ def plot_speedup_vs_error(
     plt.close(fig)
 
 def print_speedup_factors(base, errs, problem_name, speedups, label):
+    speedups = np.asarray(speedups)
+    errs = np.asarray(errs)
     mask_better_one = speedups >= 1.0
     speedups_better_one = speedups[mask_better_one]
 
@@ -484,26 +490,3 @@ def print_speedup_factors(base, errs, problem_name, speedups, label):
         line = (f"[Baseline method: {base}] {label}: No points, where SDC ist faster.")
 
     print(line)
-
-
-if __name__ == "__main__":
-    # config_linear = get_configs(problem_name="LINEAR-TEST", config_type="work_precision")
-    # config_linear["num_nodes"] = 8
-    # plots_work_vs_error(metric_key="all_max_global_error", format="eps", **config_linear)
-
-    # config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="work_precision")
-    # config_andrews["num_nodes"] = 7
-    # plots_work_vs_error(metric_key="q_max_final_error", format="eps", **config_andrews)
-
-    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="work_precision")
-    config_reacdiff["num_nodes"] = 8
-    config_reacdiff["sweepers"] = ["constrainedDAE"]
-    qDelta_best = ["LU", "MIN-SR-S"]
-    include_dopri = False
-    plots_work_vs_error(
-        metric_key="all_max_global_error",
-        format="png",
-        qDelta_best=qDelta_best,
-        include_dopri=include_dopri,
-        **config_reacdiff,
-    )

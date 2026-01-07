@@ -443,7 +443,7 @@ class ReactionDiffusionPDAE(SpectralTester):
             self.nvars, self.bc, left_boundary=0.0, right_boundary=1.0
         )
 
-        k = 2 * np.pi / self.L * np.arange(0, self.Nr)#np.fft.transformfreq(self.nvars, d=self.dx).astype(int)
+        k = 2 * np.pi / self.L * np.arange(0, self.Nr)
         self.Dx = 1j * k
         self.Lx = -(k ** 2)
 

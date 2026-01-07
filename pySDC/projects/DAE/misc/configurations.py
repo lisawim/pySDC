@@ -49,4 +49,24 @@ def get_configs(problem_name, config_type):
                 "QI_parallel_methods": QI_parallel_methods,
             }
 
+        elif problem_name == "ANDREWS-SQUEEZER":
+            config = {
+                "problem_name": problem_name,
+                "dt": 1e-3,
+                "sweepers": sweepers,
+                "QI_serial_methods": QI_serial_methods,
+                "QI_parallel_methods": QI_parallel_methods,
+            }
+        elif problem_name == "REACTION-DIFFUSION":
+            QI_serial_methods = ["LU", "RadauIIA5", "RadauIIA7"]
+            QI_parallel_methods = ["MIN-SR-S"]
+
+            config = {
+                "problem_name": problem_name,
+                "dt": 0.1,
+                "sweepers": sweepers,
+                "QI_serial_methods": QI_serial_methods,
+                "QI_parallel_methods": QI_parallel_methods,
+            }
+
     return config

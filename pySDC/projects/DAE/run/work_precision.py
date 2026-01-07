@@ -28,6 +28,7 @@ def build_args_list(args, hook_class):
 
     return args_list
 
+
 def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs):
     python_exec = sys.executable
 
@@ -68,29 +69,30 @@ def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_meth
 
             use_mpi = True if QI in QI_PARALLEL else False
 
-            args.update({
-                "t0": t0,
-                "dt_list": dt_list,
-                "Tend": Tend,
-                "use_mpi": use_mpi,
-                "QI": QI,
-                "sweeper_type": sweeper_type,
-                "problem_name": problem_name,
-                "num_nodes": str(num_nodes),
-                "output_dir": output_dir,
-            })
+            args.update(
+                {
+                    "t0": t0,
+                    "dt_list": dt_list,
+                    "Tend": Tend,
+                    "use_mpi": use_mpi,
+                    "QI": QI,
+                    "sweeper_type": sweeper_type,
+                    "problem_name": problem_name,
+                    "num_nodes": str(num_nodes),
+                    "output_dir": output_dir,
+                }
+            )
 
             args_list = build_args_list(args, hook_class)
 
             cmd = (
                 ["mpiexec", "-n", str(num_nodes), python_exec, "run_single_experiment.py"] + args_list
                 if use_mpi
-                else
-                [python_exec, "run_single_experiment.py"] + args_list
+                else [python_exec, "run_single_experiment.py"] + args_list
             )
 
             env = os.environ.copy()
-            #env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
+            # env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
             subprocess.run(cmd, check=True, env=env, close_fds=True)
 
 

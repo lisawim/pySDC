@@ -19,14 +19,14 @@ def get_ylabel_based_on_metric(metric_key):
     elif metric_key == "all_max_global_error":
         return r"$L_\infty$ error"
 
+
 def get_sorted_handles_and_labels(ax, label_order):
     """Sorts handles and labels for legend."""
 
     handles, labels = ax.get_legend_handles_labels()
 
     labels_handles_sorted = sorted(
-        zip(labels, handles),
-        key=lambda x: label_order.index(x[0]) if x[0] in label_order else 999
+        zip(labels, handles), key=lambda x: label_order.index(x[0]) if x[0] in label_order else 999
     )
 
     labels_sorted, handles_sorted = zip(*labels_handles_sorted)
@@ -34,16 +34,16 @@ def get_sorted_handles_and_labels(ax, label_order):
 
 
 def plots_work_vs_error(
-        hook_class,
-        num_nodes,
-        problem_name,
-        sweepers,
-        test_methods,
-        metric_key="all_max_global_error",
-        qDelta_best=["LU", "MIN-SR-NS"],
-        include_dopri=True,
-        **kwargs,
-    ):
+    hook_class,
+    num_nodes,
+    problem_name,
+    sweepers,
+    test_methods,
+    metric_key="all_max_global_error",
+    qDelta_best=["LU", "MIN-SR-NS"],
+    include_dopri=True,
+    **kwargs,
+):
     """Generates plots for work vs error study."""
 
     base_path = os.path.join("data", problem_name, "results")
@@ -58,14 +58,10 @@ def plots_work_vs_error(
         filename = precomputed_files[problem_name]
         path = os.path.join(base_path, filename)
         if not os.path.exists(path):
-            run_all_simulations(
-                hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs
-            )
+            run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
             path = os.path.join(base_path, f"results_experiment_{num_nodes}.pkl")
     else:
-        run_all_simulations(
-            hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs
-        )
+        run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
         path = os.path.join(base_path, f"results_experiment_{num_nodes}.pkl")
 
     with open(path, "rb") as f:
@@ -89,14 +85,14 @@ def plots_work_vs_error(
 
 
 def plot_work_vs_error_single(
-        all_stats,
-        metric_key,
-        problem_name,
-        test_methods,
-        sweeper_type="constrainedDAE",
-        journal="Springer_Scientific_Computing",
-        format="eps",
-    ):
+    all_stats,
+    metric_key,
+    problem_name,
+    test_methods,
+    sweeper_type="constrainedDAE",
+    journal="Springer_Scientific_Computing",
+    format="eps",
+):
     """Plots work vs error for one single SDC variant (default is SDC-C)."""
 
     plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig8", "REACTION-DIFFUSION": "Fig11"}
@@ -148,17 +144,17 @@ def plot_work_vs_error_single(
 
 
 def plot_work_vs_error_sdc_radau(
-        all_stats,
-        metric_key,
-        problem_name,
-        sweepers,
-        qDelta_best=["LU", "MIN-SR-NS"],
-        sweeper_type_best=["constrainedDAE", "semiImplicitDAE"],
-        radau_methods_plot=["RadauIIA5", "RadauIIA7"],
-        journal="Springer_Scientific_Computing",
-        format="eps",
-        include_dopri=True,
-    ):
+    all_stats,
+    metric_key,
+    problem_name,
+    sweepers,
+    qDelta_best=["LU", "MIN-SR-NS"],
+    sweeper_type_best=["constrainedDAE", "semiImplicitDAE"],
+    radau_methods_plot=["RadauIIA5", "RadauIIA7"],
+    journal="Springer_Scientific_Computing",
+    format="eps",
+    include_dopri=True,
+):
     """Plots work vs error for all SDC-variants with best observed qDelta and Radau methods."""
 
     plot_names = {"LINEAR-TEST": "Fig5", "ANDREWS-SQUEEZER": "Fig9", "REACTION-DIFFUSION": "Fig12"}
@@ -226,6 +222,7 @@ def plot_work_vs_error_sdc_radau(
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
+
 def default_keys_for_comparison(
     qDelta_best=("LU", "MIN-SR-NS"),
     sweepers=("constrainedDAE", "semiImplicitDAE"),
@@ -240,6 +237,7 @@ def default_keys_for_comparison(
     if include_dopri:
         baseline.append("constrainedDAE_DOPRI5")
     return sdc_keys, baseline
+
 
 def compute_speedups_vs_error(
     all_stats,
@@ -278,10 +276,7 @@ def compute_speedups_vs_error(
         dt_base = np.asarray(stats_base.get("dts", np.full_like(t_base, np.nan)), dtype=float)
 
         # Gültigkeitsmaske für Baseline
-        mask_base = (
-            np.isfinite(t_base) & (t_base > 0.0) &
-            np.isfinite(err_base) & (err_base > 0.0)
-        )
+        mask_base = np.isfinite(t_base) & (t_base > 0.0) & np.isfinite(err_base) & (err_base > 0.0)
 
         per_baseline_records = []
         summaries = []
@@ -295,18 +290,21 @@ def compute_speedups_vs_error(
             err_m = np.asarray(stats_m[metric_key], dtype=float)
 
             # Gültigkeitsmaske für Methode
-            mask_m_valid = (
-                np.isfinite(t_m) & (t_m > 0.0) &
-                np.isfinite(err_m) & (err_m > 0.0)
-            )
+            mask_m_valid = np.isfinite(t_m) & (t_m > 0.0) & np.isfinite(err_m) & (err_m > 0.0)
 
             if not np.any(mask_m_valid):
-                summaries.append({
-                    "method": method,
-                    "n": 0,
-                    "median": None, "q25": None, "q75": None, "max": None,
-                    "best_at_error": None, "best_speedup": None,
-                })
+                summaries.append(
+                    {
+                        "method": method,
+                        "n": 0,
+                        "median": None,
+                        "q25": None,
+                        "q75": None,
+                        "max": None,
+                        "best_at_error": None,
+                        "best_speedup": None,
+                    }
+                )
                 continue
 
             t_m_valid = t_m[mask_m_valid]
@@ -316,10 +314,8 @@ def compute_speedups_vs_error(
 
             # über alle baseline-Punkte
             for dtb, tb, eb in zip(dt_base[mask_base], t_base[mask_base], err_base[mask_base]):
-                # SDC-Punkte, die mindestens so genau sind wie baseline (Fehler <= eb)
                 mask_better_or_equal = err_m_valid <= eb
                 if not np.any(mask_better_or_equal):
-                    # keine SDC-Lösung mit dieser oder besserer Genauigkeit
                     continue
 
                 t_candidates = t_m_valid[mask_better_or_equal]
@@ -331,16 +327,18 @@ def compute_speedups_vs_error(
 
                 speedup = float(tb / t_best)
 
-                recs.append({
-                    "baseline": base,
-                    "method": method,
-                    "dt_baseline": float(dtb),
-                    "err_baseline": float(eb),
-                    "t_baseline": float(tb),
-                    "t_method": t_best,
-                    "err_method": e_best,
-                    "speedup": speedup,
-                })
+                recs.append(
+                    {
+                        "baseline": base,
+                        "method": method,
+                        "dt_baseline": float(dtb),
+                        "err_baseline": float(eb),
+                        "t_baseline": float(tb),
+                        "t_method": t_best,
+                        "err_method": e_best,
+                        "speedup": speedup,
+                    }
+                )
 
             per_baseline_records.extend(recs)
 
@@ -349,24 +347,30 @@ def compute_speedups_vs_error(
                 err_vals = np.array([r["err_baseline"] for r in recs], dtype=float)
                 i_best = int(np.argmax(speeds))
 
-                summaries.append({
-                    "method": method,
-                    "n": int(len(speeds)),
-                    "max": float(np.max(speeds)),
-                    "best_at_error": float(err_vals[i_best]),
-                    "best_speedup": float(speeds[i_best]),
-                })
+                summaries.append(
+                    {
+                        "method": method,
+                        "n": int(len(speeds)),
+                        "max": float(np.max(speeds)),
+                        "best_at_error": float(err_vals[i_best]),
+                        "best_speedup": float(speeds[i_best]),
+                    }
+                )
             else:
-                summaries.append({
-                    "method": method,
-                    "n": 0,
-                    "max": None,
-                    "best_at_error": None, "best_speedup": None,
-                })
+                summaries.append(
+                    {
+                        "method": method,
+                        "n": 0,
+                        "max": None,
+                        "best_at_error": None,
+                        "best_speedup": None,
+                    }
+                )
 
         result[base] = {"records": per_baseline_records, "summary": summaries}
 
     return result
+
 
 def plot_speedup_vs_error(
     all_stats,
@@ -399,13 +403,11 @@ def plot_speedup_vs_error(
         if not records:
             continue
 
-        # gruppieren nach methode
         grouped = {}
         for r in records:
             grouped.setdefault(r["method"], []).append(r)
 
         for method, recs in grouped.items():
-            # Für schöne Linien nach Fehler sortieren (x-Achse: Fehler der Baseline)
             recs = sorted(recs, key=lambda d: d["err_baseline"])
             errs = [d["err_baseline"] for d in recs]
             speedups = [d["speedup"] for d in recs]
@@ -418,7 +420,8 @@ def plot_speedup_vs_error(
 
             key = method
             ax.loglog(
-                errs, speedups,
+                errs,
+                speedups,
                 marker=markers.get(key, "o"),
                 color=colors.get(key, None),
                 label=label,
@@ -440,7 +443,6 @@ def plot_speedup_vs_error(
 
     axs = sync_xlim(axs, min_x_set=1e-15)
 
-    # Legende (einzigartige Labels)
     handles_all, labels_all = [], []
     for ax in axs:
         h, l = ax.get_legend_handles_labels()
@@ -463,6 +465,7 @@ def plot_speedup_vs_error(
 
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
+
 
 def print_speedup_factors(base, errs, problem_name, speedups, label):
     speedups = np.asarray(speedups)
@@ -487,6 +490,6 @@ def print_speedup_factors(base, errs, problem_name, speedups, label):
             f"max = {max_speedup:.2f}x (with error={err_max:.2e})\n"
         )
     else:
-        line = (f"[Baseline method: {base}] {label}: No points, where SDC ist faster.")
+        line = f"[Baseline method: {base}] {label}: No points, where SDC ist faster."
 
     print(line)

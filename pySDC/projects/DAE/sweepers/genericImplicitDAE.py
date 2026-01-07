@@ -13,7 +13,7 @@ class genericImplicitConstrained(generic_implicit):
 
     .. math::
         0 = g(y, z).
-    
+
     The SDC scheme applied to semi-explicit DAEs where no quadrature is applied to the constrains reads
 
     .. math::
@@ -159,11 +159,13 @@ class genericImplicitConstrained(generic_implicit):
             # new instance of dtype_u, initialize values with 0
             res_initial.append(P.dtype_u(P.init, val=0.0))
             for j in range(1, self.coll.num_nodes + 1):
-                res_initial[-1].diff[:] += L.dt * self.coll.Qmat[m, j] * P.eval_f(L.u[0], L.time + L.dt * self.coll.nodes[j - 1]).diff[:]
+                res_initial[-1].diff[:] += (
+                    L.dt * self.coll.Qmat[m, j] * P.eval_f(L.u[0], L.time + L.dt * self.coll.nodes[j - 1]).diff[:]
+                )
 
         res_initial_norm = []
         for m in range(self.coll.num_nodes):
-            res_initial[m].diff[:] += L.u[0].diff[:] - L.u[0].diff[:] 
+            res_initial[m].diff[:] += L.u[0].diff[:] - L.u[0].diff[:]
             res_initial_norm.append(abs(res_initial[m]))
 
         # find maximal residual over the nodes
@@ -198,7 +200,7 @@ class genericImplicitEmbedded(generic_implicit):
 
     .. math::
         0 = g(y, z).
-    
+
     When the :math:`\varepsilon`-embedding is applied to the SDC scheme for a singular
     perturbed problem we end up with the scheme
 
@@ -328,11 +330,13 @@ class genericImplicitEmbedded(generic_implicit):
             # new instance of dtype_u, initialize values with 0
             res_initial.append(P.dtype_u(P.init, val=0.0))
             for j in range(1, self.coll.num_nodes + 1):
-                res_initial[-1] += L.dt * self.coll.Qmat[m, j] * P.eval_f(L.u[0], L.time + L.dt * self.coll.nodes[j - 1])
+                res_initial[-1] += (
+                    L.dt * self.coll.Qmat[m, j] * P.eval_f(L.u[0], L.time + L.dt * self.coll.nodes[j - 1])
+                )
 
         res_initial_norm = []
         for m in range(self.coll.num_nodes):
-            res_initial[m].diff[:] += L.u[0].diff[:] - L.u[0].diff[:] 
+            res_initial[m].diff[:] += L.u[0].diff[:] - L.u[0].diff[:]
             res_initial_norm.append(abs(res_initial[m]))
 
         # find maximal residual over the nodes

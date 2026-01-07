@@ -14,10 +14,9 @@ from pySDC.projects.DAE.misc.methods_config import RADAU_METHODS, RK_METHODS
 def sweeper_for_serial(QI_ser, sweeper_type):
     if QI_ser in RK_METHODS:
         return "constrainedDAE"
-    elif QI_ser in RADAU_METHODS:  # z.B. ["RadauIIA5", "RadauIIA7"]
+    elif QI_ser in RADAU_METHODS:
         return "fullyImplicitDAE"
     else:
-        # z.B. LU: hier verwenden wir den sweeper aus der äußeren Liste
         return sweeper_type
 
 
@@ -101,6 +100,7 @@ def plots_scaling(problem_name, dt, sweepers, QI_serial_methods, QI_parallel_met
         QI_ser="RadauIIA7",
         **kwargs,
     )
+
 
 def plot_speedup_and_efficiency(
     problem_name,

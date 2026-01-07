@@ -12,7 +12,7 @@ class SpectralTester(ProblemDAE):
     """
 
     def __init__(self, nvars, Nr, newton_tol, comm=None):
-        super().__init__(nvars=2*nvars, newton_tol=newton_tol)
+        super().__init__(nvars=2 * nvars, newton_tol=newton_tol)
 
         self._makeAttributeAndRegister(
             "newton_tol",
@@ -47,7 +47,7 @@ class SpectralTester(ProblemDAE):
     def _approximate_jacobian_by_finite_differences(self, g_hat, factor, rhs_hat, t, u_hat, h=None):
         """
         Computes Jacobian via finite difference approximation.
-        
+
         Parameters
         ----------
         x :
@@ -86,11 +86,11 @@ class SpectralTester(ProblemDAE):
 
         jac = np.column_stack(jac_cols).astype(np.complex128, copy=False)
         return jac
-    
+
     def _approximate_jacobian_by_finite_differences_phys(self, g_func, factor, rhs, t, u, h=None):
         """
         Computes Jacobian via finite difference approximation.
-        
+
         Parameters
         ----------
         x :
@@ -144,7 +144,7 @@ class SpectralTester(ProblemDAE):
             norm_diff_block = np.linalg.norm(diff_block, np.inf)
             print(f"Difference of block {block}: {norm_diff_block}")
 
-        for block in ["33"]:#, "32", "33"]:
+        for block in ["33"]:  # , "32", "33"]:
             block_matrix_dg = self.block_slice(dg_hat, block)
             diag_dg = np.diag(block_matrix_dg)
             block_matrix_ref = self.block_slice(jac_ref, block)
@@ -157,7 +157,8 @@ class SpectralTester(ProblemDAE):
     def get_expected_block(self, factor, name):
         if name == "J33":
             if type(self).__name__ in [
-                "SemiImplicitReactionDiffusionPDAE_FFT", "ReactionDiffusionPDAE_FFT_Constrained"
+                "SemiImplicitReactionDiffusionPDAE_FFT",
+                "ReactionDiffusionPDAE_FFT_Constrained",
             ]:
                 J = -np.diag(self.Lx)
             elif type(self).__name__ == "ReactionDiffusionPDAE_FFT":
@@ -165,9 +166,7 @@ class SpectralTester(ProblemDAE):
 
             return J[np.ix_(self.mask_g3, self.mask_w)]
         elif name in ["J31", "J32"]:
-            if type(self).__name__ in [
-                "ReactionDiffusionPDAE_FFT", "SemiImplicitReactionDiffusionPDAE_FFT"
-            ]:
+            if type(self).__name__ in ["ReactionDiffusionPDAE_FFT", "SemiImplicitReactionDiffusionPDAE_FFT"]:
                 J = -factor * np.eye(self.Nr, dtype=complex)
             elif type(self).__name__ == "ReactionDiffusionPDAE_FFT_Constrained":
                 J = -np.eye(self.Nr, dtype=complex)
@@ -188,26 +187,28 @@ class SpectralTester(ProblemDAE):
                 # print(f"  {name}: {num/den:.3e}")
                 print(f"  {name}: {num:.3e}")
 
-    # ------------------------------- CHATGPT suggested routines ------------------------------------- #
-    # 
-    #
-    # ------------------------------------------------------------------------------------------------ #
     def block_slices_reduced(self):
         r1 = slice(0, self.Nr)
         r2 = slice(self.Nr, 2 * self.Nr)
         r3 = slice(2 * self.Nr, 3 * self.Nr - 1)  # reduziert (DC in g3 entfernt)
         return {
-            "J11": (r1, r1), "J12": (r1, r2), "J13": (r1, r3),
-            "J21": (r2, r1), "J22": (r2, r2), "J23": (r2, r3),
-            "J31": (r3, r1), "J32": (r3, r2), "J33": (r3, r3),
+            "J11": (r1, r1),
+            "J12": (r1, r2),
+            "J13": (r1, r3),
+            "J21": (r2, r1),
+            "J22": (r2, r2),
+            "J23": (r2, r3),
+            "J31": (r3, r1),
+            "J32": (r3, r2),
+            "J33": (r3, r3),
         }
 
     def frob_sparse(self, A):
         if sp.isspmatrix(A):
             d = A.data
-            return float(np.sqrt((d.conj()*d).sum().real))
+            return float(np.sqrt((d.conj() * d).sum().real))
         A = np.asarray(A)
-        return float(np.linalg.norm(A, ord=np.inf) )
+        return float(np.linalg.norm(A, ord=np.inf))
 
     def fd_jacobian_full_from_g_hat(self, factor, g_hat, rhs_hat, t, u_hat_, h=1e-8):
         """
@@ -215,14 +216,12 @@ class SpectralTester(ProblemDAE):
         Gibt eine dichte (3Nr x 3Nr) Matrix zurück.
         """
 
-        m  = 3 * self.Nr
+        m = 3 * self.Nr
 
         # Basiswert z0 = [û, v̂, ŵ] (alle Länge Nr), komplex
-        z0 = np.concatenate([
-            u_hat_.diff[: self.Nr], 
-            u_hat_.diff[self.Nr : 2 * self.Nr], 
-            u_hat_.alg[: self.Nr]
-        ]).astype(np.complex128, copy=False)
+        z0 = np.concatenate([u_hat_.diff[: self.Nr], u_hat_.diff[self.Nr : 2 * self.Nr], u_hat_.alg[: self.Nr]]).astype(
+            np.complex128, copy=False
+        )
 
         J = np.empty((m, m), dtype=np.complex128)
 
@@ -242,32 +241,30 @@ class SpectralTester(ProblemDAE):
             e = np.zeros(m, dtype=np.complex128)
             e[k] = 1.0
 
-            z_plus  = z0 + h*e
-            z_minus = z0 - h*e
+            z_plus = z0 + h * e
+            z_minus = z0 - h * e
 
             up = pack_to_state(z_plus)
             um = pack_to_state(z_minus)
 
-            g_plus  = g_hat(factor, rhs_hat, t, up)   # Länge 3Nr (voll)
+            g_plus = g_hat(factor, rhs_hat, t, up)
             g_minus = g_hat(factor, rhs_hat, t, um)
             J[:, k] = (g_plus - g_minus) / (2 * h)
 
         return J
-    
+
     def fd_jacobian_from_g_phys(self, factor, g_phys, rhs, t, u, h=1e-8):
         """
         Zentrale FD-Jacobi der *vollen* Abbildung g_hat an u_hat_.
         Gibt eine dichte (3Nr x 3Nr) Matrix zurück.
         """
 
-        m  = 3 * self.nvars
+        m = 3 * self.nvars
 
         # Basiswert z0 = [û, v̂, ŵ] (alle Länge Nr), komplex
-        z0 = np.concatenate([
-            u.diff[: self.nvars], 
-            u.diff[self.nvars :], 
-            u.alg[: self.nvars]
-        ]).astype(dtype=np.float64, copy=False)
+        z0 = np.concatenate([u.diff[: self.nvars], u.diff[self.nvars :], u.alg[: self.nvars]]).astype(
+            dtype=np.float64, copy=False
+        )
 
         J = np.empty((m, m))
 
@@ -287,13 +284,13 @@ class SpectralTester(ProblemDAE):
             e = np.zeros(m)
             e[k] = 1.0
 
-            z_plus  = z0 + h*e
-            z_minus = z0 - h*e
+            z_plus = z0 + h * e
+            z_minus = z0 - h * e
 
             up = pack_to_state(z_plus)
             um = pack_to_state(z_minus)
 
-            g_plus  = g_phys(factor, rhs, t, up)   # Länge 3*nvars (voll)
+            g_plus = g_phys(factor, rhs, t, up)
             g_minus = g_phys(factor, rhs, t, um)
             J[:, k] = (g_plus - g_minus) / (2 * h)
 
@@ -341,4 +338,3 @@ class SpectralTester(ProblemDAE):
         den_tot = max(self.frob_sparse(J_ana_red), self.frob_sparse(J_fd_red), 1e-30)
         # print(f"\nGesamt: rel. Frobenius = {num_tot/den_tot:.3e}")
         print(f"\nGesamt: abs. Maximum = {num_tot:.3e}")
-

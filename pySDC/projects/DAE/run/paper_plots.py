@@ -30,14 +30,15 @@ def make_work_precision_plots(format="png"):
         **config_reac_diff,
     )
 
+
 if __name__ == "__main__":
     format = "png"
     plot_spectral_radius_and_evd(format=format)  # Figure 2
-    plot_order_linear(format=format) # Figure 3
+    plot_order_linear(format=format)  # Figure 3
     make_work_precision_plots(format=format)  # Figures 4, 5, 8, 9, 11, 12
-    plot_order_andrews(format=format) # Figure 6
+    plot_order_andrews(format=format)  # Figure 6
     plot_algebraic_error_vs_iteration(1e-3, 6, problem_name="ANDREWS-SQUEEZER", format="png")  # Figure 7
-    plot_order_reaction_diffusion(format=format) # Figure 10
+    plot_order_reaction_diffusion(format=format)  # Figure 10
 
     dt_list, _ = choose_time_step_sizes(problem_name=problem_name)
     plot_manifold_value_vs_iteration(dt=dt_list[0], num_nodes=6, problem_name="REACTION-DIFFUSION")  # Figure 13

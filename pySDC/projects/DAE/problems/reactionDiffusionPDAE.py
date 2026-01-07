@@ -130,11 +130,11 @@ class LogGlobalErrorPreIterConcentrations(Hooks):
             duend_ex = du_ex.flatten()
             duend = L.f[-1].flatten()  # Note that L.f[-1] corresponds to L.u[-1] AND L.uend!
 
-        e_global_concentration_u = abs(uend_ex[: n] - uend[: n])
+        e_global_concentration_u = abs(uend_ex[:n] - uend[:n])
         e_global_concentration_v = abs(uend_ex[n : 2 * n] - uend[n : 2 * n])
         e_global_concentration_w = abs(uend_ex[2 * n : 3 * n] - uend[2 * n : 3 * n])
 
-        e_global_concentration_gradient_u = abs(duend_ex[: n] - duend[: n])
+        e_global_concentration_gradient_u = abs(duend_ex[:n] - duend[:n])
         e_global_concentration_gradient_v = abs(duend_ex[n : 2 * n] - duend[n : 2 * n])
         e_global_concentration_gradient_w = abs(duend_ex[2 * n : 3 * n] - duend[2 * n : 3 * n])
 
@@ -248,11 +248,11 @@ class LogGlobalErrorPostIterConcentrations(Hooks):
             duend_ex = du_ex.flatten()
             duend = L.f[-1].flatten()  # Note that L.f[-1] corresponds to L.u[-1] AND L.uend!
 
-        e_global_concentration_u = abs(uend_ex[: n] - uend[: n])
+        e_global_concentration_u = abs(uend_ex[:n] - uend[:n])
         e_global_concentration_v = abs(uend_ex[n : 2 * n] - uend[n : 2 * n])
         e_global_concentration_w = abs(uend_ex[2 * n : 3 * n] - uend[2 * n : 3 * n])
 
-        e_global_concentration_gradient_u = abs(duend_ex[: n] - duend[: n])
+        e_global_concentration_gradient_u = abs(duend_ex[:n] - duend[:n])
         e_global_concentration_gradient_v = abs(duend_ex[n : 2 * n] - duend[n : 2 * n])
         e_global_concentration_gradient_w = abs(duend_ex[2 * n : 3 * n] - duend[2 * n : 3 * n])
 
@@ -343,7 +343,9 @@ class LogGlobalErrorNodesPostIterConcentrations(Hooks):
         coll_nodes = L.time + L.dt * L.sweep.coll.nodes[:]
         M = L.sweep.coll.num_nodes
 
-        e_global_nodes_w = np.array([abs(L.u[m + 1].alg[: P.N] - P.u_exact(coll_nodes[m]).alg[: P.N]) for m in range(M)])
+        e_global_nodes_w = np.array(
+            [abs(L.u[m + 1].alg[: P.N] - P.u_exact(coll_nodes[m]).alg[: P.N]) for m in range(M)]
+        )
         e_global_initial_w = np.array([abs(L.u[0].alg[: P.N] - P.u_exact(0.0).alg[: P.N])])
         e_global_next_w = np.array([abs(L.uend.alg[: P.N] - P.u_exact(L.time + L.dt).alg[: P.N])])
         e_global_nodes_w_all = np.concatenate((e_global_initial_w, e_global_nodes_w, e_global_next_w))
@@ -399,17 +401,17 @@ class LogGlobalErrorPostIterAlgebraicEquation(Hooks):
 
 class ReactionDiffusionPDAE(SpectralTester):
     def __init__(
-            self,
-            bc="periodic",
-            L=1.0,
-            newton_tol=1e-12,
-            newton_maxiter=10,
-            nvars=4,
-            spectral=True,
-            stop_at_maxiter=False,
-            stop_at_nan=False,
-            verbose=False,
-        ):
+        self,
+        bc="periodic",
+        L=1.0,
+        newton_tol=1e-12,
+        newton_maxiter=10,
+        nvars=4,
+        spectral=True,
+        stop_at_maxiter=False,
+        stop_at_nan=False,
+        verbose=False,
+    ):
         """Initialization routine"""
 
         self._makeAttributeAndRegister(
@@ -439,17 +441,15 @@ class ReactionDiffusionPDAE(SpectralTester):
         self.A = -1.0
         self.B = self.A
 
-        self.dx, self.xvalues = problem_helper.get_1d_grid(
-            self.nvars, self.bc, left_boundary=0.0, right_boundary=1.0
-        )
+        self.dx, self.xvalues = problem_helper.get_1d_grid(self.nvars, self.bc, left_boundary=0.0, right_boundary=1.0)
 
         k = 2 * np.pi / self.L * np.arange(0, self.Nr)
         self.Dx = 1j * k
-        self.Lx = -(k ** 2)
+        self.Lx = -(k**2)
 
         if self.nvars % 2 == 0:
             self.Dx[-1] = 0.0
-        
+
         cut = int((2 / 3) * (self.nvars // 2))
         self.dealias = np.ones(self.Nr)
         self.dealias[cut + 1 :] = 0.0
@@ -463,13 +463,13 @@ class ReactionDiffusionPDAE(SpectralTester):
         self.mask_w = idx != 0
         self.mask_g3 = idx != 0
 
-        self.I_Nr = np.eye(self.Nr)#, dtype=complex)
-        self.O_Nr = np.zeros((self.Nr, self.Nr))#, dtype=complex)
-    
+        self.I_Nr = np.eye(self.Nr)
+        self.O_Nr = np.zeros((self.Nr, self.Nr))
+
     def transform(self, u, n=None):
         N = self.nvars if n is None else n
         return rfft(u, n=N)
-    
+
     def itransform(self, u, n=None):
         N = self.nvars if n is None else n
         return irfft(u, n=N)
@@ -477,7 +477,7 @@ class ReactionDiffusionPDAE(SpectralTester):
     def u_ex(self, t, x_deriv, t_deriv):
         r"""
         Returns exact solution and its derivatives for :math:`u`.
-        
+
         Parameters
         ----------
         t : float
@@ -505,7 +505,7 @@ class ReactionDiffusionPDAE(SpectralTester):
     def v_ex(self, t, x_deriv, t_deriv):
         r"""
         Returns exact solution and its derivatives for :math:`v`.
-        
+
         Parameters
         ----------
         t : float
@@ -533,7 +533,7 @@ class ReactionDiffusionPDAE(SpectralTester):
     def w_ex(self, t, x_deriv, t_deriv=0):
         r"""
         Returns exact solution and its derivatives for :math:`w`.
-        
+
         Parameters
         ----------
         t : float
@@ -550,13 +550,13 @@ class ReactionDiffusionPDAE(SpectralTester):
         """
 
         if x_deriv == 0 and t_deriv == 0:
-            return (self.A + self.B) / (4 * np.pi ** 2) * np.sin(2 * np.pi * self.xvalues) * np.exp(t)
+            return (self.A + self.B) / (4 * np.pi**2) * np.sin(2 * np.pi * self.xvalues) * np.exp(t)
         elif x_deriv == 1 and t_deriv == 0:
             return (self.A + self.B) / (2 * np.pi) * np.cos(2 * np.pi * self.xvalues) * np.exp(t)
         elif x_deriv == 2 and t_deriv == 0:
             return -(self.A + self.B) * np.sin(2 * np.pi * self.xvalues) * np.exp(t)
         elif x_deriv == 0 and t_deriv == 1:  # only for testing
-            return (self.A + self.B) / (4 * np.pi ** 2) * np.sin(2 * np.pi * self.xvalues) * np.exp(t)
+            return (self.A + self.B) / (4 * np.pi**2) * np.sin(2 * np.pi * self.xvalues) * np.exp(t)
 
     def src_f_spectral(self, t, n):
         r"""
@@ -637,7 +637,6 @@ class ReactionDiffusionPDAE(SpectralTester):
         Lu = self.Lx * u_hat
         Lv = self.Lx * v_hat
         Dw = self.Dx * w_hat
-        Lw = self.Lx * w_hat
         uDw_hat = self.dealias * self.transform(u_ * self.itransform(Dw))
         vDw_hat = self.dealias * self.transform(v_ * self.itransform(Dw))
 
@@ -670,7 +669,7 @@ class ReactionDiffusionPDAE(SpectralTester):
     def _make_mult_operator_wx(self, wx_phys, n):
         """
         Builds Jacobian part of uDw_hat, vDw_hat with respect to u.
-        
+
         Parameter
         ---------
         wx : np.1darray
@@ -689,7 +688,7 @@ class ReactionDiffusionPDAE(SpectralTester):
             e_hat = np.zeros(self.Nr)
             e_hat[j] = 1.0
             e = self.itransform(e_hat, n=n)
-            z  = e * wx_phys
+            z = e * wx_phys
             cols.append(self.dealias * self.transform(z, n=n))
         M = np.column_stack(cols).astype(np.complex128, copy=False)
         return M
@@ -697,7 +696,7 @@ class ReactionDiffusionPDAE(SpectralTester):
     def _make_mult_operator_uDx(self, u_phys, n):
         """
         Builds Jacobian part of uDw_hat, vDw_hat with respect to w.
-        
+
         Parameter
         ---------
         u : np.1darray
@@ -893,7 +892,11 @@ class ReactionDiffusionPDAE(SpectralTester):
             g_hat = self.g_hat(factor, rhs_hat, t, u_hat_)
 
             # If g is close to 0, then we are done
-            g = np.concatenate((self.itransform(g_hat[: self.Nr]), self.itransform(g_hat[self.Nr : 2 * self.Nr]), self.itransform(g_hat[2 * self.Nr : 3 * self.Nr])))
+            g = np.concatenate(
+                (self.itransform(g_hat[: self.Nr]),
+                self.itransform(g_hat[self.Nr : 2 * self.Nr]),
+                self.itransform(g_hat[2 * self.Nr : 3 * self.Nr])),
+            )
 
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
@@ -938,7 +941,7 @@ class ReactionDiffusionPDAE(SpectralTester):
             # Increase iteration per one
             n += 1
             self.work_counters["newton"]()
-        # print(n, res)
+
         if np.isnan(res) and self.stop_at_nan:
             raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
         elif np.isnan(res):
@@ -956,7 +959,11 @@ class ReactionDiffusionPDAE(SpectralTester):
         g_hat = self.g_hat(factor, rhs_hat, t, u_hat_)
 
         # If g is close to 0, then we are done
-        g = np.concatenate((self.itransform(g_hat[: self.Nr]), self.itransform(g_hat[self.Nr : 2 * self.Nr]), self.itransform(g_hat[2 * self.Nr : 3 * self.Nr])))
+        g = np.concatenate(
+            (self.itransform(g_hat[: self.Nr]),
+             self.itransform(g_hat[self.Nr : 2 * self.Nr]),
+             self.itransform(g_hat[2 * self.Nr : 3 * self.Nr])),
+        )
         g_val = g[2 * self.N : 3 * self.N]
         self.store_g_after_newton(g_val)
 
@@ -966,11 +973,11 @@ class ReactionDiffusionPDAE(SpectralTester):
         solution = self.dtype_u(self.init)
         solution[:] = u[:]
         return solution
-    
+
     def store_g_after_newton(self, g_val):
         """Stores absolute value of algebraic constraints g (in physical space) that is solved in Newton."""
         self.g_val_newton = max(abs(g_val))
-    
+
     def solve_in_physical_space(self, impl_sys, rhs, factor, u0, t):
         u = self.dtype_u(u0)
 
@@ -1063,17 +1070,17 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
     dtype_f = mesh
 
     def __init__(
-            self,
-            bc="periodic",
-            L=1,
-            newton_tol=1e-14,
-            newton_maxiter=10,
-            nvars=4,
-            stop_at_maxiter=False,
-            stop_at_nan=False,
-            verbose=False,
-            comm=None,
-        ):
+        self,
+        bc="periodic",
+        L=1,
+        newton_tol=1e-14,
+        newton_maxiter=10,
+        nvars=4,
+        stop_at_maxiter=False,
+        stop_at_nan=False,
+        verbose=False,
+        comm=None,
+    ):
         """Initialization routine"""
 
         self._makeAttributeAndRegister(
@@ -1097,7 +1104,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
         self.Nr_all = 3 * self.Nr
 
         # Initialize problem with number of unknowns in spectral space
-        ProblemDAE.__init__(self, nvars=3*self.Nr, newton_tol=newton_tol)
+        ProblemDAE.__init__(self, nvars=3 * self.Nr, newton_tol=newton_tol)
 
         self.work_counters["rhs"] = WorkCounter()
         self.work_counters["newton"] = WorkCounter()
@@ -1105,17 +1112,15 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
         self.A = -1.0
         self.B = self.A
 
-        self.dx, self.xvalues = problem_helper.get_1d_grid(
-            self.N, self.bc, left_boundary=0.0, right_boundary=1.0
-        )
+        self.dx, self.xvalues = problem_helper.get_1d_grid(self.N, self.bc, left_boundary=0.0, right_boundary=1.0)
 
         k = 2 * np.pi / self.L * np.arange(0, self.Nr)
         self.Dx = 1j * k
-        self.Lx = -(k ** 2)
+        self.Lx = -(k**2)
 
-        if self.N % 2 == 0:       # nur bei geradem N existiert Nyquist
+        if self.N % 2 == 0:
             self.Dx[-1] = 0.0
-        
+
         cut = int((2 / 3) * (self.N // 2))
         self.dealias = np.ones(self.Nr)
         self.dealias[cut + 1 :] = 0.0
@@ -1202,7 +1207,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
     def dg_hat(self, dt, du, M, Qmat, u0_full):
         """
         Returns Jacobian of implicit collocation system in spectral space.
-        
+
         Parameters
         ----------
         M : int
@@ -1248,11 +1253,19 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
             for j in range(M):
                 q_mj = Qmat[m + 1, j + 1]
 
-                J1 = self.I_Nr - dt * q_mj * (np.diag(self.Lx) + mult_op_wx) if m == j else -dt * q_mj * (np.diag(self.Lx) + mult_op_wx)
+                J1 = (
+                    self.I_Nr - dt * q_mj * (np.diag(self.Lx) + mult_op_wx)
+                    if m == j
+                    else -dt * q_mj * (np.diag(self.Lx) + mult_op_wx)
+                )
                 J2 = self.O_Nr
                 J3 = -dt * q_mj * mult_op_uDx
                 J4 = self.O_Nr
-                J5 = self.I_Nr - dt * q_mj * (np.diag(self.Lx) - mult_op_wx) if m == j else -dt * q_mj * (np.diag(self.Lx) - mult_op_wx)
+                J5 = (
+                    self.I_Nr - dt * q_mj * (np.diag(self.Lx) - mult_op_wx)
+                    if m == j
+                    else -dt * q_mj * (np.diag(self.Lx) - mult_op_wx)
+                )
                 J6 = dt * q_mj * mult_op_vDx
                 J7 = -dt * q_mj * self.I_Nr
                 J8 = -dt * q_mj * self.I_Nr
@@ -1278,7 +1291,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
                 J[m * n_j : (m + 1) * n_j, j * n_j : (j + 1) * n_j] = J_block
 
         return J
-    
+
     def _apply_mask_to_g(self, g, M):
         g_red = []
         for m in range(M):
@@ -1295,13 +1308,15 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
             dx_matrix_dc[m, :] = col
 
         return dx_matrix_dc
-    
+
     def _get_residual_in_physical_space(self, g_hat, M):
         n_phys = 3 * self.N
         g_physical = np.zeros(M * n_phys)
         for m in range(M):
             g_piece = g_hat[m * self.Nr_all : (m + 1) * self.Nr_all]
-            g1, g2 = self.itransform(g_piece[: self.Nr], n=self.N), self.itransform(g_piece[self.Nr : 2 * self.Nr], n=self.N)
+            g1, g2 = self.itransform(g_piece[: self.Nr], n=self.N), self.itransform(
+                g_piece[self.Nr : 2 * self.Nr], n=self.N)
+            )
             g3 = self.itransform(g_piece[2 * self.Nr : 3 * self.Nr], n=self.N)
             g_physical[m * n_phys : (m + 1) * n_phys] = np.concatenate((g1, g2, g3))
         return np.linalg.norm(g_physical, np.inf)
@@ -1355,7 +1370,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
                 self.logger.warning(msg)
 
         return du
-    
+
     def u_exact(self, t, **kwargs):
         r"""
         Returns exact solution at time :math:`t` in spectral space.
@@ -1400,7 +1415,6 @@ class SemiImplicitReactionDiffusionPDAE(ReactionDiffusionPDAE):
 
     def g_phys(self, factor, rhs, t, u):
         rhs_u, rhs_v = rhs.diff[: self.nvars], rhs.diff[self.nvars :]
-        rhs_w = rhs.alg[: self.nvars]
 
         rhs_u_hat, rhs_v_hat = self.transform(rhs_u), self.transform(rhs_v)
 
@@ -1601,19 +1615,19 @@ class ReactionDiffusionPDAEConstrained(ReactionDiffusionPDAE):
         # Shortcuts
         u_, v_ = u.diff[: self.nvars], u.diff[self.nvars :]
 
-        w_hat  = self.transform(u.alg[: self.nvars])
+        w_hat = self.transform(u.alg[: self.nvars])
 
         wx_phys = self.itransform(self.Dx * w_hat).real
 
-        mult_op_wx   = self._make_mult_operator_wx(wx_phys, n=self.nvars)
-        mult_op_uDx  = self._make_mult_operator_uDx(u_, n=self.nvars)
-        mult_op_vDx  = self._make_mult_operator_uDx(v_, n=self.nvars)
+        mult_op_wx = self._make_mult_operator_wx(wx_phys, n=self.nvars)
+        mult_op_uDx = self._make_mult_operator_uDx(u_, n=self.nvars)
+        mult_op_vDx = self._make_mult_operator_uDx(v_, n=self.nvars)
 
         # Blocks for Jacobian
         J11 = self.I_Nr - factor * np.diag(self.Lx) - factor * mult_op_wx
         J22 = self.I_Nr - factor * np.diag(self.Lx) + factor * mult_op_wx
         J13 = -factor * mult_op_uDx
-        J23 =  factor * mult_op_vDx
+        J23 = factor * mult_op_vDx
         J31 = -self.I_Nr
         J32 = -self.I_Nr
         J33 = -np.diag(self.Lx)
@@ -1666,108 +1680,3 @@ class ReactionDiffusionPDAEConstrained(ReactionDiffusionPDAE):
         """
 
         return super().solve_system(None, rhs, factor, u0, t)
-
-    # def solve_system(self, rhs, factor, u0, t):
-    #     """
-    #     Newton solver for system in spectral space.
-
-    #     Parameters
-    #     ----------
-    #     rhs : pySDC.projects.DAE.misc.meshDAE.MeshDAE
-    #         Right-hand side of the nonlinear system to be solved.
-    #     factor : float
-    #         Step size-related factor (e.g., node-to-node step size).
-    #     u0 : pySDC.projects.DAE.misc.meshDAE.MeshDAE
-    #         Initial guess for the solution.
-    #     t : float
-    #         Current time point.
-
-    #     Returns
-    #     -------
-    #     me : pySDC.projects.DAE.misc.meshDAE.MeshDAE
-    #         Numerical solution of the nonlinear system.
-    #     """
-
-    #     u = self.dtype_u(u0)
-
-    #     u_hat_ = self.dtype_u(self.spectral_init)
-    #     rhs_hat = self.dtype_u(self.spectral_init)
-
-    #     rhs_u, rhs_v = rhs.diff[: self.nvars], rhs.diff[self.nvars :]
-    #     rhs_u_hat, rhs_v_hat = self.transform(rhs_u, n=self.nvars), self.transform(rhs_v, n=self.nvars)
-    #     rhs_hat.diff[: self.Nr], rhs_hat.diff[self.Nr :] = rhs_u_hat, rhs_v_hat
-
-    #     n = 0
-    #     res = 99
-    #     while n < self.newton_maxiter:
-    #         u_, v_ = u.diff[: self.nvars], u.diff[self.nvars :]
-    #         w_ = u.alg[: self.nvars]
-
-    #         u_hat, v_hat = self.transform(u_, n=self.nvars), self.transform(v_, n=self.nvars)
-    #         w_hat = self.transform(w_, n=self.nvars)
-
-    #         u_hat_.diff[: self.Nr], u_hat_.diff[self.Nr :] = u_hat, v_hat
-    #         u_hat_.alg[: self.Nr] = w_hat
-
-    #         # Get function g
-    #         g_hat = self.g_hat(factor, rhs_hat, t, u_hat_)
-
-    #         # If g is close to 0, then we are done
-    #         g1_norm, g2_norm = norm(self.itransform(g_hat[: self.Nr], n=self.nvars), np.inf), norm(self.itransform(g_hat[self.Nr : 2 * self.Nr], n=self.nvars), np.inf) 
-    #         g3_norm = norm(self.itransform(g_hat[2 * self.Nr :]), np.inf)
-    #         res = max(g1_norm, g2_norm, g3_norm)
-    #         if res < self.newton_tol:
-    #             break
-
-    #         # Apply mask to g_hat
-    #         g3_hat = g_hat[2 * self.Nr :]
-    #         g3_red = g3_hat[self.mask_g3]
-    #         g_hat = np.concatenate((g_hat[: 2 * self.Nr], g3_red))
-
-    #         # without matvec
-    #         dg_hat = self.dg_hat(factor, u)
-    #         dx_hat = np.linalg.solve(dg_hat, g_hat)
-
-    #         # J_ana_red = dg_hat.copy()
-
-    #         # J_fd_full = self.fd_jacobian_full_from_g_hat(factor, self.g_hat, rhs_hat, t, u_hat_)
-    #         # J_fd_red  = self.reduce_full_J(J_fd_full)
-
-    #         # # Vergleich:
-    #         # self.compare_blocks(J_ana_red, J_fd_red)
-
-    #         # self.compare_blocks_with_expected_output(J_ana_red)
-
-    #         du_hat = dx_hat[: self.Nr]
-    #         dv_hat = dx_hat[self.Nr : 2 * self.Nr]
-    #         dw_hat_tmp = dx_hat[2 * self.Nr :]
-    #         dw_hat = np.zeros(self.Nr, dtype=complex)
-    #         dw_hat[self.mask_w] = dw_hat_tmp
-
-    #         # Update in spectral space
-    #         u_hat -= du_hat
-    #         v_hat -= dv_hat
-    #         w_hat -= dw_hat
-
-    #         w_hat[0] = 0.0
-
-    #         u.diff[: self.nvars] = self.itransform(u_hat, n=self.nvars).real
-    #         u.diff[self.nvars :] = self.itransform(v_hat, n=self.nvars).real
-    #         u.alg[: self.nvars] = self.itransform(w_hat, n=self.nvars).real
-
-    #         # Increase iteration per one
-    #         n += 1
-    #         self.work_counters["newton"]()
-
-    #     if np.isnan(res) and self.stop_at_nan:
-    #         raise ProblemError("Newton got nan after %i iterations, aborting..." % n)
-    #     elif np.isnan(res):
-    #         self.logger.warning("Newton got nan after %i iterations..." % n)
-    #     if n == self.newton_maxiter and self.verbose:
-    #         msg = "Newton did not converge after %i iterations, error is %s" % (n, res)
-    #         if self.stop_at_maxiter:
-    #             raise ProblemError(msg)
-    #         else:
-    #             self.logger.warning(msg)
-
-    #     return u.copy()

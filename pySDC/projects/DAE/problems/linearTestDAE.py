@@ -40,14 +40,14 @@ class LinearTestDAE(ProblemDAE):
     """
 
     def __init__(
-            self,
-            newton_tol=1e-14,
-            newton_maxiter=20,
-            solver_type="newton",
-            stop_at_maxiter=False,
-            stop_at_nan=False,
-            suppress_warning=True,
-        ):
+        self,
+        newton_tol=1e-14,
+        newton_maxiter=20,
+        solver_type="newton",
+        stop_at_maxiter=False,
+        stop_at_nan=False,
+        suppress_warning=True,
+    ):
         """Initialization routine"""
         super().__init__(nvars=2, newton_tol=newton_tol)
         self._makeAttributeAndRegister(
@@ -61,10 +61,8 @@ class LinearTestDAE(ProblemDAE):
         )
 
         if self.solver_type in ["gmres"]:
-            raise ParameterError(
-                f"{self.solver_type} does not work correctly yet. Choose either 'newton' or 'hybr'"
-            )
-        
+            raise ParameterError(f"{self.solver_type} does not work correctly yet. Choose either 'newton' or 'hybr'")
+
         if self.suppress_warning:
             self.logger.setLevel(logging.ERROR)
 
@@ -86,10 +84,7 @@ class LinearTestDAE(ProblemDAE):
         self.lamb_diff = -2.0
         self.lamb_alg = 1.0
 
-        self.A = np.array([
-            [self.lamb_diff, self.lamb_alg],
-            [self.lamb_diff, -self.lamb_alg]
-        ])
+        self.A = np.array([[self.lamb_diff, self.lamb_alg], [self.lamb_diff, -self.lamb_alg]])
 
     def g(self, factor, u, t, rhs):
         r"""
@@ -139,10 +134,12 @@ class LinearTestDAE(ProblemDAE):
             Jacobian matrix.
         """
 
-        return np.array([
-            [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
-            [-factor * self.lamb_diff, factor * self.lamb_alg],
-        ])
+        return np.array(
+            [
+                [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
+                [-factor * self.lamb_diff, factor * self.lamb_alg],
+            ]
+        )
 
     def eval_f(self, u, du, t):
         r"""
@@ -241,10 +238,12 @@ class LinearTestDAE(ProblemDAE):
             Numerical solution of the linear system.
         """
 
-        b = np.array([
-            self.lamb_diff * rhs.diff[0] + self.lamb_alg * rhs.alg[0],
-            self.lamb_diff * rhs.diff[0] - self.lamb_alg * rhs.alg[0],
-        ])
+        b = np.array(
+            [
+                self.lamb_diff * rhs.diff[0] + self.lamb_alg * rhs.alg[0],
+                self.lamb_diff * rhs.diff[0] - self.lamb_alg * rhs.alg[0],
+            ]
+        )
 
         dg = self.dg(factor)
         u = np.linalg.solve(dg, b)
@@ -398,7 +397,7 @@ class LinearTestDAE(ProblemDAE):
 
         du_ex = self.dtype_u(self.init)
         du_ex.diff[0] = 2 * self.lamb_diff * np.exp(2 * self.lamb_diff * t)
-        du_ex.alg[0] = (2 * self.lamb_diff ** 2) / self.lamb_alg * np.exp(2 * self.lamb_diff * t)
+        du_ex.alg[0] = (2 * self.lamb_diff**2) / self.lamb_alg * np.exp(2 * self.lamb_diff * t)
         return du_ex
 
 
@@ -407,14 +406,14 @@ class LinearTestDAE_Radau(LinearTestDAE, ProblemDAE):
     dtype_f = mesh
 
     def __init__(
-            self,
-            nvars=2,
-            newton_tol=5e-12,
-            newton_maxiter=20,
-            solver_type="newton",
-            stop_at_maxiter=False,
-            stop_at_nan=False,
-        ):
+        self,
+        nvars=2,
+        newton_tol=5e-12,
+        newton_maxiter=20,
+        solver_type="newton",
+        stop_at_maxiter=False,
+        stop_at_nan=False,
+    ):
         """Initialization routine"""
 
         ProblemDAE.__init__(self, nvars=nvars, newton_tol=newton_tol)
@@ -488,12 +487,9 @@ class LinearTestDAE_Radau(LinearTestDAE, ProblemDAE):
         if self.solver_type == "direct":
             J_approx = self.A
         elif self.solver_type == "newton":
-            J_approx = np.array([
-                [self.lamb_diff, self.lamb_alg],
-                [-self.lamb_diff, self.lamb_alg]
-            ])
+            J_approx = np.array([[self.lamb_diff, self.lamb_alg], [-self.lamb_diff, self.lamb_alg]])
 
-        J = np.kron(np.identity(M), self.Id0) - dt * np.kron(Qmat[1 :, 1 :], J_approx)
+        J = np.kron(np.identity(M), self.Id0) - dt * np.kron(Qmat[1:, 1:], J_approx)
         return J
 
     def solve_collocation_system(self, F, f_init, t, dt, M, Qmat, sweep, u0_full):
@@ -677,7 +673,7 @@ class LinearTestDAE_Radau(LinearTestDAE, ProblemDAE):
 
         du_ex = self.dtype_u(self.init)
         du_ex[0] = 2 * self.lamb_diff * np.exp(2 * self.lamb_diff * t)
-        du_ex[1] = (2 * self.lamb_diff ** 2) / self.lamb_alg * np.exp(2 * self.lamb_diff * t)
+        du_ex[1] = (2 * self.lamb_diff**2) / self.lamb_alg * np.exp(2 * self.lamb_diff * t)
         return du_ex
 
 
@@ -760,10 +756,12 @@ class SemiImplicitLinearTestDAE(LinearTestDAE):
             Jacobian matrix.
         """
 
-        return np.array([
-            [1 - factor * self.lamb_diff, -self.lamb_alg],
-            [-factor * self.lamb_diff, self.lamb_alg],
-        ])
+        return np.array(
+            [
+                [1 - factor * self.lamb_diff, -self.lamb_alg],
+                [-factor * self.lamb_diff, self.lamb_alg],
+            ]
+        )
 
     def solve_direct(self, rhs, factor, t):
         r"""
@@ -848,10 +846,12 @@ class LinearTestDAEConstrained(LinearTestDAE):
             Jacobian matrix.
         """
 
-        return np.array([
-            [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
-            [self.lamb_diff, -self.lamb_alg],
-        ])
+        return np.array(
+            [
+                [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
+                [self.lamb_diff, -self.lamb_alg],
+            ]
+        )
 
     def eval_f(self, u, t):
         r"""
@@ -1049,10 +1049,9 @@ class LinearTestDAEEmbedded(LinearTestDAEConstrained):
         return np.array([g1, g2])
 
     def dg(self, factor):
-        return np.array([
-            [1 - factor * self.lamb_diff, -factor * self.lamb_alg],
-            [-factor * self.lamb_diff, factor * self.lamb_alg]
-        ])
+        return np.array(
+            [[1 - factor * self.lamb_diff, -factor * self.lamb_alg], [-factor * self.lamb_diff, factor * self.lamb_alg]]
+        )
 
     def solve_direct(self, rhs, factor, t):
         r"""

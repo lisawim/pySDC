@@ -21,17 +21,17 @@ def build_filename(dt, problem_name):
 
 
 def run_test_and_split_communicator(
-        problem_name,
-        t0,
-        dt,
-        Tend,
-        global_comm,
-        global_rank,
-        num_nodes,
-        QI,
-        sweeper_type,
-        use_mpi,
-        **kwargs,
+    problem_name,
+    t0,
+    dt,
+    Tend,
+    global_comm,
+    global_rank,
+    num_nodes,
+    QI,
+    sweeper_type,
+    use_mpi,
+    **kwargs,
 ):
     r"""
     In this function the speed-up test is done. Here, the communicator is then splitted. Number of collocation nodes

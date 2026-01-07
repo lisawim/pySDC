@@ -31,6 +31,7 @@ def parse_args():
 
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
@@ -133,12 +134,12 @@ def main():
                 u_val = get_sorted(solution_stats, type="u", sortby="time")
                 t = np.array([me[0] for me in u_val])
                 u = np.array([me[1].flatten() for me in u_val])
-                q = u[:, : 7]
+                q = u[:, :7]
 
                 i = np.searchsorted(t, args.Tend)
                 if i < len(t) and np.isclose(t[i], args.Tend, atol=1e-14):
                     ind = i
-                elif i > 0 and np.isclose(t[i-1], args.Tend, atol=1e-14):
+                elif i > 0 and np.isclose(t[i - 1], args.Tend, atol=1e-14):
                     ind = i - 1
                 else:
                     print("No suitable entry found.")
@@ -171,6 +172,7 @@ def main():
 
         with open(path, "wb") as f:
             dill.dump(all_stats, f)
+
 
 if __name__ == '__main__':
     main()

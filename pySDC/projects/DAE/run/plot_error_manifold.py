@@ -1,4 +1,3 @@
-import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
@@ -16,7 +15,9 @@ from pySDC.projects.DAE.misc.hooksDAE import (
 from pySDC.projects.DAE.misc.hooksDAE import LogAbsValuePostIterAlgebraicConstraints
 
 
-def plot_manifold_val_and_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
+def plot_manifold_val_and_error_vs_iteration(
+    dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
+):
     figsize = figsize_by_journal(journal, scale=1.0, ratio=0.8)
 
     sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
@@ -57,8 +58,12 @@ def plot_manifold_val_and_error_vs_iteration(dt, num_nodes, problem_name="LINEAR
 
             x = [me[0] for me in get_sorted(solution_stats, type="abs_g_post_iteration", sortby="iter")]
             g_abs_values = [me[1] for me in get_sorted(solution_stats, type="abs_g_post_iteration", sortby="iter")]
-            err_diff_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_iteration", sortby="iter")]
-            err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
+            err_diff_values = [
+                me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_iteration", sortby="iter")
+            ]
+            err_alg_values = [
+                me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")
+            ]
 
             axs[0, q].semilogy(x, err_diff_values, color=colors[key], label=sweeper_labels[sweeper_type])
             axs[1, q].semilogy(x, err_alg_values, color=colors[key], label=sweeper_labels[sweeper_type])
@@ -86,7 +91,10 @@ def plot_manifold_val_and_error_vs_iteration(dt, num_nodes, problem_name="LINEAR
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
-def plot_manifold_value_vs_iteration(dt, num_nodes, problem_name="REACTION-DIFFUSION", journal="Springer_Scientific_Computing"):
+
+def plot_manifold_value_vs_iteration(
+    dt, num_nodes, problem_name="REACTION-DIFFUSION", journal="Springer_Scientific_Computing"
+):
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.6)
 
     sweeper_types = ["constrainedDAE", "semiImplicitDAE"]

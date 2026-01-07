@@ -68,35 +68,35 @@ class DOPRI5(RungeKuttaAllowingExplicitSolve):
 
     ButcherTableauClass = ButcherTableauEmbedded
 
-    nodes = np.array([0.0, 1/5, 3/10, 4/5, 8/9, 1.0, 1.0], dtype=float)
+    nodes = np.array([0.0, 1 / 5, 3 / 10, 4 / 5, 8 / 9, 1.0, 1.0], dtype=float)
 
-    b = np.array([35/384, 0.0, 500/1113, 125/192, -2187/6784, 11/84, 0.0], dtype=float)
-    b2 = np.array([5179/57600, 0.0, 7571/16695, 393/640, -92097/339200, 187/2100, 1/40], dtype=float)
+    b = np.array([35 / 384, 0.0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84, 0.0], dtype=float)
+    b2 = np.array([5179 / 57600, 0.0, 7571 / 16695, 393 / 640, -92097 / 339200, 187 / 2100, 1 / 40], dtype=float)
     weights = np.vstack((b, b2))
 
     matrix = np.zeros((7, 7), dtype=float)
-    matrix[1,0] = 1/5
+    matrix[1, 0] = 1 / 5
 
-    matrix[2,0] = 3/40
-    matrix[2,1] = 9/40
+    matrix[2, 0] = 3 / 40
+    matrix[2, 1] = 9 / 40
 
-    matrix[3,0] = 44/45
-    matrix[3,1] = -56/15
-    matrix[3,2] = 32/9
+    matrix[3, 0] = 44 / 45
+    matrix[3, 1] = -56 / 15
+    matrix[3, 2] = 32 / 9
 
-    matrix[4,0] = 19372/6561
-    matrix[4,1] = -25360/2187
-    matrix[4,2] = 64448/6561
-    matrix[4,3] = -212/729
+    matrix[4, 0] = 19372 / 6561
+    matrix[4, 1] = -25360 / 2187
+    matrix[4, 2] = 64448 / 6561
+    matrix[4, 3] = -212 / 729
 
-    matrix[5,0] = 9017/3168
-    matrix[5,1] = -355/33
-    matrix[5,2] = 46732/5247
-    matrix[5,3] = 49/176
-    matrix[5,4] = -5103/18656
+    matrix[5, 0] = 9017 / 3168
+    matrix[5, 1] = -355 / 33
+    matrix[5, 2] = 46732 / 5247
+    matrix[5, 3] = 49 / 176
+    matrix[5, 4] = -5103 / 18656
 
-    matrix[6,0] = 35/384
-    matrix[6,2] = 500/1113
-    matrix[6,3] = 125/192
-    matrix[6,4] = -2187/6784
-    matrix[6,5] = 11/84
+    matrix[6, 0] = 35 / 384
+    matrix[6, 2] = 500 / 1113
+    matrix[6, 3] = 125 / 192
+    matrix[6, 4] = -2187 / 6784
+    matrix[6, 5] = 11 / 84

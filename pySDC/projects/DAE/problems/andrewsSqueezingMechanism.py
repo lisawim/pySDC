@@ -36,10 +36,10 @@ class LogGlobalErrorPreIterMechanicalVars(Hooks):
         uend_ex = upde.flatten()
         uend = L.u[-1].flatten()
 
-        e_global_position = abs(uend_ex[: 7] - uend[: 7])
-        e_global_velocity = abs(uend_ex[7 : 14] - uend[7 : 14])
-        e_global_acceleration = abs(uend_ex[14 : 21] - uend[14 : 21])
-        e_global_lagrange = abs(uend_ex[21 :] - uend[21 :])
+        e_global_position = abs(uend_ex[:7] - uend[:7])
+        e_global_velocity = abs(uend_ex[7:14] - uend[7:14])
+        e_global_acceleration = abs(uend_ex[14:21] - uend[14:21])
+        e_global_lagrange = abs(uend_ex[21:] - uend[21:])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -98,10 +98,10 @@ class LogGlobalErrorPostIterMechanicalVars(Hooks):
         uend_ex = upde.flatten()
         uend = L.u[-1].flatten()
 
-        e_global_position = abs(uend_ex[: 7] - uend[: 7])
-        e_global_velocity = abs(uend_ex[7 : 14] - uend[7 : 14])
-        e_global_acceleration = abs(uend_ex[14 : 21] - uend[14 : 21])
-        e_global_lagrange = abs(uend_ex[21 :] - uend[21 :])
+        e_global_position = abs(uend_ex[:7] - uend[:7])
+        e_global_velocity = abs(uend_ex[7:14] - uend[7:14])
+        e_global_acceleration = abs(uend_ex[14:21] - uend[14:21])
+        e_global_lagrange = abs(uend_ex[21:] - uend[21:])
 
         self.add_to_stats(
             process=step.status.slot,
@@ -149,29 +149,31 @@ def qend_ref_testset(t):
 
     assert np.isclose(t, 0.03, atol=1e-14)
 
-    return np.array([
-        0.1581077119629904 * 1e2,
-        -0.1575637105984298 * 1e2,
-        0.4082224013073101 * 1e-1,
-        -0.5347301163226948,
-        0.5244099658805304,
-        0.5347301163226948,
-        0.1048080741042263 * 10,
-    ])
+    return np.array(
+        [
+            0.1581077119629904 * 1e2,
+            -0.1575637105984298 * 1e2,
+            0.4082224013073101 * 1e-1,
+            -0.5347301163226948,
+            0.5244099658805304,
+            0.5347301163226948,
+            0.1048080741042263 * 10,
+        ]
+    )
 
 
 class AndrewsSqueezingMechanismDAE(ProblemDAE):
     def __init__(
-            self,
-            nvars=14,
-            newton_tol=1e-14,
-            index=1,
-            newton_maxiter=10,
-            solver_type="hybr",
-            stop_at_maxiter=False,
-            stop_at_nan=False,
-            verbose=False,
-        ):
+        self,
+        nvars=14,
+        newton_tol=1e-14,
+        index=1,
+        newton_maxiter=10,
+        solver_type="hybr",
+        stop_at_maxiter=False,
+        stop_at_nan=False,
+        verbose=False,
+    ):
         """Initialization routine"""
 
         super().__init__(nvars=nvars, newton_tol=newton_tol)
@@ -285,7 +287,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         for path in [
             Path("/Users/lisa/Projects/Python/pySDC/pySDC/projects/DAE/data/"),
-            Path("/beegfs/wimmer/pySDC/projects/DAE/data/")
+            Path("/beegfs/wimmer/pySDC/projects/DAE/data/"),
         ]:
             if path.exists():
                 path_to_data = path
@@ -296,7 +298,6 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.t_ref = np.load(path_to_data / "t_solve_andrews_constrainedDAE.npy")
         self.u_diff_ref = np.load(path_to_data / "u_diff_solve_andrews_constrainedDAE.npy")
         self.u_alg_ref = np.load(path_to_data / "u_alg_solve_andrews_constrainedDAE.npy")
-
 
     def eval_f(self, u, du, t):
         r"""
@@ -318,16 +319,16 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         """
 
         # Shortcuts
-        q, v = u.diff[: 7], u.diff[7 : 14]
-        w, la = u.alg[: 7], u.alg[7 : 13]
+        q, v = u.diff[:7], u.diff[7:14]
+        w, la = u.alg[:7], u.alg[7:13]
 
-        dq, dv = du.diff[0 : 7], du.diff[7 : 14]
+        dq, dv = du.diff[:7], du.diff[7:14]
 
         f = self.dtype_f(self.init)
-        f.diff[0 : 7] = dq[:] - v[:]
-        f.diff[7 : 14] = dv[:] - w[:]
+        f.diff[:7] = dq[:] - v[:]
+        f.diff[7:14] = dv[:] - w[:]
 
-        f.alg[: 13] = self.algebraic_constraints(u, t)
+        f.alg[:13] = self.algebraic_constraints(u, t)
         return f
 
     def algebraic_constraints(self, u, t):
@@ -348,8 +349,8 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         """
 
         # Shortcuts
-        q, v = u.diff[: 7], u.diff[7 : 14]
-        w, la = u.alg[: 7], u.alg[7 : 13]
+        q, v = u.diff[:7], u.diff[7:14]
+        w, la = u.alg[:7], u.alg[7:13]
 
         # Get matrices and functions for algebraic part of right-hand side
         self.getM(q)
@@ -357,23 +358,23 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         self.getG(q)
 
         f = self.dtype_f(self.init)
-        f.alg[0 : 7] = self.M.dot(w) - self.func + self.G.T.dot(la)
+        f.alg[:7] = self.M.dot(w) - self.func + self.G.T.dot(la)
         if self.index == 3:
             self.get_g(q)
 
-            f.alg[7 : 13] = self.g
+            f.alg[7:13] = self.g
 
         elif self.index == 2:
-            f.alg[7 : 13] = self.G.dot(v)
+            f.alg[7:13] = self.G.dot(v)
 
         elif self.index == 1:
             self.get_gqq(q, v)
 
-            f.alg[7 : 13] = self.gqqv + self.G.dot(w)
+            f.alg[7:13] = self.gqqv + self.G.dot(w)
         else:
             raise NotImplementedError
 
-        return f.alg[: 13]
+        return f.alg[:13]
 
     def get_func(self, q, v):
         r"""
@@ -401,11 +402,13 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         # Initialize vector
         self.func[0] = self.mom - self.m2 * self.da * self.rr * v2 * (v2 + 2 * v1) * np.sin(q2)
-        self.func[1] = self.m2 * self.da * self.rr * v1 ** 2 * np.sin(q2)
-        self.func[2] = Fx * (self.sc * np.cos(q3) - self.sd * np.sin(q3)) + Fy * (self.sd * np.cos(q3) + self.sc * np.sin(q3))
-        self.func[3] = self.m4 * self.zt * (self.e - self.ea) * v5 ** 2 * np.cos(q4)
+        self.func[1] = self.m2 * self.da * self.rr * v1**2 * np.sin(q2)
+        self.func[2] = Fx * (self.sc * np.cos(q3) - self.sd * np.sin(q3)) + Fy * (
+            self.sd * np.cos(q3) + self.sc * np.sin(q3)
+        )
+        self.func[3] = self.m4 * self.zt * (self.e - self.ea) * v5**2 * np.cos(q4)
         self.func[4] = -self.m4 * self.zt * (self.e - self.ea) * v4 * (v4 + 2 * v5) * np.cos(q4)
-        self.func[5] = -self.m6 * self.u * (self.zf - self.fa) * v7 ** 2 * np.cos(q6)
+        self.func[5] = -self.m6 * self.u * (self.zf - self.fa) * v7**2 * np.cos(q6)
         self.func[6] = self.m6 * self.u * (self.zf - self.fa) * v6 * (v6 + 2 * v7) * np.cos(q6)
 
     def getG(self, q):
@@ -421,7 +424,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         self.G[0, 0] = -self.rr * np.sin(q1) + self.d * np.sin(q1 + q2)
         self.G[0, 1] = self.d * np.sin(q1 + q2)
-        self.G[0, 2] = -self.ss * np.cos(q3)        
+        self.G[0, 2] = -self.ss * np.cos(q3)
 
         self.G[1, 0] = self.rr * np.cos(q1) - self.d * np.cos(q1 + q2)
         self.G[1, 1] = -self.d * np.cos(q1 + q2)
@@ -465,51 +468,25 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         # Shortcuts
         q1, q2, q3, q4, q5, q6, q7 = q[0], q[1], q[2], q[3], q[4], q[5], q[6]
 
-        self.g[0] = (
-            self.rr * np.cos(q1)
-            - self.d * np.cos(q1 + q2)
-            - self.ss * np.sin(q3)
-            - self.xb
-        )
-        self.g[1] = (
-            self.rr * np.sin(q1)
-            - self.d * np.sin(q1 + q2)
-            + self.ss * np.cos(q3)
-            - self.yb
-        )
+        self.g[0] = self.rr * np.cos(q1) - self.d * np.cos(q1 + q2) - self.ss * np.sin(q3) - self.xb
+        self.g[1] = self.rr * np.sin(q1) - self.d * np.sin(q1 + q2) + self.ss * np.cos(q3) - self.yb
         self.g[2] = (
-            self.rr * np.cos(q1)
-            - self.d * np.cos(q1 + q2)
-            - self.e * np.sin(q4 + q5)
-            - self.zt * np.cos(q5)
-            - self.xa
+            self.rr * np.cos(q1) - self.d * np.cos(q1 + q2) - self.e * np.sin(q4 + q5) - self.zt * np.cos(q5) - self.xa
         )
         self.g[3] = (
-            self.rr * np.sin(q1)
-            - self.d * np.sin(q1 + q2)
-            + self.e * np.cos(q4 + q5)
-            - self.zt * np.sin(q5)
-            - self.ya
+            self.rr * np.sin(q1) - self.d * np.sin(q1 + q2) + self.e * np.cos(q4 + q5) - self.zt * np.sin(q5) - self.ya
         )
         self.g[4] = (
-            self.rr * np.cos(q1)
-            - self.d * np.cos(q1 + q2)
-            - self.zf * np.cos(q6 + q7)
-            - self.u * np.sin(q7)
-            - self.xa
+            self.rr * np.cos(q1) - self.d * np.cos(q1 + q2) - self.zf * np.cos(q6 + q7) - self.u * np.sin(q7) - self.xa
         )
         self.g[5] = (
-            self.rr * np.sin(q1)
-            - self.d * np.sin(q1 + q2)
-            - self.zf * np.sin(q6 + q7)
-            + self.u * np.cos(q7)
-            - self.ya
+            self.rr * np.sin(q1) - self.d * np.sin(q1 + q2) - self.zf * np.sin(q6 + q7) + self.u * np.cos(q7) - self.ya
         )
 
     def get_gqq(self, q, v):
         r"""
         Returns the second derivative of q applied to v.
-        
+
         Parameters
         ----------
         q : dtype_u
@@ -522,40 +499,35 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         v1, v2, v3, v4, v5, v6, v7 = v[0], v[1], v[2], v[3], v[4], v[5], v[6]
 
         self.gqqv[0] = (
-            - self.rr * np.cos(q1) * v1 ** 2
-            + self.d * np.cos(q1 + q2) * (v1 + v2) ** 2
-            + self.ss * np.sin(q3) * v3 ** 2
+            -self.rr * np.cos(q1) * v1**2 + self.d * np.cos(q1 + q2) * (v1 + v2) ** 2 + self.ss * np.sin(q3) * v3**2
         )
         self.gqqv[1] = (
-            - self.rr * np.sin(q1) * v1 ** 2
-            + self.d * np.sin(q1 + q2) * (v1 + v2) ** 2
-            - self.ss * np.cos(q3) * v3 ** 2
+            -self.rr * np.sin(q1) * v1**2 + self.d * np.sin(q1 + q2) * (v1 + v2) ** 2 - self.ss * np.cos(q3) * v3**2
         )
         self.gqqv[2] = (
-            - self.rr * np.cos(q1) * v1 ** 2
+            -self.rr * np.cos(q1) * v1**2
             + self.d * np.cos(q1 + q2) * (v1 + v2) ** 2
             + self.e * np.sin(q4 + q5) * (v4 + v5) ** 2
-            + self.zt * np.cos(q5) * v5 ** 2
+            + self.zt * np.cos(q5) * v5**2
         )
         self.gqqv[3] = (
-            - self.rr * np.sin(q1) * v1 ** 2
+            -self.rr * np.sin(q1) * v1**2
             + self.d * np.sin(q1 + q2) * (v1 + v2) ** 2
             - self.e * np.cos(q4 + q5) * (v4 + v5) ** 2
-            + self.zt * np.sin(q5) * v5 ** 2
+            + self.zt * np.sin(q5) * v5**2
         )
         self.gqqv[4] = (
-            - self.rr * np.cos(q1) * v1 ** 2
+            -self.rr * np.cos(q1) * v1**2
             + self.d * np.cos(q1 + q2) * (v1 + v2) ** 2
             + self.zf * np.cos(q6 + q7) * (v6 + v7) ** 2
-            + self.u * np.sin(q7) * v7 ** 2
+            + self.u * np.sin(q7) * v7**2
         )
         self.gqqv[5] = (
-            - self.rr * np.sin(q1) * v1 ** 2
+            -self.rr * np.sin(q1) * v1**2
             + self.d * np.sin(q1 + q2) * (v1 + v2) ** 2
             + self.zf * np.sin(q6 + q7) * (v6 + v7) ** 2
-            - self.u * np.cos(q7) * v7 ** 2
+            - self.u * np.cos(q7) * v7**2
         )
-
 
     def getM(self, q):
         r"""
@@ -571,51 +543,41 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         q1, q2, q3, q4, q5, q6, q7 = q[0], q[1], q[2], q[3], q[4], q[5], q[6]
 
         self.M[0, 0] = (
-            self.m1 * self.ra ** 2
-            + self.m2 * (self.rr ** 2 - 2 * self.da * self.rr * np.cos(q2) + self.da ** 2)
-            + self.I1 + self.I2
+            self.m1 * self.ra**2
+            + self.m2 * (self.rr**2 - 2 * self.da * self.rr * np.cos(q2) + self.da**2)
+            + self.I1
+            + self.I2
         )
 
-        self.M[1, 0] = self.m2 * (self.da ** 2 - self.da * self.rr * np.cos(q2)) + self.I2
+        self.M[1, 0] = self.m2 * (self.da**2 - self.da * self.rr * np.cos(q2)) + self.I2
         self.M[0, 1] = self.M[1, 0]
 
-        self.M[1, 1] = self.m2 * self.da ** 2 + self.I2
+        self.M[1, 1] = self.m2 * self.da**2 + self.I2
 
-        self.M[2, 2] = self.m3 * (self.sa ** 2 + self.sb ** 2) + self.I3
+        self.M[2, 2] = self.m3 * (self.sa**2 + self.sb**2) + self.I3
 
         self.M[3, 3] = self.m4 * (self.e - self.ea) ** 2 + self.I4
 
-        self.M[4, 3] = (
-            self.m4 * (
-                (self.e - self.ea) ** 2 + self.zt * (self.e - self.ea) * np.sin(q4)
-            ) + self.I4
-        )
+        self.M[4, 3] = self.m4 * (self.e - self.ea) ** 2 + self.zt * (self.e - self.ea) * np.sin(q4) + self.I4
         self.M[3, 4] = self.M[4, 3]
 
         self.M[4, 4] = (
-            self.m4 * (
-                self.zt ** 2 + 2 * self.zt * (self.e - self.ea) * np.sin(q4) + (self.e - self.ea) ** 2
-            )
-            + self.m5 * (self.ta ** 2 + self.tb ** 2)
+            self.m4 * self.zt**2
+            + 2 * self.zt * (self.e - self.ea) * np.sin(q4)
+            + (self.e - self.ea) ** 2
+            + self.m5 * (self.ta**2 + self.tb**2)
             + self.I4
             + self.I5
         )
 
         self.M[5, 5] = self.m6 * (self.zf - self.fa) ** 2 + self.I6
 
-        self.M[6, 5] = (
-            self.m6 * (
-                (self.zf - self.fa) ** 2 - self.u * (self.zf - self.fa) * np.sin(q6)
-            )
-            + self.I6
-        )
+        self.M[6, 5] = self.m6 * ((self.zf - self.fa) ** 2 - self.u * (self.zf - self.fa) * np.sin(q6)) + self.I6
         self.M[5, 6] = self.M[6, 5]
 
         self.M[6, 6] = (
-            self.m6 * (
-                (self.zf - self.fa) ** 2 - 2 * self.u * (self.zf - self.fa) * np.sin(q6) + self.u ** 2
-            )
-            + self.m7 * (self.ua ** 2 + self.ub ** 2)
+            self.m6 * ((self.zf - self.fa) ** 2 - 2 * self.u * (self.zf - self.fa) * np.sin(q6) + self.u**2)
+            + self.m7 * (self.ua**2 + self.ub**2)
             + self.I6
             + self.I7
         )
@@ -703,7 +665,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
                         np.zeros((self.nl, self.nv)),
                         np.zeros((self.nl, self.nw)),
                         np.zeros((self.nl, self.nl)),
-                    ]
+                    ],
                 ]
             )
 
@@ -796,7 +758,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             Numerical solution of the linear system.
         """
         return super().solve_system(impl_sys, u_approx, factor, u0, t)
-    
+
     def solve_with_newton(self, rhs, factor, u0, t, impl_sys):
         r"""
         Placeholder for solve with Newton's method that can be written
@@ -842,8 +804,8 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
-            u.diff[: 14] -= dx[: 14]
-            u.alg[: 13] -= dx[14 : 27]
+            u.diff[:14] -= dx[:14]
+            u.alg[:13] -= dx[14:27]
 
             # Increase iteration per one
             n += 1
@@ -879,7 +841,7 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         me = self.dtype_u(self.init)
         if t == 0.0:
-            me.diff[0 : 7] = (
+            me.diff[:7] = (
                 -0.0617138900142764496358948458001,
                 0,
                 0.455279819163070380255912382449,
@@ -888,16 +850,16 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
                 -0.222668390165885884674473185609,
                 1.23054744454982119249735015568,
             )  # q
-            me.diff[7 : 14] = (0, 0, 0, 0, 0, 0, 0)  # v = q'
-            me.alg[0 : 7] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
-            me.alg[7 : 13] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
+            me.diff[7:14] = (0, 0, 0, 0, 0, 0, 0)  # v = q'
+            me.alg[:7] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
+            me.alg[7:13] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
 
         elif t > 0.0:
             i = np.searchsorted(self.t_ref, t)
 
             if i < len(self.t_ref) and np.isclose(self.t_ref[i], t, atol=1e-14):
                 ind = i
-            elif i > 0 and np.isclose(self.t_ref[i-1], t, atol=1e-14):
+            elif i > 0 and np.isclose(self.t_ref[i - 1], t, atol=1e-14):
                 ind = i - 1
             else:
                 print("No suitable entry found.")
@@ -905,11 +867,11 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
             u_ref_diff = self.u_diff_ref[ind, :]
             u_ref_alg = self.u_alg_ref[ind, :]
 
-            me.diff[0 : 7] = u_ref_diff[0 : 7]  # q
-            me.diff[7 : 14] = u_ref_diff[7 : 14]  # v
+            me.diff[:7] = u_ref_diff[:7]  # q
+            me.diff[7:14] = u_ref_diff[7:14]  # v
 
-            me.alg[0 : 7] = u_ref_alg[0 : 7]  # w
-            me.alg[7 : 13] = u_ref_alg[7 : 13]  # l
+            me.alg[:7] = u_ref_alg[:7]  # w
+            me.alg[7:13] = u_ref_alg[7:13]  # l
 
         return me
 
@@ -932,13 +894,13 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         assert t == 0.0, f"ERROR: Only initial condition at time 0.0 available!"
 
         u0 = self.u_exact(t)
-        q, v = u0.diff[: 7], u0.diff[7 : 14]
-        w, la = u0.alg[: 7], u0.alg[7 : 13]
+        q, v = u0.diff[:7], u0.diff[7:14]
+        w, la = u0.alg[:7], u0.alg[7:13]
 
         du_ex = self.dtype_f(self.init)
-        du_ex.diff[0 : 7] = v[:]
-        du_ex.diff[7 : 14] = w[:]
-        du_ex.alg[: 13] = self.algebraic_constraints(u0, t)
+        du_ex.diff[:7] = v[:]
+        du_ex.diff[7:14] = w[:]
+        du_ex.alg[:13] = self.algebraic_constraints(u0, t)
         return du_ex
 
 
@@ -947,16 +909,16 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
     dtype_f = mesh
 
     def __init__(
-            self,
-            nvars=27,
-            newton_tol=5e-12,
-            index=1,
-            newton_maxiter=20,
-            solver_type="hybr",
-            stop_at_maxiter=False,
-            stop_at_nan=False,
-            verbose=False,
-        ):
+        self,
+        nvars=27,
+        newton_tol=5e-12,
+        index=1,
+        newton_maxiter=20,
+        solver_type="hybr",
+        stop_at_maxiter=False,
+        stop_at_nan=False,
+        verbose=False,
+    ):
         """Initialization routine"""
 
         ProblemDAE.__init__(self, nvars=nvars, newton_tol=newton_tol)
@@ -1010,10 +972,10 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         """
 
         # Shortcuts
-        q, v = u[: 7], u[7 : 14]
-        w = u[14 : 21]
+        q, v = u[:7], u[7:14]
+        w = u[14:21]
 
-        dq, dv = du[: 7], du[7 : 14]
+        dq, dv = du[:7], du[7:14]
 
         # Get matrices and functions for algebraic part of right-hand side
         self.getM(q)
@@ -1021,10 +983,10 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         self.getG(q)
 
         f = self.dtype_f(self.init)
-        f[: 7] = dq[:] - v[:]
-        f[7 : 14] = dv[:] - w[:]
+        f[:7] = dq[:] - v[:]
+        f[7:14] = dv[:] - w[:]
 
-        f[14 :] = self.algebraic_constraints(u, t)[:]
+        f[14:] = self.algebraic_constraints(u, t)[:]
 
         return f
 
@@ -1046,8 +1008,8 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         """
 
         # Shortcuts
-        q, v = u[: 7], u[7 : 14]
-        w, l = u[14 : 21], u[21 :]
+        q, v = u[:7], u[7:14]
+        w, l = u[14:21], u[21:]
 
         # Get matrices and functions for algebraic part of right-hand side
         self.getM(q)
@@ -1056,23 +1018,23 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
 
         f = self.dtype_f(self.init)
 
-        f[14 : 21] = self.M.dot(w) - self.func + self.G.T.dot(l)
+        f[14:21] = self.M.dot(w) - self.func + self.G.T.dot(l)
         if self.index == 3:
             self.get_g(q)
 
-            f[21 :] = self.g
+            f[21:] = self.g
 
         elif self.index == 2:
-            f[21 :] = self.G.dot(v)
+            f[21:] = self.G.dot(v)
 
         elif self.index == 1:
             self.get_gqq(q, v)
 
-            f[21 :] = self.gqqv + self.G.dot(w)
+            f[21:] = self.gqqv + self.G.dot(w)
         else:
             raise NotImplementedError
 
-        return f[14 :]
+        return f[14:]
 
     def dg(self, dt, M, Qmat):
         r"""
@@ -1119,7 +1081,7 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
                         np.zeros((self.nl, self.nv)),
                         np.zeros((self.nl, self.nw)),
                         np.zeros((self.nl, self.nl)),
-                    ]
+                    ],
                 ]
             )
 
@@ -1185,7 +1147,7 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         else:
             raise NotImplementedError
 
-        J = np.kron(np.identity(M), self.I0) - dt * np.kron(Qmat[1 :, 1 :], J_approx)
+        J = np.kron(np.identity(M), self.I0) - dt * np.kron(Qmat[1:, 1:], J_approx)
 
         return J
 
@@ -1253,7 +1215,7 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
 
         me = self.dtype_u(self.init)
         if t == 0.0:
-            me[: 7] = (
+            me[:7] = (
                 -0.0617138900142764496358948458001,
                 0,
                 0.455279819163070380255912382449,
@@ -1262,16 +1224,16 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
                 -0.222668390165885884674473185609,
                 1.23054744454982119249735015568,
             )  # q
-            me[7 : 14] = (0, 0, 0, 0, 0, 0, 0)  # v = q'
-            me[14 : 21] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
-            me[21 :] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
+            me[7:14] = (0, 0, 0, 0, 0, 0, 0)  # v = q'
+            me[14:21] = (14222.4439199541138705911625887, -10666.8329399655854029433719415, 0, 0, 0, 0, 0)  # w = q''
+            me[21:] = (98.56687039624108960576549821700, -6.12268834425566265503114393122, 0, 0, 0, 0)  # l
 
         elif t > 0.0:
             i = np.searchsorted(self.t_ref, t)
 
             if i < len(self.t_ref) and np.isclose(self.t_ref[i], t, atol=1e-14):
                 ind = i
-            elif i > 0 and np.isclose(self.t_ref[i-1], t, atol=1e-14):
+            elif i > 0 and np.isclose(self.t_ref[i - 1], t, atol=1e-14):
                 ind = i - 1
             else:
                 print("No suitable entry found.")
@@ -1279,11 +1241,11 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
             u_ref_diff = self.u_diff_ref[ind, :]
             u_ref_alg = self.u_alg_ref[ind, :]
 
-            me[: 7] = u_ref_diff[0 : 7]  # q
-            me[7 : 14] = u_ref_diff[7 : 14]  # v
+            me[:7] = u_ref_diff[:7]  # q
+            me[7:14] = u_ref_diff[7:14]  # v
 
-            me[14 : 21] = u_ref_alg[0 : 7]  # w
-            me[21 :] = u_ref_alg[7 : 13]  # l
+            me[14:21] = u_ref_alg[:7]  # w
+            me[21:] = u_ref_alg[7:13]  # l
 
         return me
 
@@ -1306,12 +1268,12 @@ class AndrewsSqueezingMechanismDAE_Radau(AndrewsSqueezingMechanismDAE, ProblemDA
         assert t == 0.0, f"ERROR: Only initial condition at time 0.0 available!"
 
         u0 = self.u_exact(t)
-        v, w = u0[7 : 14], u0[14 : 21]
+        v, w = u0[7:14], u0[14:21]
 
         du_ex = self.dtype_f(self.init)
-        du_ex[: 7] = v[:]
-        du_ex[7 : 14] = w[:]
-        du_ex[14 :] = self.algebraic_constraints(u0, t)[:]
+        du_ex[:7] = v[:]
+        du_ex[7:14] = w[:]
+        du_ex[14:] = self.algebraic_constraints(u0, t)[:]
         return du_ex
 
 
@@ -1406,7 +1368,7 @@ class SemiImplicitAndrewsSqueezingMechanismDAE(AndrewsSqueezingMechanismDAE):
                     [
                         np.zeros((self.nv, self.nq)),
                         np.eye(self.nv),
-                        -np.eye(self.nw), 
+                        -np.eye(self.nw),
                         np.zeros((self.nv, self.nl)),
                     ],
                     [
@@ -1450,14 +1412,14 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         """
 
         # Shortcuts
-        q, v = u.diff[: 7], u.diff[7 : 14]
-        w, la = u.alg[: 7], u.alg[7 : 13]
+        q, v = u.diff[:7], u.diff[7:14]
+        w, la = u.alg[:7], u.alg[7:13]
 
         f = self.dtype_f(self.init)
-        f.diff[: 7] = v[:]
-        f.diff[7 : 14] = w[:]
+        f.diff[:7] = v[:]
+        f.diff[7:14] = w[:]
 
-        f.alg[: 13] = self.algebraic_constraints(u, t)
+        f.alg[:13] = self.algebraic_constraints(u, t)
         self.work_counters["rhs"]()
         return f
 
@@ -1507,13 +1469,13 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
         u = self.dtype_u(u0)
 
-        rhs_diff1, rhs_diff2 = rhs.diff[: 7], rhs.diff[7 : 14]
+        rhs_diff1, rhs_diff2 = rhs.diff[:7], rhs.diff[7:14]
 
         n = 0
         res = 99
         while n < self.newton_maxiter:
             # Shortcuts
-            q, v, w, la = u.diff[: 7], u.diff[7 : 14], u.alg[: 7], u.alg[7 : 13]
+            q, v, w, la = u.diff[:7], u.diff[7:14], u.alg[:7], u.alg[7:13]
 
             g1 = q - factor * v - rhs_diff1
             g2 = v - factor * w - rhs_diff2
@@ -1534,8 +1496,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
-            u.diff[: 14] -= dx[: 14]
-            u.alg[: 13] -= dx[14 : 27]
+            u.diff[:14] -= dx[:14]
+            u.alg[:13] -= dx[14:27]
 
             # Increase iteration per one
             n += 1
@@ -1582,12 +1544,12 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
         solution = self.dtype_u(self.init)
 
-        rhs_diff1, rhs_diff2 = rhs.diff[: 7], rhs.diff[7 : 14]
+        rhs_diff1, rhs_diff2 = rhs.diff[:7], rhs.diff[7:14]
 
         # Form the function, such that the solution to the nonlinear problem is a root of it
         def andrews_dae(u):
-            q, v = u[: 7], u[7 : 14]
-            w, l = u[14 : 21], u[21 :]
+            q, v = u[:7], u[7:14]
+            w, l = u[14:21], u[21:]
 
             # Get matrices and functions for algebraic part of right-hand side
             self.getM(q)
@@ -1614,8 +1576,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
 
             return np.concatenate((f1, f2, f3, f4))
 
-        q0, v0 = u0.diff[: 7], u0.diff[7 : 14]
-        w0, lamb0 = u0.alg[: 7], u0.alg[7 : 13]
+        q0, v0 = u0.diff[:7], u0.diff[7:14]
+        w0, lamb0 = u0.alg[:7], u0.alg[7:13]
         u0_vec = np.concatenate((q0, v0, w0, lamb0))
 
         opt = root(
@@ -1626,8 +1588,8 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
         )
 
         solution = self.dtype_u(self.init)
-        solution.diff[: 14] = opt.x[: 14]
-        solution.alg[: 13] = opt.x[14 :]
+        solution.diff[:14] = opt.x[:14]
+        solution.alg[:13] = opt.x[14:]
         self.work_counters["hybr"].niter += opt.nfev
         return solution
 
@@ -1771,11 +1733,11 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         res = 99
         while n < self.newton_maxiter:
             # Shortcuts
-            q, v = u.diff[: 7], u.diff[7 : 14]
-            w, la = u.alg[: 7], u.alg[7 : 13]
+            q, v = u.diff[:7], u.diff[7:14]
+            w, la = u.alg[:7], u.alg[7:13]
 
-            g1 = q - factor * v - rhs.diff[: 7]
-            g2 = v - factor * w - rhs.diff[7 : 14]
+            g1 = q - factor * v - rhs.diff[:7]
+            g2 = v - factor * w - rhs.diff[7:14]
             g3 = -factor * self.algebraic_constraints(u, t)[:] - rhs.alg[:13]
 
             # Form the function h(u), such that the solution to the nonlinear problem is a root of h
@@ -1786,15 +1748,15 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             if res < self.newton_tol:
                 break
 
-            # # Assemble dh 
+            # Assemble dg
             dg = self.dg(factor)
 
             # Newton direction dx
             dx = np.linalg.solve(dg, g)
 
             # Newton update: u1 = u0 - g/dg
-            u.diff[: 14] -= dx[: 14]
-            u.alg[0 : 13] -= dx[14 : 27]
+            u.diff[:14] -= dx[:14]
+            u.alg[:13] -= dx[14:27]
 
             # Increase iteration per one
             n += 1
@@ -1814,7 +1776,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         solution = self.dtype_u(self.init)
         solution[:] = u[:]
         return solution
-    
+
     def solve_with_hybr(self, rhs, factor, u0, t, impl_sys=None):
         r"""
         Root solver for the nonlinear system using SciPy's ``optimize.root`` with
@@ -1845,35 +1807,35 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
 
         # Form the function, such that the solution to the nonlinear problem is a root of it
         def func(u):
-            q, v = u[: 7], u[7 : 14]
-            w, l = u[14 : 21], u[21 :]
+            q, v = u[:7], u[7:14]
+            w, l = u[14:21], u[21:]
 
             # Get matrices and functions for algebraic part of right-hand side
             self.getM(q)
             self.get_func(q, v)
             self.getG(q)
 
-            f1 = q - factor * v - rhs.diff[: 7]
-            f2 = v - factor * w - rhs.diff[7 : 14]
-            f3 = -factor * (self.M.dot(w) - self.func + self.G.T.dot(l)) - rhs.alg[: 7]
+            f1 = q - factor * v - rhs.diff[:7]
+            f2 = v - factor * w - rhs.diff[7:14]
+            f3 = -factor * (self.M.dot(w) - self.func + self.G.T.dot(l)) - rhs.alg[:7]
             if self.index == 3:
                 self.get_g(q)
 
-                f4 = -factor * self.g - rhs.alg[7 : 13]
+                f4 = -factor * self.g - rhs.alg[7:13]
 
             elif self.index == 2:
-                f4 = -factor * self.G.dot(v) - rhs.alg[7 : 13]
+                f4 = -factor * self.G.dot(v) - rhs.alg[7:13]
 
             elif self.index == 1:
                 self.get_gqq(q, v)
 
-                f4 = -factor * (self.gqqv + self.G.dot(w)) - rhs.alg[7 : 13]
+                f4 = -factor * (self.gqqv + self.G.dot(w)) - rhs.alg[7:13]
             else:
                 raise NotImplementedError
 
             return np.concatenate((f1, f2, f3, f4))
 
-        u0_vec = np.array([*u0.diff[: 14], *u0.alg[: 13]])
+        u0_vec = np.array([*u0.diff[:14], *u0.alg[:13]])
 
         opt = root(
             func,
@@ -1883,8 +1845,8 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
         )
 
         solution = self.dtype_u(self.init)
-        solution.diff[: 14] = opt.x[: 14]
-        solution.alg[: 13] = opt.x[14 :]
+        solution.diff[:14] = opt.x[:14]
+        solution.alg[:13] = opt.x[14:]
         self.work_counters["hybr"].niter += opt.nfev
         return solution
 
@@ -1936,7 +1898,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
                         np.zeros((self.nl, self.nv)),
                         np.zeros((self.nl, self.nw)),
                         np.zeros((self.nl, self.nl)),
-                    ]
+                    ],
                 ]
             )
 

@@ -15,11 +15,10 @@ def format_tick(x, pos):
         return "0.0"
     return f"{x:.3f}"
 
+
 def u_exact(t, lamb_diff=-2.0, lamb_alg=1.0):
-    return np.array([
-        np.exp(2 * lamb_diff * t),
-        lamb_diff / lamb_alg * np.exp(2 * lamb_diff * t)
-    ])
+    return np.array([np.exp(2 * lamb_diff * t), lamb_diff / lamb_alg * np.exp(2 * lamb_diff * t)])
+
 
 def setup_mpl_spectrum(fontsize=16):
     my_setup_mpl(fontsize=fontsize)
@@ -31,7 +30,7 @@ def setup_mpl_spectrum(fontsize=16):
 def compute_normality_deviation(A):
     """
     Calculate the maximum norm of the commutator of A.
-    
+
     The commutator of A is A*A - AA*.
     The relative maximum norm of the commutator measures how far A is from being normal.
 
@@ -51,6 +50,7 @@ def compute_normality_deviation(A):
     deviation = np.linalg.norm(commutator, np.inf)
     denominator = np.linalg.norm(A, np.inf)
     return deviation / denominator
+
 
 def get_iteration_matrices_ordered_by_nodes(dt, num_nodes, Qmat, QImat, problem_name, sweeper_type):
     r"""
@@ -113,6 +113,7 @@ def get_iteration_matrices_ordered_by_nodes(dt, num_nodes, Qmat, QImat, problem_
         raise NotImplementedError(f"No iteration matrix implemented for {sweeper_type}!")
 
     return LHS, RHS
+
 
 def get_iteration_matrices_ordered_by_vars(dt, num_nodes, Qmat, QImat, problem_name, sweeper_type):
     r"""
@@ -177,36 +178,39 @@ def get_iteration_matrices_ordered_by_vars(dt, num_nodes, Qmat, QImat, problem_n
     K = np.linalg.inv(LHS) @ RHS
     return K
 
+
 def axes_limits_evd():
     axes_limits = {
-        2: {"x_lim": (-0.2, 0.08) ,"y_lim": (-0.11, 0.11)},
-        3: {"x_lim": (-0.15, 0.04) ,"y_lim": (-0.1, 0.1)},
-        4: {"x_lim": (-0.11, 0.097) ,"y_lim": (-0.066, 0.066)},
-        5: {"x_lim": (-0.09, 0.087) ,"y_lim": (-0.056, 0.056)},
-        6: {"x_lim": (-0.08, 0.078) ,"y_lim": (-0.046, 0.046)},
-        7: {"x_lim": (-0.07, 0.071) ,"y_lim": (-0.043, 0.043)},
-        8: {"x_lim": (-0.07, 0.066) ,"y_lim": (-0.038, 0.038)},
-        9: {"x_lim": (-0.065, 0.062) ,"y_lim": (-0.032, 0.032)},
-        10: {"x_lim": (-0.06, 0.058) ,"y_lim": (-0.028, 0.028)},
-        11: {"x_lim": (-0.06, 0.054) ,"y_lim": (-0.026, 0.026)},
-        12: {"x_lim": (-0.055, 0.051) ,"y_lim": (-0.025, 0.025)},
-        13: {"x_lim": (-0.041, 0.048) ,"y_lim": (-0.023, 0.023)},
-        14: {"x_lim": (-0.039, 0.046) ,"y_lim": (-0.02, 0.02)},
-        15: {"x_lim": (-0.0248, 0.044) ,"y_lim": (-0.02, 0.02)},
-        16: {"x_lim": (-0.0248, 0.042) ,"y_lim": (-0.02, 0.02)},
+        2: {"x_lim": (-0.2, 0.08), "y_lim": (-0.11, 0.11)},
+        3: {"x_lim": (-0.15, 0.04), "y_lim": (-0.1, 0.1)},
+        4: {"x_lim": (-0.11, 0.097), "y_lim": (-0.066, 0.066)},
+        5: {"x_lim": (-0.09, 0.087), "y_lim": (-0.056, 0.056)},
+        6: {"x_lim": (-0.08, 0.078), "y_lim": (-0.046, 0.046)},
+        7: {"x_lim": (-0.07, 0.071), "y_lim": (-0.043, 0.043)},
+        8: {"x_lim": (-0.07, 0.066), "y_lim": (-0.038, 0.038)},
+        9: {"x_lim": (-0.065, 0.062), "y_lim": (-0.032, 0.032)},
+        10: {"x_lim": (-0.06, 0.058), "y_lim": (-0.028, 0.028)},
+        11: {"x_lim": (-0.06, 0.054), "y_lim": (-0.026, 0.026)},
+        12: {"x_lim": (-0.055, 0.051), "y_lim": (-0.025, 0.025)},
+        13: {"x_lim": (-0.041, 0.048), "y_lim": (-0.023, 0.023)},
+        14: {"x_lim": (-0.039, 0.046), "y_lim": (-0.02, 0.02)},
+        15: {"x_lim": (-0.0248, 0.044), "y_lim": (-0.02, 0.02)},
+        16: {"x_lim": (-0.0248, 0.042), "y_lim": (-0.02, 0.02)},
     }
     return axes_limits
+
 
 def setup_blocks(K, num_nodes, problem_name):
     if problem_name != "LINEAR-TEST":
         raise NotImplementedError(f"No iteration matrix implemented for problem {problem_name}.")
 
     return {
-            "yy": K[: num_nodes, : num_nodes],
-            "yz": K[: num_nodes, num_nodes :],
-            "zy": K[num_nodes :, : num_nodes],
-            "zz": K[num_nodes :, num_nodes :],
-        }
+        "yy": K[:num_nodes, :num_nodes],
+        "yz": K[:num_nodes, num_nodes:],
+        "zy": K[num_nodes:, :num_nodes],
+        "zz": K[num_nodes:, num_nodes:],
+    }
+
 
 def compute_Q_coefficients(num_nodes_list=range(2, 22, 2)):
     r"""
@@ -244,6 +248,7 @@ def compute_Q_coefficients(num_nodes_list=range(2, 22, 2)):
 
     return Q_coefficients
 
+
 def compute_QI_coefficients(Q_coefficients: dict, QI_list: list):
     r"""
     Computes the QI-coefficients and store it in a dictionary.
@@ -265,7 +270,7 @@ def compute_QI_coefficients(Q_coefficients: dict, QI_list: list):
     QI_coefficients = {}
 
     for QI in QI_list:
-        QI_coefficients[QI]= {}
+        QI_coefficients[QI] = {}
 
         QIGenerator = QDELTA_GENERATORS[QI]
 
@@ -282,6 +287,7 @@ def compute_QI_coefficients(Q_coefficients: dict, QI_list: list):
             QI_coefficients[QI][num_nodes]["matrix"] = QImat
 
     return QI_coefficients
+
 
 # def plot_spectral_radius(
 #         problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"
@@ -378,9 +384,7 @@ def compute_QI_coefficients(Q_coefficients: dict, QI_list: list):
 #     plt.close(fig)
 
 
-def plot_spectral_radius_and_evd(
-        problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"
-    ):
+def plot_spectral_radius_and_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"):
     figsize = figsize_by_journal(journal, scale=1.9, ratio=0.6)
 
     sweeper_type = "constrainedDAE"
@@ -418,11 +422,15 @@ def plot_spectral_radius_and_evd(
                 Qmat = Q_coefficients[num_nodes]["matrix"]
                 QImat = QI_coefficients[QI][num_nodes]["matrix"]
 
-                LHS, RHS = get_iteration_matrices_ordered_by_nodes(dt, num_nodes, Qmat, QImat, problem_name, sweeper_type)
+                LHS, RHS = get_iteration_matrices_ordered_by_nodes(
+                    dt, num_nodes, Qmat, QImat, problem_name, sweeper_type
+                )
                 K = np.linalg.inv(LHS) @ RHS
 
                 deviation = compute_normality_deviation(K)
-                print(f"{QI} - {sweeper_type} for {num_nodes} nodes with {dt=}: Derivation from normality is: {deviation}\n")
+                print(
+                    f"{QI} - {sweeper_type} for {num_nodes} nodes with {dt=}: Derivation from normality is: {deviation}\n"
+                )
 
                 spectral_radius = max(abs(np.linalg.eigvals(K)))
                 spectral_radii.append(spectral_radius)
@@ -438,7 +446,9 @@ def plot_spectral_radius_and_evd(
             Qmat = Q_coefficients[num_nodes]["matrix"]
             QImat = QI_coefficients[QI][num_nodes]["matrix"]
 
-            LHS, RHS = get_iteration_matrices_ordered_by_nodes(dt_fix, num_nodes, Qmat, QImat, problem_name, sweeper_type)
+            LHS, RHS = get_iteration_matrices_ordered_by_nodes(
+                dt_fix, num_nodes, Qmat, QImat, problem_name, sweeper_type
+            )
             K = np.linalg.inv(LHS) @ RHS
 
             lambdas = np.linalg.eigvals(K)
@@ -483,7 +493,6 @@ def plot_spectral_radius_and_evd(
 
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.125), ncol=3)
 
-    # Optional: alte linke Achsen (axs[:,0]) löschen
     for ax in axs[:, 0]:
         ax.remove()
 
@@ -498,12 +507,10 @@ def plot_spectral_radius_and_evd(
     plt.close(fig)
 
 
-def plot_error_norm(
-        problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"
-    ):
+def plot_error_norm(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
-    sweeper_type = "constrainedDAE"#"semiImplicitDAE"#"constrainedDAE"
+    sweeper_type = "constrainedDAE"
     QI_list = ["IE", "EE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
 
     dt_list, _ = choose_time_step_sizes(problem_name)
@@ -528,7 +535,9 @@ def plot_error_norm(
                 Qmat = Q_coefficients[num_nodes_fix]["matrix"]
                 QImat = QI_coefficients[QI][num_nodes_fix]["matrix"]
 
-                LHS, RHS = get_iteration_matrices_ordered_by_nodes(dt, num_nodes_fix, Qmat, QImat, problem_name, sweeper_type)
+                LHS, RHS = get_iteration_matrices_ordered_by_nodes(
+                    dt, num_nodes_fix, Qmat, QImat, problem_name, sweeper_type
+                )
                 K = np.linalg.inv(LHS) @ RHS
 
                 error_norm_fix = np.linalg.norm(K, np.inf)
@@ -540,7 +549,9 @@ def plot_error_norm(
                 Qmat = Q_coefficients[num_nodes]["matrix"]
                 QImat = QI_coefficients[QI][num_nodes]["matrix"]
 
-                LHS, RHS = get_iteration_matrices_ordered_by_nodes(dt_fix, num_nodes, Qmat, QImat, problem_name, sweeper_type)
+                LHS, RHS = get_iteration_matrices_ordered_by_nodes(
+                    dt_fix, num_nodes, Qmat, QImat, problem_name, sweeper_type
+                )
                 K = np.linalg.inv(LHS) @ RHS
 
                 error_norm = np.linalg.norm(K, np.inf)
@@ -590,10 +601,11 @@ def plot_error_norm(
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
+
 def plot_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"):
     figsize = figsize_by_journal(journal, scale=1.0, ratio=0.66)
 
-    sweeper_type = "constrainedDAE"#"semiImplicitDAE"#"constrainedDAE"
+    sweeper_type = "constrainedDAE"
     QI_list = ["IE", "EE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
 
     dt_list, _ = choose_time_step_sizes(problem_name)
@@ -627,7 +639,9 @@ def plot_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
             Qmat = Q_coefficients[num_nodes_fix]["matrix"]
             QImat = QI_coefficients[QI][num_nodes_fix]["matrix"]
 
-            LHS, RHS = get_iteration_matrices_ordered_by_nodes(dt, num_nodes_fix, Qmat, QImat, problem_name, sweeper_type)
+            LHS, RHS = get_iteration_matrices_ordered_by_nodes(
+                dt, num_nodes_fix, Qmat, QImat, problem_name, sweeper_type
+            )
             K = np.linalg.inv(LHS) @ RHS
 
             lambdas = np.linalg.eigvals(K)
@@ -658,7 +672,6 @@ def plot_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
 
-
     for num_nodes in num_nodes_list:
         fig, axs = plt.subplots(2, 3, figsize=figsize)
         ax_flatten = axs.flatten()
@@ -675,7 +688,9 @@ def plot_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
             Qmat = Q_coefficients[num_nodes]["matrix"]
             QImat = QI_coefficients[QI][num_nodes]["matrix"]
 
-            LHS, RHS = get_iteration_matrices_ordered_by_nodes(dt_fix, num_nodes, Qmat, QImat, problem_name, sweeper_type)
+            LHS, RHS = get_iteration_matrices_ordered_by_nodes(
+                dt_fix, num_nodes, Qmat, QImat, problem_name, sweeper_type
+            )
             K = np.linalg.inv(LHS) @ RHS
 
             lambdas = np.linalg.eigvals(K)

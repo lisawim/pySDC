@@ -25,9 +25,7 @@ class CollocationDAE(RungeKuttaDAE):
         u0_full = [lvl.u[0][:] for _ in range(M)]
         f_init = [lvl.f[m + 1].flatten() for m in range(M)]
 
-        du_new = prob.solve_collocation_system(
-            self.F, f_init, lvl.time, lvl.dt, M, self.coll.Qmat, self, u0_full
-        )
+        du_new = prob.solve_collocation_system(self.F, f_init, lvl.time, lvl.dt, M, self.coll.Qmat, self, u0_full)
 
         for m in range(M):
             lvl.f[m + 1][:] = du_new[m]
@@ -78,10 +76,7 @@ class CollocationDAE(RungeKuttaDAE):
         local_du_approx = [du[m].copy() for m in range(M)]
 
         # Applying quadrature to local approximation of u
-        local_u_approx = [
-            u0_full[m].copy() + dt * sum(Qmat[m + 1, j + 1] * du[j] for j in range(M))
-            for m in range(M)
-        ]
+        local_u_approx = [u0_full[m].copy() + dt * sum(Qmat[m + 1, j + 1] * du[j] for j in range(M)) for m in range(M)]
 
         taus = t + dt * sweep.coll.nodes[1:]
         sys = [P.dtype_f(P.eval_f(u, du_, tau)) for u, du_, tau in zip(local_u_approx, local_du_approx, taus)]
@@ -92,9 +87,8 @@ class CollocationDAE(RungeKuttaDAE):
 
 class RadauIIA5DAE(CollocationDAE):
     """Method of Radau IIa family of order 5."""
-    generator = Q_GENERATORS["Collocation"](
-        nNodes=3, nodeType="LEGENDRE", quadType="RADAU-RIGHT", tLeft=0, tRight=1
-    )
+
+    generator = Q_GENERATORS["Collocation"](nNodes=3, nodeType="LEGENDRE", quadType="RADAU-RIGHT", tLeft=0, tRight=1)
 
     nodes = generator.nodes.copy()
     weights = generator.weights.copy()
@@ -104,9 +98,8 @@ class RadauIIA5DAE(CollocationDAE):
 
 class RadauIIA7DAE(CollocationDAE):
     """Method of Radau IIa family of order 7."""
-    generator = Q_GENERATORS["Collocation"](
-        nNodes=4, nodeType="LEGENDRE", quadType="RADAU-RIGHT", tLeft=0, tRight=1
-    )
+
+    generator = Q_GENERATORS["Collocation"](nNodes=4, nodeType="LEGENDRE", quadType="RADAU-RIGHT", tLeft=0, tRight=1)
 
     nodes = generator.nodes.copy()
     weights = generator.weights.copy()
@@ -116,9 +109,8 @@ class RadauIIA7DAE(CollocationDAE):
 
 class RadauIIA9DAE(CollocationDAE):
     """Method of Radau IIa family of order 9."""
-    generator = Q_GENERATORS["Collocation"](
-        nNodes=5, nodeType="LEGENDRE", quadType="RADAU-RIGHT", tLeft=0, tRight=1
-    )
+
+    generator = Q_GENERATORS["Collocation"](nNodes=5, nodeType="LEGENDRE", quadType="RADAU-RIGHT", tLeft=0, tRight=1)
 
     nodes = generator.nodes.copy()
     weights = generator.weights.copy()

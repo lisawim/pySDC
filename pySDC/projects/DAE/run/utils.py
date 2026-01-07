@@ -2,11 +2,13 @@ from mpi4py import MPI
 import time
 import matplotlib.pyplot as plt
 import logging
+
 logger = logging.getLogger(__name__)
 
 from pySDC.projects.DAE.misc.methods_config import QI_SERIAL, QI_PARALLEL, RADAU_METHODS, RK_METHODS
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
+
 
 def my_setup_mpl(fontsize=16):
     "Setting up my personal settings for plotting."
@@ -25,7 +27,6 @@ def my_setup_mpl(fontsize=16):
     plt.rcParams["lines.markeredgewidth"] = 0.5
     plt.rcParams["lines.markeredgecolor"] = "black"
     plt.rcParams["lines.markersize"] = 2.9
-    
 
     # sets fig.tight_layout()
     plt.rcParams["figure.autolayout"] = True
@@ -104,8 +105,10 @@ def my_plot_style_config():
 
     return colors, markers, sweeper_labels
 
+
 def newton_tol(dt, dt_ref=2.6e-3, tol_ref=8e-13):
     return tol_ref * (dt / dt_ref)
+
 
 def set_correct_sweeper_type(sweeper_type, QI):
     if QI in RADAU_METHODS and sweeper_type != "fullyImplicitDAE":
@@ -115,6 +118,7 @@ def set_correct_sweeper_type(sweeper_type, QI):
     else:
         return sweeper_type
 
+
 def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
 
@@ -122,16 +126,26 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
 
     if problem_name == "ANDREWS-SQUEEZER":
         if sweeper_type == "constrainedDAE":
-            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAEConstrained as problem
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
+                AndrewsSqueezingMechanismDAEConstrained as problem,
+            )
         elif sweeper_type == "embeddedDAE":
-            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAEEmbedded as problem
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
+                AndrewsSqueezingMechanismDAEEmbedded as problem,
+            )
         elif sweeper_type == "fullyImplicitDAE":
             if QI.startswith("RadauIIA"):
-                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAE_Radau as problem
+                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
+                    AndrewsSqueezingMechanismDAE_Radau as problem,
+                )
             else:
-                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import AndrewsSqueezingMechanismDAE as problem
+                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
+                    AndrewsSqueezingMechanismDAE as problem,
+                )
         elif sweeper_type == "semiImplicitDAE":
-            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import SemiImplicitAndrewsSqueezingMechanismDAE as problem
+            from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
+                SemiImplicitAndrewsSqueezingMechanismDAE as problem,
+            )
 
         description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-9)
         description["step_params"] = {"maxiter": kwargs.get("maxiter", 15)}
@@ -181,6 +195,7 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
 
     return description
 
+
 def get_sweeper_class_coll_method(QI: str):
     """Import the collocation sweeper class."""
 
@@ -193,6 +208,7 @@ def get_sweeper_class_coll_method(QI: str):
 
     return sweeper
 
+
 def get_sweeper_class_rk_method(QI: str):
     """Import the Runge-Kutta sweeper class."""
 
@@ -200,6 +216,7 @@ def get_sweeper_class_rk_method(QI: str):
         from pySDC.projects.DAE.sweepers.rungeKuttaAllowingExplicitSolve import DOPRI5 as sweeper
 
     return sweeper
+
 
 def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
     """Import the SDC sweeper class."""
@@ -225,14 +242,15 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
 
     return sweeper
 
+
 def setup_sweeper_sdc(
-        description,
-        num_nodes=3,
-        sweeper_type="constrainedDAE",
-        QI="LU",
-        use_mpi=False,
-        **kwargs,
-    ):
+    description,
+    num_nodes=3,
+    sweeper_type="constrainedDAE",
+    QI="LU",
+    use_mpi=False,
+    **kwargs,
+):
     """Sets up the SDC sweeper with certain parameters."""
 
     skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
@@ -254,11 +272,10 @@ def setup_sweeper_sdc(
     if use_mpi and "comm" in kwargs:
         comm = kwargs["comm"]
         description["sweeper_params"]["comm"] = comm
-        assert num_nodes == comm.Get_size(), (
-            f"Mismatch: {num_nodes} nodes, but {comm.Get_size()} MPI processes."
-        )
+        assert num_nodes == comm.Get_size(), f"Mismatch: {num_nodes} nodes, but {comm.Get_size()} MPI processes."
 
     return description
+
 
 def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", QI="RadauIIA5"):
     """Sets up the RadauIIA sweeper with certain parameters."""
@@ -278,6 +295,7 @@ def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", QI="
 
     return description
 
+
 def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", QI="RadauIIA5"):
     """Sets up the RadauIIA sweeper with certain parameters."""
 
@@ -296,19 +314,20 @@ def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", QI="Ra
 
     return description
 
+
 def compute_solution(
-        problem_name,
-        t0,
-        dt,
-        Tend,
-        num_nodes,
-        QI,
-        sweeper_type,
-        use_mpi=False,
-        hook_class=[],
-        measure=True,
-        **kwargs,
-    ):
+    problem_name,
+    t0,
+    dt,
+    Tend,
+    num_nodes,
+    QI,
+    sweeper_type,
+    use_mpi=False,
+    hook_class=[],
+    measure=True,
+    **kwargs,
+):
     comm = kwargs.get("comm", None)
 
     description = {}
@@ -319,17 +338,11 @@ def compute_solution(
     description = setup_problem(problem_name, QI, description, corrected_sweeper_type, **kwargs)
 
     if QI in QI_SERIAL + QI_PARALLEL:
-        description = setup_sweeper_sdc(
-            description, num_nodes, corrected_sweeper_type, QI, use_mpi, **kwargs
-        )
+        description = setup_sweeper_sdc(description, num_nodes, corrected_sweeper_type, QI, use_mpi, **kwargs)
     elif QI in RADAU_METHODS:
-        description = setup_sweeper_coll_method(
-            description, corrected_sweeper_type, QI
-        )
+        description = setup_sweeper_coll_method(description, corrected_sweeper_type, QI)
     elif QI in RK_METHODS:
-        description = setup_sweeper_rk_method(
-            description, corrected_sweeper_type, QI
-        )
+        description = setup_sweeper_rk_method(description, corrected_sweeper_type, QI)
 
     # instantiate controller
     logger_level = kwargs.get("logger_level", 30)
@@ -344,7 +357,7 @@ def compute_solution(
     if use_mpi:
         if comm is None:
             comm = MPI.COMM_WORLD
-        comm.Barrier()             # alle Prozesse bereit
+        comm.Barrier()
         t_start = MPI.Wtime()
     elif measure:
         t_start = time.time()

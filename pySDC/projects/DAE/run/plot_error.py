@@ -17,11 +17,14 @@ from pySDC.projects.DAE.misc.hooksDAE import (
 )
 from pySDC.projects.DAE.problems.reactionDiffusionPDAE import LogGlobalErrorPostIterAlgebraicEquation
 from pySDC.implementations.hooks.log_embedded_error_estimate import (
-    LogEmbeddedErrorEstimate, LogEmbeddedErrorEstimatePostIter
+    LogEmbeddedErrorEstimate,
+    LogEmbeddedErrorEstimatePostIter,
 )
 
 
-def plot_error_vs_iteration(problem_name="LINEAR-TEST", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_error_vs_iteration(
+    problem_name="LINEAR-TEST", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"
+):
     figsize = figsize_by_journal(journal, scale=0.5, ratio=0.9)
 
     QI_list = ["IE", "EE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
@@ -60,7 +63,9 @@ def plot_error_vs_iteration(problem_name="LINEAR-TEST", sweeper_type="constraine
                 )
 
                 x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_post_iteration", sortby="iter")]
-                err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_iteration", sortby="iter")]
+                err_values = [
+                    me[1] for me in get_sorted(solution_stats, type=f"e_global_post_iteration", sortby="iter")
+                ]
 
                 axs.semilogy(x, err_values, color=colors[key], label=f"{QI}")
 
@@ -109,7 +114,9 @@ def plot_error_vs_iteration(problem_name="LINEAR-TEST", sweeper_type="constraine
                 )
 
                 x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_post_iteration", sortby="iter")]
-                err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_iteration", sortby="iter")]
+                err_values = [
+                    me[1] for me in get_sorted(solution_stats, type=f"e_global_post_iteration", sortby="iter")
+                ]
 
                 axs.semilogy(x, err_values, color=colors[key], label=f"{QI}")
 
@@ -135,10 +142,11 @@ def plot_error_vs_iteration(problem_name="LINEAR-TEST", sweeper_type="constraine
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
 
+
 def run_and_plot_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
-    sweeper_types = ["constrainedDAE"]#["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    sweeper_types = ["constrainedDAE"]
     QI_list = ["EE", "MIN-SR-NS", "Picard"]
 
     t0 = 0.0
@@ -174,8 +182,12 @@ def run_and_plot_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", j
             )
 
             x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
-            err_diff_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_iteration", sortby="iter")]
-            err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
+            err_diff_values = [
+                me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_iteration", sortby="iter")
+            ]
+            err_alg_values = [
+                me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")
+            ]
 
             ax_flatten[2 * q].semilogy(x, err_diff_values, color=colors[key], label=sweeper_labels[sweeper_type])
             ax_flatten[2 * q + 1].semilogy(x, err_alg_values, color=colors[key])
@@ -208,7 +220,7 @@ def run_and_plot_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", j
 def run_and_plot_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
 
-    sweeper_types = ["constrainedDAE"]#["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    sweeper_types = ["constrainedDAE"]
     QI_list = ["IE", "LU", "MIN-SR-S"]
 
     t0 = 0.0
@@ -262,13 +274,14 @@ def run_and_plot_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journa
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
+
 def plot_qend_error_vs_runtime(num_nodes, problem_name="ANDREWS-SQUEEZER", journal="Springer_Scientific_Computing"):
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import qend_ref_testset
     from pySDC.implementations.hooks.log_solution import LogSolution
 
     figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
 
-    sweeper_types = ["semiImplicitDAE"]#["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    sweeper_types = ["semiImplicitDAE"]
     QI_list = ["EE", "IE", "LU", "MIN-SR-NS"]
 
     t0 = 0.0
@@ -306,12 +319,12 @@ def plot_qend_error_vs_runtime(num_nodes, problem_name="ANDREWS-SQUEEZER", journ
                 u_val = get_sorted(solution_stats, type="u", sortby="time")
                 t = np.array([me[0] for me in u_val])
                 u = np.array([me[1].flatten() for me in u_val])
-                q = u[:, : 7]
+                q = u[:, :7]
 
                 i = np.searchsorted(t, Tend)
                 if i < len(t) and np.isclose(t[i], Tend, atol=1e-14):
                     ind = i
-                elif i > 0 and np.isclose(t[i-1], Tend, atol=1e-14):
+                elif i > 0 and np.isclose(t[i - 1], Tend, atol=1e-14):
                     ind = i - 1
                 else:
                     print("No suitable entry found.")
@@ -344,10 +357,11 @@ def plot_qend_error_vs_runtime(num_nodes, problem_name="ANDREWS-SQUEEZER", journ
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
 
+
 def plot_error_vs_runtime(num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
 
-    sweeper_types = ["constrainedDAE"]#["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    sweeper_types = ["constrainedDAE"]
     QI_list = ["IE", "LU", "MIN-SR-NS"]
 
     t0 = 0.0
@@ -406,7 +420,10 @@ def plot_error_vs_runtime(num_nodes, problem_name="LINEAR-TEST", journal="Spring
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
 
-def plot_embedded_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
+
+def plot_embedded_error_vs_iteration(
+    dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
+):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
     sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
@@ -445,8 +462,14 @@ def plot_embedded_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", 
                 e_tol=-1,
             )
 
-            x = [me[0] for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="iter")]
-            embedded_err_values = [me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="iter")]
+            x = [
+                me[0]
+                for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="iter")
+            ]
+            embedded_err_values = [
+                me[1]
+                for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="iter")
+            ]
 
             ax_flatten[q].semilogy(x, embedded_err_values, color=colors[key], label=sweeper_labels[sweeper_type])
 
@@ -467,6 +490,7 @@ def plot_embedded_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", 
 
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
+
 
 def plot_embedded_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
@@ -507,7 +531,9 @@ def plot_embedded_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journ
             )
 
             x = [me[0] for me in get_sorted(solution_stats, type=f"error_embedded_estimate", sortby="time")]
-            embedded_err_values = [me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate", sortby="time")]
+            embedded_err_values = [
+                me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate", sortby="time")
+            ]
 
             ax_flatten[q].semilogy(x, embedded_err_values, color=colors[key], label=sweeper_labels[sweeper_type])
 
@@ -529,11 +555,16 @@ def plot_embedded_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journ
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
+
 def plot_algebraic_error_vs_iteration(
-        dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="png"
-    ):
+    dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="png"
+):
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.6)
-    pair_to_compare = ("constrainedDAE", "MIN-SR-NS") if problem_name in ["ANDREWS-SQUEEZER", "LINEAR-TEST"] else ("constrainedDAE", "MIN-SR-S")
+    pair_to_compare = (
+        ("constrainedDAE", "MIN-SR-NS")
+        if problem_name in ["ANDREWS-SQUEEZER", "LINEAR-TEST"]
+        else ("constrainedDAE", "MIN-SR-S")
+    )
 
     sweeper_type_QI_pair_list = [
         pair_to_compare,
@@ -556,7 +587,6 @@ def plot_algebraic_error_vs_iteration(
 
     my_setup_mpl(fontsize=7)
     colors, markers, sweeper_labels = my_plot_style_config()
-    linestyles = ["solid", "dashed", "dotted"]
 
     fig, ax = plt.subplots(1, 1, figsize=figsize)
     for sweeper_type_QI_pair in sweeper_type_QI_pair_list:
@@ -581,7 +611,9 @@ def plot_algebraic_error_vs_iteration(
             )
 
             x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
-            err_alg_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
+            err_alg_values = [
+                me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")
+            ]
 
             label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
             ax.semilogy(x, err_alg_values, color=colors[key], marker=markers[key], label=label)
@@ -608,7 +640,10 @@ def plot_algebraic_error_vs_iteration(
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
-def plot_algebraic_equation_vs_iteration(dt, num_nodes=3, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
+
+def plot_algebraic_equation_vs_iteration(
+    dt, num_nodes=3, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
+):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
     sweeper_type = "constrainedDAE"
@@ -645,7 +680,9 @@ def plot_algebraic_equation_vs_iteration(dt, num_nodes=3, problem_name="LINEAR-T
         )
 
         x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_algebraic_eq_post_iteration", sortby="iter")]
-        embedded_err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_eq_post_iteration", sortby="iter")]
+        embedded_err_values = [
+            me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_eq_post_iteration", sortby="iter")
+        ]
 
         axs.semilogy(x, embedded_err_values, color=colors[key], label=sweeper_labels[sweeper_type] + "-" + f"{QI}")
 

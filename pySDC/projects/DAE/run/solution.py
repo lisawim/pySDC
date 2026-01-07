@@ -91,14 +91,15 @@ def plot_numerical_solution(problem_name, dt=1e-2, num_nodes=3, problem_type="co
     fig.savefig(filename, dpi=400, bbox_inches='tight')
     plt.close(fig)
 
+
 def plot_numerical_solution_reaction_diffusion(
-        dt=1e-2,
-        journal="Springer_Scientific_Computing",
-        num_nodes=3,
-        problem_type="semiImplicitDAE",
-        QI="LU",
-        Tend=0.5,
-    ):
+    dt=1e-2,
+    journal="Springer_Scientific_Computing",
+    num_nodes=3,
+    problem_type="semiImplicitDAE",
+    QI="LU",
+    Tend=0.5,
+):
     problem_name = "REACTION-DIFFUSION"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
 
@@ -108,10 +109,20 @@ def plot_numerical_solution_reaction_diffusion(
     nvars = 256
 
     hook_class = [LogSolution]
-    maxiter = 0#2 * num_nodes-1
+    maxiter = 0
 
     solution_stats = compute_solution(
-        problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False, nvars=nvars, maxiter=maxiter
+        problem_name,
+        t0,
+        dt,
+        Tend,
+        num_nodes,
+        QI,
+        problem_type,
+        hook_class=hook_class,
+        measure=False,
+        nvars=nvars,
+        maxiter=maxiter,
     )
 
     problem_params = {"nvars": nvars}
@@ -120,7 +131,6 @@ def plot_numerical_solution_reaction_diffusion(
     my_setup_mpl(fontsize=8)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
-    wx_val = get_sorted(solution_stats, type="wx", sortby="time")
 
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
@@ -129,19 +139,19 @@ def plot_numerical_solution_reaction_diffusion(
         u = np.array([np.fft.irfft(me[1][: prob.Nr], n=prob.N) for me in u_val])
         v = np.array([np.fft.irfft(me[1][prob.Nr : 2 * prob.Nr], n=prob.N) for me in u_val])
         w = np.array([np.fft.irfft(me[1][2 * prob.Nr : 3 * prob.Nr], n=prob.N) for me in u_val])
-        u_all = np.array([me[1][:] for me in u_val])
     else:
-        u = np.array([me[1].diff[: nvars] for me in u_val])
-        v = np.array([me[1].diff[nvars :] for me in u_val])
-        w = np.array([me[1].alg[: nvars] for me in u_val])
-        wx = np.array([me[1] for me in u_val])
+        u = np.array([me[1].diff[:nvars] for me in u_val])
+        v = np.array([me[1].diff[nvars:] for me in u_val])
+        w = np.array([me[1].alg[:nvars] for me in u_val])
 
     xvalues = prob.xvalues
     ax_flatten[0].plot(xvalues, u[-1], label="numerical solution")
     ax_flatten[1].plot(xvalues, v[-1])
     ax_flatten[2].plot(xvalues, w[-1])
 
-    ax_flatten[0].plot(xvalues, prob.u_ex(Tend, x_deriv=0, t_deriv=0), linestyle="dotted", color="black", label="exact solution")
+    ax_flatten[0].plot(
+        xvalues, prob.u_ex(Tend, x_deriv=0, t_deriv=0), linestyle="dotted", color="black", label="exact solution"
+    )
     ax_flatten[1].plot(xvalues, prob.v_ex(Tend, x_deriv=0, t_deriv=0), linestyle="dotted", color="black")
     ax_flatten[2].plot(xvalues, prob.w_ex(Tend, x_deriv=0), linestyle="dotted", color="black")
 
@@ -162,21 +172,24 @@ def plot_numerical_solution_reaction_diffusion(
 
     ax_flatten[3].remove()
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"solution_{problem_type}_{QI}_{dt=}_{num_nodes=}_{maxiter=}.png"
+    filename = (
+        "data" + "/" + f"{problem_name}" + "/" + f"solution_{problem_type}_{QI}_{dt=}_{num_nodes=}_{maxiter=}.png"
+    )
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig.savefig(filename, dpi=400, bbox_inches='tight')
     plt.close(fig)
 
+
 def plot_numerical_solution_pre_iteration0_reaction_diffusion(
-        dt=1e-2,
-        journal="Springer_Scientific_Computing",
-        num_nodes=3,
-        problem_type="constrainedDAE",
-        QI="LU",
-        Tend=0.5,
-    ):
+    dt=1e-2,
+    journal="Springer_Scientific_Computing",
+    num_nodes=3,
+    problem_type="constrainedDAE",
+    QI="LU",
+    Tend=0.5,
+):
     problem_name = "REACTION-DIFFUSION"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
 
@@ -186,7 +199,7 @@ def plot_numerical_solution_pre_iteration0_reaction_diffusion(
     nvars = 256
 
     problem_params = {"nvars": nvars}
-    prob = ReactionDiffusionPDAE_FFT_Radau(**problem_params)
+    prob = ReactionDiffusionPDAE_Radau(**problem_params)
 
     my_setup_mpl(fontsize=8)
 
@@ -209,7 +222,9 @@ def plot_numerical_solution_pre_iteration0_reaction_diffusion(
     ax_flatten[1].plot(xvalues, v)
     ax_flatten[2].plot(xvalues, w)
 
-    ax_flatten[0].plot(xvalues, prob.u_ex(Tend, x_deriv=0, t_deriv=0), linestyle="dotted", color="black", label="exact solution")
+    ax_flatten[0].plot(
+        xvalues, prob.u_ex(Tend, x_deriv=0, t_deriv=0), linestyle="dotted", color="black", label="exact solution"
+    )
     ax_flatten[1].plot(xvalues, prob.v_ex(Tend, x_deriv=0, t_deriv=0), linestyle="dotted", color="black")
     ax_flatten[2].plot(xvalues, prob.w_ex(Tend, x_deriv=0), linestyle="dotted", color="black")
 
@@ -230,7 +245,9 @@ def plot_numerical_solution_pre_iteration0_reaction_diffusion(
 
     ax_flatten[3].remove()
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"solution_pre_iteration0_{problem_type}_{QI}_{dt=}_{num_nodes=}.png"
+    filename = (
+        "data" + "/" + f"{problem_name}" + "/" + f"solution_pre_iteration0_{problem_type}_{QI}_{dt=}_{num_nodes=}.png"
+    )
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -239,12 +256,12 @@ def plot_numerical_solution_pre_iteration0_reaction_diffusion(
 
 
 def plot_numerical_solution_reaction_diffusion_video(
-        dt=1e-2,
-        journal="Springer_Scientific_Computing",
-        num_nodes=3,
-        problem_type="constrainedDAE",
-        QI="LU",
-    ):
+    dt=1e-2,
+    journal="Springer_Scientific_Computing",
+    num_nodes=3,
+    problem_type="constrainedDAE",
+    QI="LU",
+):
     problem_name = "REACTION-DIFFUSION-FD"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
 
@@ -253,11 +270,21 @@ def plot_numerical_solution_reaction_diffusion_video(
 
     nvars = 256
 
-    hook_class = [LogSolution]#, LogSolutionConcentrationGradient]
-    maxiter = 2 * num_nodes-1
+    hook_class = [LogSolution]
+    maxiter = 2 * num_nodes - 1
 
     solution_stats = compute_solution(
-        problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False, nvars=nvars, maxiter=maxiter
+        problem_name,
+        t0,
+        dt,
+        Tend,
+        num_nodes,
+        QI,
+        problem_type,
+        hook_class=hook_class,
+        measure=False,
+        nvars=nvars,
+        maxiter=maxiter,
     )
 
     problem_params = {"nvars": nvars}
@@ -275,18 +302,18 @@ def plot_numerical_solution_reaction_diffusion_video(
         v = np.array([np.fft.irfft(me[1][prob.Nr : 2 * prob.Nr], n=prob.N) for me in u_stats])
         w = np.array([np.fft.irfft(me[1][2 * prob.Nr : 3 * prob.Nr], n=prob.N) for me in u_stats])
     else:
-        u = np.array([me[1].diff[: nvars] for me in u_stats])
-        v = np.array([me[1].diff[nvars :] for me in u_stats])
-        w = np.array([me[1].alg[: nvars] for me in u_stats])
+        u = np.array([me[1].diff[:nvars] for me in u_stats])
+        v = np.array([me[1].diff[nvars:] for me in u_stats])
+        w = np.array([me[1].alg[:nvars] for me in u_stats])
         # wx = np.array([me[1] for me in wx_stats])
         # wxx = np.array([me[1] for me in wxx_stats])
 
     xvalues = prob.xvalues
 
-    fig, ax = plt.subplots()
-    line_u, = ax.plot([], [], label="u(x,t)")
-    line_v, = ax.plot([], [], linestyle="dashed", label="v(x,t)")
-    line_w, = ax.plot([], [], label="w(x,t)")
+    fig, ax = plt.subplots(figsize=figsize)
+    (line_u,) = ax.plot([], [], label="u(x,t)")
+    (line_v,) = ax.plot([], [], linestyle="dashed", label="v(x,t)")
+    (line_w,) = ax.plot([], [], label="w(x,t)")
     # line_wx, = ax.plot([], [], label="wx(x,t)")
     # line_wxx, = ax.plot([], [], label="wxx(x,t)")
     ax.set_xlim(0, 1)
@@ -318,11 +345,8 @@ def plot_numerical_solution_reaction_diffusion_video(
         # line_wxx.set_data(xvalues, wxx[i])
         title.set_text(f"t = {t[i]:.2f}")
         return line_u, line_v, line_w, title
-    
-    ani = animation.FuncAnimation(
-        fig, animate, frames=len(t), init_func=init,
-        blit=True, interval=50
-    )
+
+    ani = animation.FuncAnimation(fig, animate, frames=len(t), init_func=init, blit=True, interval=50)
 
     filename_mp4 = "data" + "/" + f"{problem_name}" + "/" + "solution_time.mp4"
     ani.save(filename_mp4, fps=20)
@@ -342,7 +366,7 @@ if __name__ == "__main__":
     t0 = 0.0
     dt = 1e-2
     plot_numerical_solution_reaction_diffusion(
-        dt=dt, num_nodes=3, problem_type="fullyImplicitDAE", QI="RadauIIA5", Tend=t0+dt
+        dt=dt, num_nodes=3, problem_type="fullyImplicitDAE", QI="RadauIIA5", Tend=t0 + dt
     )
     # plot_numerical_solution_pre_iteration0_reaction_diffusion(
     #     dt=dt, num_nodes=3, problem_type="fullyImplicitDAE", QI="RadauIIA5", Tend=t0+dt

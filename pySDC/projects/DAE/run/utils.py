@@ -104,8 +104,21 @@ def my_plot_style_config():
 
     return colors, markers, sweeper_labels
 
+def newton_tol(dt, dt_ref=2.6e-3, tol_ref=8e-13):
+    return tol_ref * (dt / dt_ref)
+
+def set_correct_sweeper_type(sweeper_type, QI):
+    if QI in RADAU_METHODS and sweeper_type != "fullyImplicitDAE":
+        return "fullyImplicitDAE"
+    elif QI in RK_METHODS and sweeper_type != "constrainedDAE":
+        return "constrainedDAE"
+    else:
+        return sweeper_type
+
 def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
+
+    dt = description["level_params"]["dt"]
 
     if problem_name == "ANDREWS-SQUEEZER":
         if sweeper_type == "constrainedDAE":
@@ -121,7 +134,7 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
             from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import SemiImplicitAndrewsSqueezingMechanismDAE as problem
 
         description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-9)
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 130)}
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 15)}
         description["problem_params"] = {"index": 1, "solver_type": "newton"}
 
     elif problem_name == "LINEAR-TEST":
@@ -138,7 +151,7 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
         description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 120)}
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 12)}
         description["problem_params"] = {"solver_type": "direct"}
 
     elif problem_name == "REACTION-DIFFUSION":
@@ -153,10 +166,13 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
         description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)  # for M > 5 we need to set e_tol = 1e-12!
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 25)}
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 15)}
+
+        tol = newton_tol(dt)
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),
-            "newton_tol": 1.3e-11,  # 1e-14,
+            "newton_tol": tol,
+            "newton_maxiter": 7,
         }
         if not QI.startswith("RadauIIA"):
             description["problem_params"]["spectral"] = kwargs.get("spectral", True)
@@ -178,7 +194,7 @@ def get_sweeper_class_coll_method(QI: str):
     return sweeper
 
 def get_sweeper_class_rk_method(QI: str):
-    """Import the collocation sweeper class."""
+    """Import the Runge-Kutta sweeper class."""
 
     if QI == "DOPRI5":
         from pySDC.projects.DAE.sweepers.rungeKuttaAllowingExplicitSolve import DOPRI5 as sweeper
@@ -244,7 +260,7 @@ def setup_sweeper_sdc(
 
     return description
 
-def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", num_nodes=3, QI="RadauIIA5"):
+def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", QI="RadauIIA5"):
     """Sets up the RadauIIA sweeper with certain parameters."""
 
     if sweeper_type != "fullyImplicitDAE":
@@ -262,7 +278,7 @@ def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", num_
 
     return description
 
-def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", num_nodes=3, QI="RadauIIA5"):
+def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", QI="RadauIIA5"):
     """Sets up the RadauIIA sweeper with certain parameters."""
 
     if sweeper_type != "constrainedDAE":
@@ -298,19 +314,21 @@ def compute_solution(
     description = {}
     description["level_params"] = {"dt": dt}
 
-    description = setup_problem(problem_name, QI, description, sweeper_type, **kwargs)
+    corrected_sweeper_type = set_correct_sweeper_type(sweeper_type, QI)
+
+    description = setup_problem(problem_name, QI, description, corrected_sweeper_type, **kwargs)
 
     if QI in QI_SERIAL + QI_PARALLEL:
         description = setup_sweeper_sdc(
-            description, num_nodes, sweeper_type, QI, use_mpi, **kwargs
+            description, num_nodes, corrected_sweeper_type, QI, use_mpi, **kwargs
         )
     elif QI in RADAU_METHODS:
         description = setup_sweeper_coll_method(
-            description, sweeper_type, num_nodes, QI
+            description, corrected_sweeper_type, QI
         )
     elif QI in RK_METHODS:
         description = setup_sweeper_rk_method(
-            description, sweeper_type, num_nodes, QI
+            description, corrected_sweeper_type, QI
         )
 
     # instantiate controller

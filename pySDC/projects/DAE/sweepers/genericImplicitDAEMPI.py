@@ -1,10 +1,13 @@
 from mpi4py import MPI
 
 from pySDC.implementations.sweeper_classes.generic_implicit_MPI import SweeperMPI
-from pySDC.playgrounds.DAE.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
+from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained, genericImplicitEmbedded
 
 
 class genericImplicitConstrainedMPI(SweeperMPI, genericImplicitConstrained):
+
+    def __init__(self, params, level):
+        super().__init__(params, level)
 
     def integrate(self, last_only=False):
         """

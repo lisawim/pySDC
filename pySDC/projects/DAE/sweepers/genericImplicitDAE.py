@@ -24,7 +24,7 @@ class genericImplicitConstrained(generic_implicit):
        \mathbf{0} = g(\mathbf{y}^{k+1}, \mathbf{z}^{k+1}).
     """
 
-    def __init__(self, params):
+    def __init__(self, params, level):
         """
         Initialization routine for the custom sweeper
 
@@ -36,7 +36,7 @@ class genericImplicitConstrained(generic_implicit):
             params['QI'] = 'IE'
 
         # call parent's initialization routine
-        super().__init__(params)
+        super().__init__(params, level)
 
         self.elapsed_time_update_coeffs = 0.0
 
@@ -64,7 +64,7 @@ class genericImplicitConstrained(generic_implicit):
                 me[-1].diff[:] += L.dt * self.coll.Qmat[m, j] * L.f[j].diff[:]
 
         return me
-    
+
     def update_nodes(self):
         """
         Update the u- and f-values at the collocation nodes -> corresponds to a single sweep over all nodes
@@ -216,7 +216,7 @@ class genericImplicitEmbedded(generic_implicit):
     the scheme is embedded in the way that it can be naively applied to the corresponding DAE.
     """
 
-    def __init__(self, params):
+    def __init__(self, params, level):
         """
         Initialization routine for the custom sweeper
 
@@ -228,7 +228,7 @@ class genericImplicitEmbedded(generic_implicit):
             params['QI'] = 'IE'
 
         # call parent's initialization routine
-        super().__init__(params)
+        super().__init__(params, level)
 
         # get QI matrix
         self.QI = self.get_Qdelta_implicit(qd_type=self.params.QI)
@@ -351,7 +351,7 @@ class genericImplicitEmbedded(generic_implicit):
                 f'residual_type = {L.params.residual_type} not implemented, choose '
                 f'full_abs, last_abs, full_rel or last_rel instead'
             )
-        # print(L.dt, L.status.residual)
+
         # indicate that the residual has seen the new values
         L.status.updated = False
 

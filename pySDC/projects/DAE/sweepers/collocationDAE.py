@@ -1,6 +1,5 @@
 import numpy as np
 
-from pySDC.core.errors import ParameterError
 from pySDC.implementations.sweeper_classes.Runge_Kutta import ButcherTableau
 from pySDC.projects.DAE.sweepers.rungeKuttaDAE import RungeKuttaDAE
 from pySDC.implementations.sweeper_classes.Runge_Kutta import ButcherTableau
@@ -9,8 +8,8 @@ from qmat import Q_GENERATORS
 
 
 class CollocationDAE(RungeKuttaDAE):
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, params, level):
+        super().__init__(params, level)
 
     def update_nodes(self):
         """

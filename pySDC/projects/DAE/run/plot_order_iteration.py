@@ -22,8 +22,8 @@ def choose_time_step_sizes(problem_name):
         n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500]
         Tend = 1.0
     elif problem_name == "REACTION-DIFFUSION":
-        n_steps_list = [50, 100, 200, 500, 1000, 2000, 5000]
-        Tend = 0.75  # 0.5
+        n_steps_list = [2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000]
+        Tend = 0.25
     else:
         raise NotImplementedError
 
@@ -415,7 +415,8 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
 
     t0 = 0.0
     dt_list, Tend = choose_time_step_sizes(problem_name)
-    dt_list_short = dt_list[: 4]#dt_list[3 : 7]
+    dt_list_pov = dt_list[3 :]
+    dt_list_short = dt_list_pov[: 4]#dt_list[3 : 7]
 
     hook_class = [
         LogGlobalErrorPreIterConcentrations,
@@ -437,7 +438,7 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
 
         fig_g, axs_g = plt.subplots(1, 2, figsize=figsize_g)
 
-        for dt in dt_list:
+        for dt in dt_list_pov:
             solution_stats = compute_solution(
                 problem_name,
                 t0,
@@ -484,7 +485,7 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             err_w_iter = [res[k] for res in errors_w]
 
             axs_g[0].loglog(
-                dt_list,
+                dt_list_pov,
                 abs_g_iter,
                 color=colors[k],
                 marker=markers[k],
@@ -493,7 +494,7 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             )
 
             axs_g[1].loglog(
-                dt_list,
+                dt_list_pov,
                 abs_g_newton_iter,
                 color=colors[k],
                 marker=markers[k],
@@ -501,7 +502,7 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             )
 
             ax_flatten[0].loglog(
-                dt_list,
+                dt_list_pov,
                 err_u_iter,
                 color=colors[k],
                 marker=markers[k],
@@ -510,7 +511,7 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             )
 
             ax_flatten[1].loglog(
-                dt_list,
+                dt_list_pov,
                 err_v_iter,
                 color=colors[k],
                 marker=markers[k],
@@ -518,16 +519,16 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             )
 
             ax_flatten[2].loglog(
-                dt_list,
+                dt_list_pov,
                 err_w_iter,
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
             )
 
-            C_u = compute_constant_reference_order(dt_list, err_u_iter, k)
-            C_v = compute_constant_reference_order(dt_list, err_v_iter, k)
-            C_w = compute_constant_reference_order(dt_list, err_w_iter, k)
+            C_u = compute_constant_reference_order(dt_list_pov, err_u_iter, k)
+            C_v = compute_constant_reference_order(dt_list_pov, err_v_iter, k)
+            C_w = compute_constant_reference_order(dt_list_pov, err_w_iter, k)
 
             # Reference order
             ax_flatten[0].loglog(
@@ -555,8 +556,8 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             )
 
             if k > 0:
-                C_g = compute_constant_reference_order(dt_list, abs_g_iter, k)
-                C_g_newton = compute_constant_reference_order(dt_list, abs_g_newton_iter, k)
+                C_g = compute_constant_reference_order(dt_list_pov, abs_g_iter, k)
+                C_g_newton = compute_constant_reference_order(dt_list_pov, abs_g_newton_iter, k)
 
                 axs_g[0].loglog(
                     dt_list[: 3],
@@ -1144,7 +1145,7 @@ def plot_order_integration_error_reaction_diffusion(sweeper_type="constrainedDAE
 
 
 if __name__ == "__main__":
-    import time
-    # plot_order_linear()
-    # plot_order_andrews()
-    plot_order_reaction_diffusion(format="png")
+    format = "png"
+    # plot_order_linear(format=format)
+    # plot_order_andrews(format=format)
+    plot_order_reaction_diffusion(format=format)

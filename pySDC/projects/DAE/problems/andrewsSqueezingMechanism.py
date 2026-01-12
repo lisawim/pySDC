@@ -558,13 +558,11 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
 
         self.M[3, 3] = self.m4 * (self.e - self.ea) ** 2 + self.I4
 
-        self.M[4, 3] = self.m4 * (self.e - self.ea) ** 2 + self.zt * (self.e - self.ea) * np.sin(q4) + self.I4
+        self.M[4, 3] = self.m4 * ((self.e - self.ea) ** 2 + self.zt * (self.e - self.ea) * np.sin(q4)) + self.I4
         self.M[3, 4] = self.M[4, 3]
 
         self.M[4, 4] = (
-            self.m4 * self.zt**2
-            + 2 * self.zt * (self.e - self.ea) * np.sin(q4)
-            + (self.e - self.ea) ** 2
+            self.m4 * (self.zt**2 + 2 * self.zt * (self.e - self.ea) * np.sin(q4) + (self.e - self.ea) ** 2)
             + self.m5 * (self.ta**2 + self.tb**2)
             + self.I4
             + self.I5
@@ -792,12 +790,12 @@ class AndrewsSqueezingMechanismDAE(ProblemDAE):
         while n < self.newton_maxiter:
             g = impl_sys_numpy(u)
 
-            # If h is close to 0, then we are done
+            # If g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 break
 
-            # Assemble dh
+            # Assemble dg
             dg = self.dg(factor)
 
             # Newton direction dx
@@ -1481,7 +1479,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             g2 = v - factor * w - rhs_diff2
             f_alg = self.algebraic_constraints(u, t)
 
-            # Form the function h(u), such that the solution to the nonlinear problem is a root of h
+            # Form the function g(u), such that the solution to the nonlinear problem is a root of h
             g = np.concatenate((g1, g2, f_alg))
 
             # If g is close to 0, then we are done
@@ -1489,7 +1487,7 @@ class AndrewsSqueezingMechanismDAEConstrained(AndrewsSqueezingMechanismDAE):
             if res < self.newton_tol:
                 break
 
-            # Assemble dh
+            # Assemble dg
             dg = self.dg(factor)
 
             # Newton direction dx
@@ -1740,7 +1738,7 @@ class AndrewsSqueezingMechanismDAEEmbedded(AndrewsSqueezingMechanismDAEConstrain
             g2 = v - factor * w - rhs.diff[7:14]
             g3 = -factor * self.algebraic_constraints(u, t)[:] - rhs.alg[:13]
 
-            # Form the function h(u), such that the solution to the nonlinear problem is a root of h
+            # Form the function g(u), such that the solution to the nonlinear problem is a root of h
             g = np.concatenate((g1, g2, g3))
 
             # If g is close to 0, then we are done

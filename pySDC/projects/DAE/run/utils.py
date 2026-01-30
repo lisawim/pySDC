@@ -119,6 +119,15 @@ def set_correct_sweeper_type(sweeper_type, QI):
         return sweeper_type
 
 
+def setup_convergence_controllers(description, use_mpi, use_mpi_grouped):
+    if use_mpi and use_mpi_grouped:
+        from pySDC.projects.DAE.misc.estimate_embedded_error_mpi_grouped import EstimateEmbeddedErrorMPIGrouped
+
+        description["convergence_controllers"] = {EstimateEmbeddedErrorMPIGrouped: {}}
+
+    return description
+
+
 def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
     """Sets up the problem with certain parameters."""
 
@@ -218,18 +227,31 @@ def get_sweeper_class_rk_method(QI: str):
     return sweeper
 
 
-def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
+def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: bool = False):
     """Import the SDC sweeper class."""
 
     if use_mpi:
-        if sweeper_type == "constrainedDAE":
-            from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
-        elif sweeper_type == "embeddedDAE":
-            from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
-        elif sweeper_type == "fullyImplicitDAE":
-            from pySDC.projects.DAE.sweepers.fullyImplicitDAEMPI import FullyImplicitDAEMPI as sweeper
-        elif sweeper_type == "semiImplicitDAE":
-            from pySDC.projects.DAE.sweepers.semiImplicitDAEMPI import SemiImplicitDAEMPI as sweeper
+        if not use_mpi_grouped:
+            if sweeper_type == "constrainedDAE":
+                from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
+            elif sweeper_type == "embeddedDAE":
+                from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
+            elif sweeper_type == "fullyImplicitDAE":
+                from pySDC.projects.DAE.sweepers.fullyImplicitDAEMPI import FullyImplicitDAEMPI as sweeper
+            elif sweeper_type == "semiImplicitDAE":
+                from pySDC.projects.DAE.sweepers.semiImplicitDAEMPI import SemiImplicitDAEMPI as sweeper
+            else:
+                NotImplementedError(f"No MPI sweeper implemented for {sweeper_type}!")
+        else:
+            if sweeper_type == "constrainedDAE":
+                from pySDC.projects.DAE.sweepers.genericImplicitConstrainedMPIGrouped import (
+                    genericImplicitConstrainedMPIGrouped as sweeper,
+                )
+            elif sweeper_type == "semiImplicitDAE":
+                from pySDC.projects.DAE.sweepers.semiImplicitDAEMPIGrouped import SemiImplicitDAEMPIGrouped as sweeper
+            else:
+                NotImplementedError(f"No grouped MPI sweeper implemented for {sweeper_type}!")
+
     else:
         if sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained as sweeper
@@ -239,6 +261,8 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str):
             from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE as sweeper
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.sweepers.semiImplicitDAE import SemiImplicitDAE as sweeper
+        else:
+            NotImplementedError(f"No sweeper implemented for {sweeper_type}!")
 
     return sweeper
 
@@ -249,13 +273,14 @@ def setup_sweeper_sdc(
     sweeper_type="constrainedDAE",
     QI="LU",
     use_mpi=False,
+    use_mpi_grouped=False,
     **kwargs,
 ):
     """Sets up the SDC sweeper with certain parameters."""
 
     skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
 
-    sdc_sweeper = get_sweeper_class_sdc(use_mpi, sweeper_type)
+    sdc_sweeper = get_sweeper_class_sdc(use_mpi, sweeper_type, use_mpi_grouped)
     description["sweeper_class"] = sdc_sweeper
 
     description["sweeper_params"] = {
@@ -272,7 +297,11 @@ def setup_sweeper_sdc(
     if use_mpi and "comm" in kwargs:
         comm = kwargs["comm"]
         description["sweeper_params"]["comm"] = comm
-        assert num_nodes == comm.Get_size(), f"Mismatch: {num_nodes} nodes, but {comm.Get_size()} MPI processes."
+        size = comm.Get_size()
+        if not use_mpi_grouped:
+            assert size == num_nodes, f"Mismatch: {num_nodes} nodes, but {size} MPI processes."
+        else:
+            assert size <= num_nodes, f"Need comm.size <= num_nodes. Got {size} MPI processes and {num_nodes=}."
 
     return description
 
@@ -324,6 +353,7 @@ def compute_solution(
     QI,
     sweeper_type,
     use_mpi=False,
+    use_mpi_grouped=False,
     hook_class=[],
     measure=True,
     **kwargs,
@@ -333,12 +363,16 @@ def compute_solution(
     description = {}
     description["level_params"] = {"dt": dt}
 
+    description = setup_convergence_controllers(description, use_mpi, use_mpi_grouped)
+
     corrected_sweeper_type = set_correct_sweeper_type(sweeper_type, QI)
 
     description = setup_problem(problem_name, QI, description, corrected_sweeper_type, **kwargs)
 
     if QI in QI_SERIAL + QI_PARALLEL:
-        description = setup_sweeper_sdc(description, num_nodes, corrected_sweeper_type, QI, use_mpi, **kwargs)
+        description = setup_sweeper_sdc(
+            description, num_nodes, corrected_sweeper_type, QI, use_mpi, use_mpi_grouped, **kwargs
+        )
     elif QI in RADAU_METHODS:
         description = setup_sweeper_coll_method(description, corrected_sweeper_type, QI)
     elif QI in RK_METHODS:

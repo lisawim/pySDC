@@ -40,5 +40,5 @@ if __name__ == "__main__":
     plot_algebraic_error_vs_iteration(1e-3, 6, problem_name="ANDREWS-SQUEEZER", format="png")  # Figure 7
     plot_order_reaction_diffusion(format=format)  # Figure 10
 
-    dt_list, _ = choose_time_step_sizes(problem_name=problem_name)
+    dt_list, _ = choose_time_step_sizes(problem_name="REACTION-DIFFUSION")
     plot_manifold_value_vs_iteration(dt=dt_list[0], num_nodes=6, problem_name="REACTION-DIFFUSION")  # Figure 13

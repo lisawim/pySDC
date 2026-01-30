@@ -184,7 +184,7 @@ class genericImplicitConstrained(generic_implicit):
                 f'residual_type = {L.params.residual_type} not implemented, choose '
                 f'full_abs, last_abs, full_rel or last_rel instead'
             )
-        # print(L.dt, L.status.residual)
+
         # indicate that the residual has seen the new values
         L.status.updated = False
 

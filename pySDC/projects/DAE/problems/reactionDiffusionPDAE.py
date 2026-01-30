@@ -1315,7 +1315,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
         for m in range(M):
             g_piece = g_hat[m * self.Nr_all : (m + 1) * self.Nr_all]
             g1, g2 = self.itransform(g_piece[: self.Nr], n=self.N), self.itransform(
-                g_piece[self.Nr : 2 * self.Nr], n=self.N)
+                g_piece[self.Nr : 2 * self.Nr], n=self.N
             )
             g3 = self.itransform(g_piece[2 * self.Nr : 3 * self.Nr], n=self.N)
             g_physical[m * n_phys : (m + 1) * n_phys] = np.concatenate((g1, g2, g3))

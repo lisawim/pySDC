@@ -1,4 +1,5 @@
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
+from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
 
 
 def get_configs(problem_name, config_type):
@@ -39,11 +40,12 @@ def get_configs(problem_name, config_type):
         QI_serial_methods = ["LU", "DOPRI5", "RadauIIA5", "RadauIIA7"]
         QI_parallel_methods = ["MIN-SR-NS", "MIN-SR-S"]
         sweepers = ["constrainedDAE", "semiImplicitDAE"]
+        dt_list, _ = choose_time_step_sizes(problem_name=problem_name)
 
         if problem_name == "LINEAR-TEST":
             config = {
                 "problem_name": problem_name,
-                "dt": 0.1,
+                "dt": dt_list[3],
                 "sweepers": sweepers,
                 "QI_serial_methods": QI_serial_methods,
                 "QI_parallel_methods": QI_parallel_methods,
@@ -52,7 +54,7 @@ def get_configs(problem_name, config_type):
         elif problem_name == "ANDREWS-SQUEEZER":
             config = {
                 "problem_name": problem_name,
-                "dt": 1e-3,
+                "dt": dt_list[0],
                 "sweepers": sweepers,
                 "QI_serial_methods": QI_serial_methods,
                 "QI_parallel_methods": QI_parallel_methods,
@@ -63,10 +65,14 @@ def get_configs(problem_name, config_type):
 
             config = {
                 "problem_name": problem_name,
-                "dt": 0.1,
+                "dt": dt_list[2],
                 "sweepers": sweepers,
                 "QI_serial_methods": QI_serial_methods,
                 "QI_parallel_methods": QI_parallel_methods,
             }
+
+    elif config_type == "breakeven":
+        config = get_configs(problem_name=problem_name, config_type="scaling")
+        config.pop("QI_serial_methods", None)
 
     return config

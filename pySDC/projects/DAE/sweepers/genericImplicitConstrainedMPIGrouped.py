@@ -146,8 +146,6 @@ class SweeperMPIGrouped(Sweeper):
         nd = L.f[0].diff.size
         dtype = L.f[0].diff.dtype
 
-        # print(f"[rank {self.rank}] ENTER _sync_f", flush=True)
-
         local = np.zeros((M, nd), dtype=dtype)
         for m in self.local_nodes:
             local[m, :] = L.f[m + 1].diff[:]
@@ -159,8 +157,6 @@ class SweeperMPIGrouped(Sweeper):
             if L.f[m + 1] is None:
                 L.f[m + 1] = P.dtype_f(P.init, val=0.0)
             L.f[m + 1].diff[:] = glob[m, :]
-
-        # print(f"[rank {self.rank}] EXIT  _sync_f", flush=True)
 
     def _sync_u(self, sync_diff=True, sync_alg=True):
         """
@@ -176,8 +172,6 @@ class SweeperMPIGrouped(Sweeper):
         L = self.level
         P = L.prob
         M = self.M
-
-        # print(f"[rank {self.rank}] ENTER _sync_u(diff={sync_diff}, alg={sync_alg})", flush=True)
 
         if sync_diff:
             nd = L.u[0].diff.size
@@ -208,8 +202,6 @@ class SweeperMPIGrouped(Sweeper):
 
             for m in range(M):
                 L.u[m + 1].alg[:] = glob_alg[m, :]
-
-        # print(f"[rank {self.rank}] EXIT _sync_u", flush=True)
 
 
 class genericImplicitConstrainedMPIGrouped(SweeperMPIGrouped, genericImplicitConstrained):
@@ -242,8 +234,6 @@ class genericImplicitConstrainedMPIGrouped(SweeperMPIGrouped, genericImplicitCon
         nd = self._ndiff()
         M = self.M
 
-        # print(f"[rank {self.rank}] ENTER integrate(last_only={last_only})", flush=True)
-
         dtype = L.f[0].diff.dtype
         local_I = np.zeros((M, nd), dtype=dtype)
 
@@ -258,7 +248,6 @@ class genericImplicitConstrainedMPIGrouped(SweeperMPIGrouped, genericImplicitCon
         # Sum contributions across ranks
         I = np.zeros_like(local_I)
         self.comm.Allreduce(local_I, I, op=MPI.SUM)
-        # print(f"[rank {self.rank}] EXIT integrate", flush=True)
         return I
 
     def integrate_node(self, m, last_only=False):
@@ -277,12 +266,6 @@ class genericImplicitConstrainedMPIGrouped(SweeperMPIGrouped, genericImplicitCon
         P = L.prob
         assert L.status.unlocked
 
-        # print(
-        #     f"[rank {self.rank}] ENTER update_nodes: "
-        #     f"time={L.time}, sweep={L.status.sweep}, iter={getattr(L.status,'iter',None)}",
-        #     flush=True
-        # )
-
         self.updateVariableCoeffs(L.status.sweep)
 
         # Build QF(u^k) for all m
@@ -290,7 +273,6 @@ class genericImplicitConstrainedMPIGrouped(SweeperMPIGrouped, genericImplicitCon
 
         # Serial only along local nodes
         for m in self.local_nodes:
-            # print(f"[rank {self.rank}] solve m={m}", flush=True)
             rhs = P.dtype_u(P.init, val=0.0)
             rhs.diff[:] = I[m, :]
 
@@ -310,29 +292,9 @@ class genericImplicitConstrainedMPIGrouped(SweeperMPIGrouped, genericImplicitCon
             )
             L.f[m + 1] = P.eval_f(L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
 
-            # --- DEBUG: NaN/Inf checks (local nodes only) ---
-            # if not np.isfinite(L.u[m + 1].diff[:]).all():
-            #     raise RuntimeError(f"[rank {self.rank}] NaN/Inf in u.diff at node m={m}, time={L.time}, sweep={L.status.sweep}")
-            # if not np.isfinite(L.f[m + 1].diff[:]).all():
-            #     raise RuntimeError(f"[rank {self.rank}] NaN/Inf in f.diff at node m={m}, time={L.time}, sweep={L.status.sweep}")
-
         # After local updates, other ranks need the updated u/f values
-        # print(f"[rank {self.rank}] before _sync_f", flush=True)
         self._sync_f()
-        # print(f"[rank {self.rank}] after  _sync_f", flush=True)
-
-        # print(f"[rank {self.rank}] before _sync_u", flush=True)
         self._sync_u(sync_diff=True, sync_alg=False)
-        # print(f"[rank {self.rank}] after  _sync_u", flush=True)
 
         L.status.updated = True
-        # --- DEBUG CONSISTENCY CHECK (4) ---
-        val = int(L.status.updated)
-        s = self.comm.allreduce(val, op=MPI.SUM)
-        # print(
-        #     f"[rank {self.rank}] DEBUG updated-flag sum={s} (should be {self.comm.size})",
-        #     flush=True
-        # )
-
-        # print(f"[rank {self.rank}] EXIT  update_nodes", flush=True)
         return None

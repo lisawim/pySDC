@@ -32,6 +32,11 @@ def make_work_precision_plots(format="png"):
 
 
 if __name__ == "__main__":
+    """
+    Generates plots for paper 'On the analysis of spectral deferred corrections for differential-algebraic
+    equations of index one'.
+    """
+
     format = "png"
     plot_spectral_radius_and_evd(format=format)  # Figure 2
     plot_order_linear(format=format)  # Figure 3

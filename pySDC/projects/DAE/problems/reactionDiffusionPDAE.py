@@ -893,9 +893,11 @@ class ReactionDiffusionPDAE(SpectralTester):
 
             # If g is close to 0, then we are done
             g = np.concatenate(
-                (self.itransform(g_hat[: self.Nr]),
-                self.itransform(g_hat[self.Nr : 2 * self.Nr]),
-                self.itransform(g_hat[2 * self.Nr : 3 * self.Nr])),
+                (
+                    self.itransform(g_hat[: self.Nr]),
+                    self.itransform(g_hat[self.Nr : 2 * self.Nr]),
+                    self.itransform(g_hat[2 * self.Nr : 3 * self.Nr]),
+                ),
             )
 
             res = np.linalg.norm(g, np.inf)
@@ -960,15 +962,14 @@ class ReactionDiffusionPDAE(SpectralTester):
 
         # If g is close to 0, then we are done
         g = np.concatenate(
-            (self.itransform(g_hat[: self.Nr]),
-             self.itransform(g_hat[self.Nr : 2 * self.Nr]),
-             self.itransform(g_hat[2 * self.Nr : 3 * self.Nr])),
+            (
+                self.itransform(g_hat[: self.Nr]),
+                self.itransform(g_hat[self.Nr : 2 * self.Nr]),
+                self.itransform(g_hat[2 * self.Nr : 3 * self.Nr]),
+            ),
         )
         g_val = g[2 * self.N : 3 * self.N]
         self.store_g_after_newton(g_val)
-
-        # print(n, np.linalg.norm(g[: self.N], np.inf), np.linalg.norm(g[self.N : 2 * self.N], np.inf), np.linalg.norm(g[2 * self.N : 3 * self.N], np.inf))
-        # print()
 
         solution = self.dtype_u(self.init)
         solution[:] = u[:]
@@ -1098,7 +1099,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
 
         if self.nvars % 2 != 0:
             raise ProblemError("setup requires nvars = 2^n!")
-        
+
         self.N = nvars
         self.Nr = self.N // 2 + 1
         self.Nr_all = 3 * self.Nr
@@ -1657,7 +1658,7 @@ class ReactionDiffusionPDAEConstrained(ReactionDiffusionPDAE):
         )
 
         return J
-    
+
     def solve_system(self, rhs, factor, u0, t):
         """
         Wrapper for the base class solver interface with omitted implicit system.

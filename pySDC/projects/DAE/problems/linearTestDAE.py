@@ -73,7 +73,7 @@ class LinearTestDAE(ProblemDAE):
         self.Adiff[0, :] = self.A[0, :]
         self.Aalg[1, :] = self.A[1, :]
 
-        self.Id0 = sp.diags_array([1, 0], offsets=0)
+        self.Id0 = sp.diags_array([1.0, 0.0], offsets=0)
 
         self.work_counters["rhs"] = WorkCounter()
         self.work_counters[self.solver_type] = WorkCounter()

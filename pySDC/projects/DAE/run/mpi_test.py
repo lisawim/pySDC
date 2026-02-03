@@ -136,12 +136,32 @@ def run_test_and_split_communicator(
 
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
 
+    if sub_rank == 0:
+        niter_mean = _mean_niter(solution_stats)
+
+        e_emb_post_step = [
+            me[0]
+            for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_step", sortby="time")
+        ]
+
+        e_global_post_step = [me[0] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+
+        result = {
+            "t_wall": t_wall,
+            "niter_mean": niter_mean,
+            "e_emb_post_step": e_emb_post_step,
+            "e_global_post_step": e_global_post_step,
+        }
+    else:
+        result = None
+
     sub_comm.Free()
-    return (t_wall, niter_mean) if sub_rank == 0 else (None, None)
+    return result
 
 
 def run_mpi_test(
     global_comm: MPI.Comm,
+    hook_class: list,
     problem_name: str,
     dt: float,
     sweepers: list,
@@ -209,13 +229,16 @@ def run_mpi_test(
                         num_nodes_ref,
                         QI_ser,
                         sweeper_type_eff,
+                        hook_class=hook_class,
                         use_mpi=False,
                         measure=True,
                     )
 
+                    e_global_post_step = [me[0] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+
                     # Copy runtimes to all nodes in dict
                     for num_nodes in num_processes:
-                        results[key_ser][num_nodes] = {"t_wall": runtime}
+                        results[key_ser][num_nodes] = {"t_wall": runtime, "e_global_post_step": e_global_post_step}
 
                 else:
                     for num_nodes in num_processes:
@@ -229,13 +252,23 @@ def run_mpi_test(
                             num_nodes,
                             QI_ser,
                             sweeper_type_eff,
+                            hook_class=hook_class,
                             use_mpi=False,
                             measure=True,
                         )
 
+                        e_emb_post_step = [
+                            me[0]
+                            for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_step", sortby="time")
+                        ]
+
+                        e_global_post_step = [me[0] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+
                         results[key_ser][num_nodes] = {
                             "t_wall": float(runtime),
                             "niter_mean": _mean_niter(solution_stats),
+                            "e_emb_post_step": e_emb_post_step,
+                            "e_global_post_step": e_global_post_step,
                         }
 
                 # Persist after each serial block for robustness.
@@ -260,7 +293,7 @@ def run_mpi_test(
 
                 global_comm.Barrier()
 
-                t_wall, niter_mean = run_test_and_split_communicator(
+                result = run_test_and_split_communicator(
                     problem_name=problem_name,
                     t0=t0,
                     dt=dt,
@@ -269,6 +302,7 @@ def run_mpi_test(
                     global_rank=global_rank,
                     num_nodes=num_nodes,
                     QI=QI_par,
+                    hook_class=hook_class,
                     sweeper_type=sweeper_type,
                     use_mpi=True,
                 )
@@ -276,10 +310,7 @@ def run_mpi_test(
                 global_comm.Barrier()
 
                 if global_rank == 0:
-                    results[key_par][num_nodes] = {
-                        "t_wall": t_wall,
-                        "niter_mean": niter_mean,
-                    }
+                    results[key_par][num_nodes] = result
 
                     with open(results_path, "wb") as f:
                         dill.dump(results, f)

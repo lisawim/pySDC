@@ -3,7 +3,7 @@ from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedE
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
 
 
-def get_configs(problem_name, config_type):
+def get_configs(problem_name: str, config_type: str) -> dict:
     if config_type == "work_precision":
         hook_class = [LogGlobalErrorPostStep]
         num_nodes = 6

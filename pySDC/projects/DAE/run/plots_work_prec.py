@@ -3,6 +3,9 @@ import os
 import dill
 from pathlib import Path
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.artist import Artist
+from typing import Any
 
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.helpers.plot_helper import figsize_by_journal
@@ -13,15 +16,47 @@ from pySDC.projects.DAE.misc.methods_config import RADAU_METHODS, RK_METHODS
 from pySDC.projects.DAE.run.work_precision import run_all_simulations
 
 
-def get_ylabel_based_on_metric(metric_key):
+def get_ylabel_based_on_metric(metric_key: str) -> str:
+    """
+    Returns labels for y-axis indicating the correct kind of error.
+
+    Parameters
+    ----------
+    metric_key : str
+
+    Returns
+    -------
+    ylabel : str
+        Label for plotting.
+    """
+
     if metric_key == "q_max_final_error":
         return r"error $||q(T) - q^{\tilde{k}}_M||_{\infty}$"
     elif metric_key == "all_max_global_error":
         return r"$L_\infty$ error"
 
 
-def get_sorted_handles_and_labels(ax, label_order):
-    """Sorts handles and labels for legend."""
+def get_sorted_handles_and_labels(
+    ax: Axes,
+    label_order: list[str],
+) -> tuple[tuple[str, ...], tuple[Artist, ...]]:
+    """
+    Sorts handles and labels for legend.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axis of plot.
+    label_order: sequence of str
+        Includes label in its correct order.
+
+    Returns
+    -------
+    labels_sorted : tuple of str
+        Sorted labels.
+    handles_sorted : tuple of str
+        Sorted handles.
+    """
 
     handles, labels = ax.get_legend_handles_labels()
 
@@ -34,17 +69,38 @@ def get_sorted_handles_and_labels(ax, label_order):
 
 
 def plots_work_vs_error(
-    hook_class,
-    num_nodes,
-    problem_name,
-    sweepers,
-    test_methods,
-    metric_key="all_max_global_error",
-    qDelta_best=["LU", "MIN-SR-NS"],
-    include_dopri=True,
-    **kwargs,
-):
-    """Generates plots for work vs error study."""
+    hook_class: list[Any],
+    num_nodes: int,
+    problem_name: str,
+    sweepers: list[str],
+    test_methods: list[str],
+    metric_key: str = "all_max_global_error",
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS"],
+    include_dopri: bool = True,
+    **kwargs: Any,
+) -> None:
+    """
+    Generates plots for work vs error study.
+
+    Parameters
+    ----------
+    hook_class : list
+        Contains classes for logging.
+    num_nodes : int
+        Number of collocation nodes.
+    problem_name : str
+        Name of problem. Can be 'ANDREWS-SQUEEZER', 'LINEAR-TEST', or 'REACTION-DIFFUSION'.
+    sweepers : list
+        Contains sweeper types.
+    test_methods : list
+        Contains methods to test, i.e., QIs for SDC and also the strings for RK-methods.
+    metric_key : str, optional
+        Indicates which kind of error is considered.
+    qDelta_best : list, optional
+        Best performing QIs in tests.
+    include_dopri : bool, optional
+        Indicates if half-explicit RK method using Dormand & Prince coefficients should be used.
+    """
 
     base_path = os.path.join("data", problem_name, "results")
     precomputed_files = {
@@ -85,15 +141,35 @@ def plots_work_vs_error(
 
 
 def plot_work_vs_error_single(
-    all_stats,
-    metric_key,
-    problem_name,
-    test_methods,
-    sweeper_type="constrainedDAE",
-    journal="Springer_Scientific_Computing",
-    format="eps",
-):
-    """Plots work vs error for one single SDC variant (default is SDC-C)."""
+    all_stats: dict[str, dict[str, list[float]]],
+    metric_key: str,
+    problem_name: str,
+    test_methods: list[str],
+    sweeper_type: str = "constrainedDAE",
+    journal: str = "Springer_Scientific_Computing",
+    format: str = "eps",
+) -> None:
+    r"""
+    Plots work versus error (kind of error is indicated by ``metric_key``) for one single SDC variant
+    ``sweeper_type`` (default is SDC-C).
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains statistics from tests.
+    metric_key : str
+        Indicates kind of error to plot.
+    problem_name : str
+        Name of problem. Can be 'ANDREWS-SQUEEZER', 'LINEAR-TEST', or 'REACTION-DIFFUSION'.
+    test_methods : list of str
+        Contains methods to test, i.e., QIs for SDC and also the strings for RK-methods.
+    sweeper_type : str
+        Type of sweeper to plot results for. Default is 'constrainedDAE' (SDC-C).
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str, optional
+        Format of plot.
+    """
 
     plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig8", "REACTION-DIFFUSION": "Fig11"}
 
@@ -144,18 +220,43 @@ def plot_work_vs_error_single(
 
 
 def plot_work_vs_error_sdc_radau(
-    all_stats,
-    metric_key,
-    problem_name,
-    sweepers,
-    qDelta_best=["LU", "MIN-SR-NS"],
-    sweeper_type_best=["constrainedDAE", "semiImplicitDAE"],
-    radau_methods_plot=["RadauIIA5", "RadauIIA7"],
-    journal="Springer_Scientific_Computing",
-    format="eps",
-    include_dopri=True,
-):
-    """Plots work vs error for all SDC-variants with best observed qDelta and Radau methods."""
+    all_stats: dict[str, dict[str, list[float]]],
+    metric_key: str,
+    problem_name: str,
+    sweepers: list[str],
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS"],
+    sweeper_type_best: list[str] = ["constrainedDAE", "semiImplicitDAE"],
+    radau_methods_plot: list[str] = ["RadauIIA5", "RadauIIA7"],
+    journal: str = "Springer_Scientific_Computing",
+    format: str = "eps",
+    include_dopri: bool = True,
+) -> None:
+    r"""
+    Plots work vs error for all SDC-variants with best observed qDelta and Radau methods.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains statistics (wallclock times and errors) from tests.
+    metric_key : str
+        Indicates kind of error to plot.
+    problem_name : str
+        Name of problem. Can be 'ANDREWS-SQUEEZER', 'LINEAR-TEST', or 'REACTION-DIFFUSION'.
+    sweepers : list of str
+        Contains sweeper types.
+    qDelta_best : list, optional
+        Best performing QIs in tests.
+    sweeper_type_best : list, optional
+        Best performing SDC sweepers in tests.
+    radau_methods_plot : list of str
+        Radau methods that are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str, optional
+        Format of plot.
+    include_dopri : bool, optional
+        Indicates if half-explicit RK method using Dormand & Prince coefficients should be used.
+    """
 
     plot_names = {"LINEAR-TEST": "Fig5", "ANDREWS-SQUEEZER": "Fig9", "REACTION-DIFFUSION": "Fig12"}
 
@@ -224,14 +325,33 @@ def plot_work_vs_error_sdc_radau(
 
 
 def default_keys_for_comparison(
-    qDelta_best=("LU", "MIN-SR-NS"),
-    sweepers=("constrainedDAE", "semiImplicitDAE"),
-    radau_methods=("RadauIIA5", "RadauIIA7"),
-    include_dopri=True,
-):
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS"],
+    sweepers: list[str] = ["constrainedDAE", "semiImplicitDAE"],
+    radau_methods: list[str] = ["RadauIIA5", "RadauIIA7"],
+    include_dopri: bool = True,
+) -> tuple[list[str], list[str]]:
     """
-    Baut SDC-Keys und Baselines, analog zu deiner Plot-Funktion.
+    Builds sdc keys and baselines.
+
+    Parameters
+    ----------
+    qDelta_best : list, optional
+        Best performing QIs in tests.
+    sweepers : list of str
+        Contains sweeper types.
+    radau_methods_plot : list of str
+        Radau methods that are plotted.
+    include_dopri : bool, optional
+        Indicates if half-explicit RK method using Dormand & Prince coefficients should be used.
+
+    Returns
+    -------
+    sdc_keys : list of str
+        Contains keys for SDC methods.
+    baseline : list of str
+        Contains keys for baseline methods, e.g. Radau and DOPRI5.
     """
+
     sdc_keys = [f"{sw}_{qi}" for sw in sweepers for qi in qDelta_best]
     baseline = [f"fullyImplicitDAE_{rm}" for rm in radau_methods]
     if include_dopri:
@@ -240,12 +360,12 @@ def default_keys_for_comparison(
 
 
 def compute_speedups_vs_error(
-    all_stats,
-    sdc_keys,
-    baseline_keys,
-    metric_key,
-    time_key="wc_times",
-):
+    all_stats: dict[str, dict[str, list[float]]],
+    sdc_keys: list[str],
+    baseline_keys: list[str],
+    metric_key: str,
+    time_key: str = "wc_times",
+) -> dict[str, dict[str, Any]]:
     """
     Computes speedups for equal or better accuracy.
         speedup(e_j) = t_baseline(e_j) / min_{SDC}( t_SDC(e <= e_j) )
@@ -256,11 +376,24 @@ def compute_speedups_vs_error(
       - build speedup values and other statistics based on the data.
 
     Returns a dictionary of the form:
-      result[baseline_key] = {
-          "records": [ {baseline, method, dt_baseline, err_baseline,
+        result[baseline_key] = {
+            "records": [ {baseline, method, dt_baseline, err_baseline,
                         t_baseline, t_method_best, err_method_best, speedup}, ... ],
-          "summary": [ {method, n, max, best_at_error, best_speedup}, ... ]
-      }
+            "summary": [ {method, n, max, best_at_error, best_speedup}, ... ]
+        }
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains statistics (wallclock times and errors) from tests.
+    sdc_keys : list of str
+        Contains keys for SDC methods.
+    baseline : list of str
+        Contains keys for baseline methods, e.g. Radau and DOPRI5.
+    metric_key : str
+        Indicates kind of error to plot.
+    time_key : str, optional
+        Denotes the key where wallclock times are stored in ``all_stats``.
     """
 
     result = {}
@@ -297,9 +430,6 @@ def compute_speedups_vs_error(
                     {
                         "method": method,
                         "n": 0,
-                        "median": None,
-                        "q25": None,
-                        "q75": None,
                         "max": None,
                         "best_at_error": None,
                         "best_speedup": None,
@@ -373,17 +503,34 @@ def compute_speedups_vs_error(
 
 
 def plot_speedup_vs_error(
-    all_stats,
-    problem_name,
-    sdc_keys,
-    baseline_keys,
-    metric_key,
-    journal="Springer_Scientific_Computing",
-    format="eps",
-):
+    all_stats: dict[str, dict[str, list[float]]],
+    problem_name: str,
+    sdc_keys: list[str],
+    baseline_keys: list[str],
+    metric_key: str,
+    journal: str = "Springer_Scientific_Computing",
+    format: str = "eps",
+) -> None:
     """
     Plots speedup(e) = t_baseline(e) / t_sdc(e) for all baseline keys,
     where e is the error of the baseline method.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains statistics (wallclock times and errors) from tests.
+    problem_name : str
+        Name of problem. Can be 'ANDREWS-SQUEEZER', 'LINEAR-TEST', or 'REACTION-DIFFUSION'.
+    sdc_keys : list of str
+        Contains keys for SDC methods.
+    baseline : list of str
+        Contains keys for baseline methods, e.g. Radau and DOPRI5.
+    metric_key : str
+        Indicates kind of error to plot.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str, optional
+        Format of plot.
     """
 
     figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)

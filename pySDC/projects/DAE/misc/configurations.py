@@ -38,8 +38,6 @@ def get_configs(problem_name: str, config_type: str) -> dict:
         if problem_name == "REACTION-DIFFUSION":
             QI_serial_methods = ["LU", "RadauIIA5", "RadauIIA7"]
             QI_parallel_methods = ["MIN-SR-S"]
-        else:
-            raise NotImplementedError(f"No QIs implemented for {problem_name}!")
 
         if problem_name == "ANDREWS-SQUEEZER":
             dt = dt_list[0]

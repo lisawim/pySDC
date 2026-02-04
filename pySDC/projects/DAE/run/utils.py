@@ -2,16 +2,26 @@ from mpi4py import MPI
 import time
 import matplotlib.pyplot as plt
 import logging
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+from pySDC.core.hooks import Hooks
+from pySDC.core.sweeper import Sweeper
 from pySDC.projects.DAE.misc.methods_config import QI_SERIAL, QI_PARALLEL, RADAU_METHODS, RK_METHODS
 
 from pySDC.implementations.controller_classes.controller_nonMPI import controller_nonMPI
 
 
-def my_setup_mpl(fontsize=16):
-    "Setting up my personal settings for plotting."
+def my_setup_mpl(fontsize: int = 16) -> None:
+    """
+    Setting up my personal settings for plotting.
+
+    Parameters
+    ----------
+    fontsize : int, optional
+        Fontsize used in plot.
+    """
 
     plt.rcParams["axes.labelsize"] = fontsize
     plt.rcParams["xtick.labelsize"] = fontsize
@@ -35,8 +45,19 @@ def my_setup_mpl(fontsize=16):
     # plt.rcParams['mathtext.rm'] = 'serif'
 
 
-def my_plot_style_config():
-    """Defines plot-specific stuff."""
+def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    r"""
+    Defines plot-specific stuff. Keys have the form ``f"{sweeper_type}_{QI}"``.
+
+    Returns
+    -------
+    colors : dict
+        Sweeper specific colors.
+    markers : dict
+        Sweeper specific markers.
+    sweeper_labels : dict
+        Labels that denote the sweepers.
+    """
 
     colors = {
         "constrainedDAE_EE": "forestgreen",
@@ -106,11 +127,49 @@ def my_plot_style_config():
     return colors, markers, sweeper_labels
 
 
-def newton_tol(dt, dt_ref=2.6e-3, tol_ref=8e-13):
+def newton_tol(dt: float, dt_ref: float = 2.6e-3, tol_ref: float = 8e-13) -> float:
+    r"""
+    Newton tolerance is coupled to time step size ``dt`` with reference step size ``dt_ref``
+    and ``tol_ref``. The Newton tolerance is then defined by
+
+    .. math::
+        tol_{\mathrm{newton}} = \frac{tol_{\mathrm{ref}} \Delta t}{\Delta t_{\mathrm{ref}}}
+
+    Parameters
+    ----------
+    dt : float
+        Time step size.
+    dt_ref : float, optional
+        Reference time step size.
+    tol_ref : float, optional
+        Reference tolerance that is obtained if :math:`\Delta t_{\mathrm{ref}} = \Delta t`.
+
+    Returns
+    -------
+    : float
+        Newton tolerance.
+    """
     return tol_ref * (dt / dt_ref)
 
 
-def set_correct_sweeper_type(sweeper_type, QI):
+def set_correct_sweeper_type(sweeper_type: str, QI: str) -> str:
+    """
+    Depending on ``QI`` the sweeper_type is adjusted. This is needed when ``QI`` refers
+    to a Runge-Kutta method and avoid raising an error.
+
+    Parameters
+    ----------
+    sweeper_type : str
+        Original sweeper type.
+    QI : str
+        Indicates the method to choose.
+
+    Returns
+    -------
+    : str
+        Adjusted sweeper type.
+    """
+
     if QI in RADAU_METHODS and sweeper_type != "fullyImplicitDAE":
         return "fullyImplicitDAE"
     elif QI in RK_METHODS and sweeper_type != "constrainedDAE":
@@ -119,7 +178,29 @@ def set_correct_sweeper_type(sweeper_type, QI):
         return sweeper_type
 
 
-def setup_convergence_controllers(description, use_mpi, use_mpi_grouped):
+def setup_convergence_controllers(
+    description: dict[str, dict[str, Any]], use_mpi: bool, use_mpi_grouped: bool
+) -> dict[str, dict[str, Any]]:
+    r"""
+    Convergence controllers for run are added to the ``description`` dictionary. For the
+    MPI grouped sweepers an alternative variant to correctly compute the increment in each iteration
+    is added.
+
+    Parameters
+    ----------
+    description : dict
+        Description of all parameters for the run.
+    use_mpi : bool
+        Indicate the usage of MPI.
+    use_mpi_grouped : bool
+        Indicates the usage of grouped MPI.
+
+    Returns
+    -------
+    description : dict
+        Updated description.
+    """
+
     if use_mpi and use_mpi_grouped:
         from pySDC.projects.DAE.misc.estimate_embedded_error_mpi_grouped import EstimateEmbeddedErrorMPIGrouped
 
@@ -128,8 +209,28 @@ def setup_convergence_controllers(description, use_mpi, use_mpi_grouped):
     return description
 
 
-def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
-    """Sets up the problem with certain parameters."""
+def setup_problem(
+    problem_name: str, QI: str, description: dict[str, dict[str, Any]], sweeper_type: str, **kwargs: Any
+) -> dict[str, dict[str, Any]]:
+    """
+    Sets up the problem with certain parameters.
+
+    Parameters
+    ----------
+    problem_name : str
+        Name of the problem.
+    QI : str
+        Indicates the method to use.
+    description : dict
+        Description of all parameters for the run.
+    sweeper_type : str
+        Sweeper type.
+
+    Returns
+    -------
+    description : dict
+        Updated description.
+    """
 
     dt = description["level_params"]["dt"]
 
@@ -188,10 +289,11 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)  # for M > 5 we need to set e_tol = 1e-12!
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-14)  # for M > 5 we need to set e_tol = 1e-12!
         description["step_params"] = {"maxiter": kwargs.get("maxiter", 15)}
 
         tol = newton_tol(dt)
+        print(tol)
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),
             "newton_tol": tol,
@@ -205,8 +307,20 @@ def setup_problem(problem_name, QI, description, sweeper_type, **kwargs):
     return description
 
 
-def get_sweeper_class_coll_method(QI: str):
-    """Import the collocation sweeper class."""
+def get_sweeper_class_coll_method(QI: str) -> type[Sweeper]:
+    """
+    Import of the collocation sweeper class.
+
+    Parameters
+    ----------
+    QI : str
+        Indicates the Radau method.
+
+    Returns
+    -------
+    : Sweeper
+        Imported Radau sweeper class.
+    """
 
     if QI == "RadauIIA5":
         from pySDC.projects.DAE.sweepers.collocationDAE import RadauIIA5DAE as sweeper
@@ -218,8 +332,20 @@ def get_sweeper_class_coll_method(QI: str):
     return sweeper
 
 
-def get_sweeper_class_rk_method(QI: str):
-    """Import the Runge-Kutta sweeper class."""
+def get_sweeper_class_rk_method(QI: str) -> type[Sweeper]:
+    """
+    Import of the Runge-Kutta sweeper class.
+
+    Parameters
+    ----------
+    QI : str
+        Indicates the Runge-Kutta method.
+
+    Returns
+    -------
+    : Sweeper
+        Imported Runge-Kutta sweeper class.
+    """
 
     if QI == "DOPRI5":
         from pySDC.projects.DAE.sweepers.rungeKuttaAllowingExplicitSolve import DOPRI5 as sweeper
@@ -227,8 +353,24 @@ def get_sweeper_class_rk_method(QI: str):
     return sweeper
 
 
-def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: bool = False):
-    """Import the SDC sweeper class."""
+def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: bool = False) -> type[Sweeper]:
+    """
+    Import of the SDC sweeper class.
+
+    Parameters
+    ----------
+    use_mpi : bool
+        Indicates usage of MPI.
+    sweeper_type : str
+        Sweeper type.
+    use_mpi_grouped : bool
+        Indicates usage of grouped MPI.
+
+    Returns
+    -------
+    : Sweeper
+        Imported sweeper class.
+    """
 
     if use_mpi:
         if not use_mpi_grouped:
@@ -268,15 +410,37 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: boo
 
 
 def setup_sweeper_sdc(
-    description,
-    num_nodes=3,
-    sweeper_type="constrainedDAE",
-    QI="LU",
-    use_mpi=False,
-    use_mpi_grouped=False,
-    **kwargs,
-):
-    """Sets up the SDC sweeper with certain parameters."""
+    description: dict[str, dict[str, Any]],
+    num_nodes: int = 3,
+    sweeper_type: str = "constrainedDAE",
+    QI: str = "LU",
+    use_mpi: bool = False,
+    use_mpi_grouped: bool = False,
+    **kwargs: Any,
+) -> dict[str, dict[str, Any]]:
+    """
+    Sets up the SDC sweeper with certain parameters.
+
+    Parameters
+    ----------
+    description : dict
+        Description of all parameters for the run.
+    num_nodes : int, optional
+        Number of collocation nodes.
+    sweeper_type : str, optional
+        Sweeper type.
+    QI : str, optional
+        Indicates the choice of the preconditioner.
+    use_mpi : bool, optional
+        Indicates usage of MPI.
+    use_mpi_grouped : bool, optional
+        Indicates usage of grouped MPI.
+
+    Returns
+    -------
+    description : dict
+        Updated description.
+    """
 
     skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
 
@@ -306,8 +470,27 @@ def setup_sweeper_sdc(
     return description
 
 
-def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", QI="RadauIIA5"):
-    """Sets up the RadauIIA sweeper with certain parameters."""
+def setup_sweeper_coll_method(
+    description: dict[str, dict[str, Any]], sweeper_type: str = "fullyImplicitDAE", QI: str = "RadauIIA5"
+) -> dict[str, dict[str, Any]]:
+    r"""
+    Sets up the RadauIIA sweeper with certain parameters.
+
+    Parameters
+    ----------
+    description : dict
+        Description of all parameters for the run.
+    sweeper_type : str, optional
+        Sweeper type. Default is ``"fullyImplicitDAE"``.
+    QI : str, optional
+        Indicates the choice of the Radau method. Default is ``"RadauIIA5"`` that
+        defines the Radau IIA method of order 5.
+
+    Returns
+    -------
+    description : dict
+        Updated description.
+    """
 
     if sweeper_type != "fullyImplicitDAE":
         sweeper_type == "fullyImplicitDAE"
@@ -325,8 +508,27 @@ def setup_sweeper_coll_method(description, sweeper_type="fullyImplicitDAE", QI="
     return description
 
 
-def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", QI="RadauIIA5"):
-    """Sets up the RadauIIA sweeper with certain parameters."""
+def setup_sweeper_rk_method(
+    description: dict[str, dict[str, Any]], sweeper_type: str = "constrainedDAE", QI: str = "DOPRI5"
+) -> dict[str, dict[str, Any]]:
+    r"""
+    Sets up the Runge-Kutta sweeper with certain parameters.
+
+    Parameters
+    ----------
+    description : dict
+        Description of all parameters for the run.
+    sweeper_type : str, optional
+        Sweeper type. Default is ``"constrainedDAE"``.
+    QI : str, optional
+        Indicates the choice of the Runge-Kutta method. Default is ``"DOPRI5"`` that
+        defines the half-explicit Runge-Kutta method using coefficients of Dormand & Prince.
+
+    Returns
+    -------
+    description : dict
+        Updated description.
+    """
 
     if sweeper_type != "constrainedDAE":
         sweeper_type == "constrainedDAE"
@@ -345,19 +547,56 @@ def setup_sweeper_rk_method(description, sweeper_type="fullyImplicitDAE", QI="Ra
 
 
 def compute_solution(
-    problem_name,
-    t0,
-    dt,
-    Tend,
-    num_nodes,
-    QI,
-    sweeper_type,
-    use_mpi=False,
-    use_mpi_grouped=False,
-    hook_class=[],
-    measure=True,
-    **kwargs,
-):
+    problem_name: str,
+    t0: float,
+    dt: float,
+    Tend: float,
+    num_nodes: int,
+    QI: str,
+    sweeper_type: str,
+    use_mpi: bool = False,
+    use_mpi_grouped: bool = False,
+    hook_class: list[Hooks] = [],
+    measure: bool = True,
+    **kwargs: Any,
+) -> tuple[Optional[float], dict]:
+    """
+    Computes the numerical solution. Main things are done in this routine.
+
+    Parameters
+    ----------
+    problem_name : str
+        Name of the problem.
+    t0 : float
+        Initial time.
+    dt : float
+        Time step size.
+    Tend : float
+        End time.
+    num_nodes : int
+        Number of collocation nodes.
+    QI : str
+        Indicates the method.
+    sweeper_type : str
+        Sweeper type.
+    use_mpi : bool, optional
+        Indicates usage of MPI.
+    use_mpi_grouped : bool, optional
+        Indicates usage of grouped MPI.
+    hook_class : list of Hooks, optional
+        Contains the hook classes to log specific data during the run. Default
+        is an empty list.
+    measure : bool, optional
+        If True, runtime is measured.
+
+    Returns
+    -------
+    : float
+        Runtime of the simulation.
+    solution_stats : dict
+        Statistics of the run.
+    """
+
     comm = kwargs.get("comm", None)
 
     description = {}

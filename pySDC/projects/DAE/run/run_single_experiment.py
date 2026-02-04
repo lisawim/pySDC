@@ -2,16 +2,105 @@ import argparse
 import dill
 import os
 import numpy as np
+from typing import Any, Literal, Optional
 
 from pySDC.projects.DAE import compute_solution
+from pySDC.projects.DAE.misc.dataclasses import QEndErrorResult, WorkPrecisionResult
 from pySDC.implementations.hooks.log_solution import LogSolution
+from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import qend_ref_testset
 
 from pySDC.helpers.stats_helper import get_sorted
 
 
+def compute_qend_max_final_err(
+    solution_stats: Any,
+    Tend: float,
+    *,
+    q_dim: int = 7,
+    atol: float = 1e-14,
+    on_fail: Literal["raise", "nan", "none"] = "raise",
+) -> Optional[QEndErrorResult]:
+    """
+    Compute max-norm final error in q(Tend) against reference qend_ref_testset(t_ref).
+
+    Parameters
+    ----------
+    solution_stats
+        Stats object/dict consumed by get_sorted().
+    Tend : float
+        Target end time to match against time entries in solution_stats.
+    q_dim : int
+        Number of q-components extracted from u (default: 7 for Andrews).
+    atol : float
+        Absolute tolerance for time matching.
+    on_fail : list
+        Behavior if no suitable time entry is found:
+        - "raise": raise ValueError
+        - "nan": return result with qend_max_final_err = np.nan (and ind = -1)
+        - "none": return None
+
+    Returns
+    -------
+    QEndErrorResult or None
+    """
+
+    u_val = get_sorted(solution_stats, type="u", sortby="time")
+    if not u_val:
+        msg = "solution_stats contains no 'u' entries."
+        if on_fail == "raise":
+            raise ValueError(msg)
+        if on_fail == "none":
+            return None
+        return QEndErrorResult(-1, float("nan"), np.array([]), np.array([]), float("nan"))
+
+    t = np.array([me[0] for me in u_val], dtype=float)
+
+    # u: shape (n, dof). flatten() ensures 1D per time entry
+    u = np.array([np.asarray(me[1]).flatten() for me in u_val], dtype=float)
+
+    if u.ndim != 2 or u.shape[1] < q_dim:
+        raise ValueError(f"Expected u to have at least {q_dim} dofs, got shape {u.shape}.")
+
+    q = u[:, :q_dim]
+
+    # Find index near Tend
+    i = int(np.searchsorted(t, Tend))
+    ind = None
+
+    if i < len(t) and np.isclose(t[i], Tend, atol=atol):
+        ind = i
+    elif i > 0 and np.isclose(t[i - 1], Tend, atol=atol):
+        ind = i - 1
+
+    if ind is None:
+        msg = f"No suitable entry found near Tend={Tend} (atol={atol})."
+        if on_fail == "raise":
+            raise ValueError(msg)
+        if on_fail == "none":
+            return None
+        return QEndErrorResult(-1, float("nan"), np.array([]), np.array([]), float("nan"))
+
+    t_ref = t[ind]
+    qend_ref = np.asarray(qend_ref_testset(t_ref), dtype=float).reshape(-1)
+    qend = np.asarray(q[ind, :], dtype=float).reshape(-1)
+
+    if qend_ref.shape[0] != qend.shape[0]:
+        raise ValueError(f"Shape mismatch: qend has {qend.shape[0]} entries, qend_ref has {qend_ref.shape[0]}.")
+
+    qend_max_final_err = max(abs(qend - qend_ref))
+
+    return QEndErrorResult(
+        ind=ind,
+        t_ref=t_ref,
+        qend=qend,
+        qend_ref=qend_ref,
+        qend_max_final_err=qend_max_final_err,
+    )
+
+
 def parse_args():
     def parse_hook(path: str):
-        # Pfad importieren: module.ClassName
+        # Import the path module.ClassName
         module_name, class_name = path.rsplit('.', 1)
         module = __import__(module_name, fromlist=[class_name])
         return getattr(module, class_name)
@@ -129,26 +218,8 @@ def main():
 
             # Store solution at Tend = 0.03 (for Andrews' problem)
             if args.problem_name == "ANDREWS-SQUEEZER":
-                from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import qend_ref_testset
-
-                u_val = get_sorted(solution_stats, type="u", sortby="time")
-                t = np.array([me[0] for me in u_val])
-                u = np.array([me[1].flatten() for me in u_val])
-                q = u[:, :7]
-
-                i = np.searchsorted(t, args.Tend)
-                if i < len(t) and np.isclose(t[i], args.Tend, atol=1e-14):
-                    ind = i
-                elif i > 0 and np.isclose(t[i - 1], args.Tend, atol=1e-14):
-                    ind = i - 1
-                else:
-                    print("No suitable entry found.")
-
-                t_ref = t[ind]
-                qend_ref = qend_ref_testset(t_ref)
-
-                qend = q[ind, :]
-                qend_max_final_err = max(abs(qend - qend_ref))
+                res = compute_qend_max_final_err(solution_stats, args.Tend)
+                qend_max_final_err = res.qend_max_final_err
                 q_max_final_error_full.append(qend_max_final_err)
 
     if rank == 0:

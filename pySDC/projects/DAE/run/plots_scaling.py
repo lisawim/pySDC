@@ -3,7 +3,7 @@ import os
 import dill
 from pathlib import Path
 import matplotlib.pyplot as plt
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.projects.DAE.misc.configurations import get_configs
@@ -292,6 +292,116 @@ def plot_speedup_and_efficiency(
         plt.close(fig)
 
 
+def _plot_metric_vs_mpi_ranks(
+    all_stats: dict[str, dict[int, Any]],
+    *,
+    problem_name: str,
+    sweepers: list[str],
+    QI_serial_methods: list[str],
+    QI_parallel_methods: list[str],
+    y_of: Callable[[Any], float],
+    ylabel: str,
+    filename_stem: str,
+    nodes_to_plot: Optional[list[int]] = None,
+    journal: str = "Springer_Scientific_Computing",
+    format: str = "png",
+    ylim: Optional[tuple[float, float]] = None,
+    yscale_log_base: Optional[int] = 10,
+) -> None:
+    """
+    Generic plotting routine for y(metric) vs number of MPI ranks/nodes.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Mapping: key -> num_nodes -> ScalingRunStats (or similar object with attributes).
+    y_of
+        Function that maps a per-node stats object to a scalar y-value.
+    filename_stem
+        Saved under data/{problem_name}/{filename_stem}.{format}
+    """
+    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
+
+    my_setup_mpl(fontsize=7)
+    colors, markers, sweeper_labels = my_plot_style_config()
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    qi_serial_sdc_methods = [qi for qi in QI_serial_methods if qi in QI_SERIAL]
+    qi_all = qi_serial_sdc_methods + QI_parallel_methods
+
+    used_nodes_all: set[int] = set()
+
+    for QI in qi_all:
+        for sweeper_type in sweepers:
+            key = f"{sweeper_type}_{QI}"
+            if key not in all_stats:
+                continue
+
+            available_nodes = list(all_stats[key].keys())
+            nodes = (
+                sorted(available_nodes) if nodes_to_plot is None else [n for n in nodes_to_plot if n in all_stats[key]]
+            )
+
+            if not nodes:
+                continue
+
+            used_nodes_all.update(nodes)
+
+            ys = []
+            xs = []
+            for n in nodes:
+                # Skip entries that are not available (e.g. None for Andrews')
+                stats = all_stats[key][n]
+                try:
+                    y = float(y_of(stats))
+                except (TypeError, ValueError):
+                    continue
+                if y is None:
+                    continue
+
+                xs.append(n)
+                ys.append(y)
+
+            if not xs:
+                continue
+
+            label = f"{sweeper_labels[sweeper_type]}-{QI}"
+            ax.loglog(
+                xs,
+                ys,
+                color=colors[key],
+                marker=markers[key],
+                label=label,
+            )
+
+    used_nodes_sorted = sorted(used_nodes_all)
+    ax.tick_params(axis="both", which="minor", bottom=False, left=False)
+    ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
+
+    if used_nodes_sorted:
+        ax.set_xticks(used_nodes_sorted)
+        ax.set_xticklabels(used_nodes_sorted)
+
+    ax.set_xscale("log", base=2)
+    if yscale_log_base is not None:
+        ax.set_yscale("log", base=yscale_log_base)
+
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
+    ax.grid(linewidth=0.5)
+    ax.set_ylabel(ylabel)
+
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
+
+    out = Path("data") / problem_name / f"{filename_stem}.{format}"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=400, bbox_inches="tight")
+    plt.close(fig)
+
+
 def plot_wallclocktime_vs_mpi_ranks(
     all_stats: dict[str, dict[int, dict[str, float]]],
     problem_name: str,
@@ -307,68 +417,20 @@ def plot_wallclocktime_vs_mpi_ranks(
 
     assert serial_mode == "sdc"  # Only SDC methods
 
-    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
-
-    my_setup_mpl(fontsize=7)
-    colors, markers, sweeper_labels = my_plot_style_config()
-
-    fig, axs = plt.subplots(1, 1, figsize=figsize)
-
-    qi_serial_sdc_methods = [qi for qi in QI_serial_methods if qi in QI_SERIAL]
-    qi_all = qi_serial_sdc_methods + QI_parallel_methods
-
-    for QI in qi_all:
-        for sweeper_type in sweepers:
-            key = f"{sweeper_type}_{QI}"
-
-            # collect x-values we actually used (for ticks)
-            used_nodes_all = set()
-
-            available_nodes = all_stats[key].keys()
-            nodes = (
-                list(available_nodes) if nodes_to_plot is None else [n for n in nodes_to_plot if n in available_nodes]
-            )
-
-            if len(nodes) == 0:
-                continue
-
-            used_nodes_all.update(nodes)
-
-            t_wall = [all_stats[key][num_nodes].t_wall for num_nodes in nodes]
-
-            label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-            axs.loglog(
-                nodes,
-                t_wall,
-                color=colors[key],
-                marker=markers[key],
-                label=label,
-            )
-
-    used_nodes_sorted = sorted(used_nodes_all)
-
-    axs.tick_params(axis="both", which="minor", bottom=False, left=False)
-    axs.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
-
-    axs.set_xticks(used_nodes_sorted)
-    axs.set_xticklabels(used_nodes_sorted)
-
-    axs.set_xscale("log", base=2)
-    axs.set_yscale("log", base=10)
-
-    axs.grid(linewidth=0.5)
-
-    axs.set_ylabel("wall-clock time in s")
-
-    handles, labels = axs.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
-
-    filename = "data" + "/" + f"{problem_name}" + "/" + "walltime_vs_mpi_ranks_nodes" + "." + format
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    _plot_metric_vs_mpi_ranks(
+        all_stats,
+        problem_name=problem_name,
+        sweepers=sweepers,
+        QI_serial_methods=QI_serial_methods,
+        QI_parallel_methods=QI_parallel_methods,
+        nodes_to_plot=nodes_to_plot,
+        journal=journal,
+        format=format,
+        y_of=lambda st: st.t_wall,
+        ylabel="wall-clock time in s",
+        filename_stem="walltime_vs_mpi_ranks_nodes",
+        **kwargs,
+    )
 
 
 def plot_mean_iterations_vs_mpi_ranks(
@@ -386,68 +448,20 @@ def plot_mean_iterations_vs_mpi_ranks(
 
     assert serial_mode == "sdc"  # Only SDC methods
 
-    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
-
-    my_setup_mpl(fontsize=7)
-    colors, markers, sweeper_labels = my_plot_style_config()
-
-    fig, axs = plt.subplots(1, 1, figsize=figsize)
-
-    qi_serial_sdc_methods = [qi for qi in QI_serial_methods if qi in QI_SERIAL]
-    qi_all = qi_serial_sdc_methods + QI_parallel_methods
-
-    for QI in qi_all:
-        for sweeper_type in sweepers:
-            key = f"{sweeper_type}_{QI}"
-
-            # collect x-values we actually used (for ticks)
-            used_nodes_all = set()
-
-            available_nodes = all_stats[key].keys()
-            nodes = (
-                list(available_nodes) if nodes_to_plot is None else [n for n in nodes_to_plot if n in available_nodes]
-            )
-
-            if len(nodes) == 0:
-                continue
-
-            used_nodes_all.update(nodes)
-
-            mean_iter = [all_stats[key][num_nodes].niter_mean for num_nodes in nodes]
-
-            label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-            axs.loglog(
-                nodes,
-                mean_iter,
-                color=colors[key],
-                marker=markers[key],
-                label=label,
-            )
-
-    used_nodes_sorted = sorted(used_nodes_all)
-
-    axs.tick_params(axis="both", which="minor", bottom=False, left=False)
-    axs.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
-
-    axs.set_xticks(used_nodes_sorted)
-    axs.set_xticklabels(used_nodes_sorted)
-
-    axs.set_xscale("log", base=2)
-    axs.set_yscale("log", base=10)
-
-    axs.grid(linewidth=0.5)
-
-    axs.set_ylabel("mean number of iterations")
-
-    handles, labels = axs.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
-
-    filename = "data" + "/" + f"{problem_name}" + "/" + "mean_iterations_vs_mpi_ranks_nodes" + "." + format
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    _plot_metric_vs_mpi_ranks(
+        all_stats,
+        problem_name=problem_name,
+        sweepers=sweepers,
+        QI_serial_methods=QI_serial_methods,
+        QI_parallel_methods=QI_parallel_methods,
+        nodes_to_plot=nodes_to_plot,
+        journal=journal,
+        format=format,
+        y_of=lambda st: st.niter_mean,
+        ylabel="mean number of iterations",
+        filename_stem="mean_iterations_vs_mpi_ranks_nodes",
+        **kwargs,
+    )
 
 
 def plot_error_vs_mpi_ranks(
@@ -465,75 +479,30 @@ def plot_error_vs_mpi_ranks(
 
     assert serial_mode == "sdc"  # Only SDC methods
 
-    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
+    if problem_name == "ANDREWS-SQUEEZER":
+        metric_key = "q_max_final_error"
+        y_of = lambda st: st.qend_max_final_error
+    else:
+        metric_key = "all_max_global_error"
+        y_of = lambda st: max(st.e_global_post_step)
 
-    my_setup_mpl(fontsize=7)
-    colors, markers, sweeper_labels = my_plot_style_config()
-
-    fig, axs = plt.subplots(1, 1, figsize=figsize)
-
-    qi_serial_sdc_methods = [qi for qi in QI_serial_methods if qi in QI_SERIAL]
-    qi_all = qi_serial_sdc_methods + QI_parallel_methods
-
-    for QI in qi_all:
-        for sweeper_type in sweepers:
-            key = f"{sweeper_type}_{QI}"
-
-            # collect x-values we actually used (for ticks)
-            used_nodes_all = set()
-
-            available_nodes = all_stats[key].keys()
-            nodes = (
-                list(available_nodes) if nodes_to_plot is None else [n for n in nodes_to_plot if n in available_nodes]
-            )
-
-            if len(nodes) == 0:
-                continue
-
-            used_nodes_all.update(nodes)
-
-            if not problem_name == "ANDREWS-SQUEEZER":
-                errs = [max(all_stats[key][num_nodes].e_global_post_step) for num_nodes in nodes]
-            else:
-                errs = [all_stats[key][num_nodes].qend_max_final_error for num_nodes in nodes]
-
-            label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-            axs.loglog(
-                nodes,
-                errs,
-                color=colors[key],
-                marker=markers[key],
-                label=label,
-            )
-
-    used_nodes_sorted = sorted(used_nodes_all)
-
-    axs.tick_params(axis="both", which="minor", bottom=False, left=False)
-    axs.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
-
-    axs.set_xticks(used_nodes_sorted)
-    axs.set_xticklabels(used_nodes_sorted)
-
-    axs.set_xscale("log", base=2)
-    axs.set_yscale("log", base=10)
-
-    axs.set_ylim((1e-15, 1e1))
-
-    axs.grid(linewidth=0.5)
-
-    metric_key = "q_max_final_error" if problem_name == "ANDREWS-SQUEEZER" else "all_max_global_error"
     ylabel = get_ylabel_based_on_metric(metric_key=metric_key)
-    axs.set_ylabel(ylabel)
 
-    handles, labels = axs.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
-
-    filename = "data" + "/" + f"{problem_name}" + "/" + "error_vs_mpi_ranks_nodes" + "." + format
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    _plot_metric_vs_mpi_ranks(
+        all_stats,
+        problem_name=problem_name,
+        sweepers=sweepers,
+        QI_serial_methods=QI_serial_methods,
+        QI_parallel_methods=QI_parallel_methods,
+        nodes_to_plot=nodes_to_plot,
+        journal=journal,
+        format=format,
+        y_of=y_of,
+        ylabel=ylabel,
+        filename_stem="error_vs_mpi_ranks_nodes",
+        ylim=(1e-15, 1e1),
+        **kwargs,
+    )
 
 
 if __name__ == "__main__":

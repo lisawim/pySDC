@@ -8,9 +8,11 @@ from typing import Any, Optional, Tuple
 from pySDC.core.errors import ParameterError
 from pySDC.projects.DAE import compute_solution
 from pySDC.projects.DAE.misc.configurations import get_configs
+from pySDC.projects.DAE.misc.dataclasses import ScalingRunStats
 from pySDC.projects.DAE.run.utils import set_correct_sweeper_type
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
 from pySDC.projects.DAE.misc.methods_config import RADAU_METHODS, RK_METHODS
+from pySDC.projects.DAE.run.run_single_experiment import compute_qend_max_final_err
 
 from pySDC.helpers.stats_helper import get_sorted
 
@@ -137,21 +139,24 @@ def run_test_and_split_communicator(
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
 
     if sub_rank == 0:
-        niter_mean = _mean_niter(solution_stats)
-
         e_emb_post_step = [
-            me[0]
-            for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_step", sortby="time")
+            me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_step", sortby="time")
         ]
 
-        e_global_post_step = [me[0] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+        e_global_post_step = [me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
 
-        result = {
-            "t_wall": t_wall,
-            "niter_mean": niter_mean,
-            "e_emb_post_step": e_emb_post_step,
-            "e_global_post_step": e_global_post_step,
-        }
+        if problem_name == "ANDREWS-SQUEEZER":
+            res = compute_qend_max_final_err(solution_stats, Tend)
+            qend_max_final_err = res.qend_max_final_err
+
+        result = ScalingRunStats(
+            t_wall=runtime,
+            niter_mean=_mean_niter(solution_stats),
+            e_emb_post_step=e_emb_post_step,
+            e_global_post_step=e_global_post_step,
+            qend_max_final_error=(qend_max_final_err if problem_name == "ANDREWS-SQUEEZER" else None),
+        )
+
     else:
         result = None
 
@@ -234,11 +239,16 @@ def run_mpi_test(
                         measure=True,
                     )
 
-                    e_global_post_step = [me[0] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+                    e_global_post_step = [
+                        me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")
+                    ]
 
                     # Copy runtimes to all nodes in dict
                     for num_nodes in num_processes:
-                        results[key_ser][num_nodes] = {"t_wall": runtime, "e_global_post_step": e_global_post_step}
+                        results[key_ser][num_nodes] = ScalingRunStats(
+                            t_wall=runtime,
+                            e_global_post_step=e_global_post_step,
+                        )
 
                 else:
                     for num_nodes in num_processes:
@@ -258,18 +268,29 @@ def run_mpi_test(
                         )
 
                         e_emb_post_step = [
-                            me[0]
-                            for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_step", sortby="time")
+                            me[1]
+                            for me in get_sorted(
+                                solution_stats, type=f"error_embedded_estimate_post_step", sortby="time"
+                            )
                         ]
 
-                        e_global_post_step = [me[0] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+                        e_global_post_step = [
+                            me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")
+                        ]
 
-                        results[key_ser][num_nodes] = {
-                            "t_wall": float(runtime),
-                            "niter_mean": _mean_niter(solution_stats),
-                            "e_emb_post_step": e_emb_post_step,
-                            "e_global_post_step": e_global_post_step,
-                        }
+                        if problem_name == "ANDREWS-SQUEEZER":
+                            res = compute_qend_max_final_err(solution_stats, Tend)
+                            qend_max_final_err = res.qend_max_final_err
+
+                        results[key_ser][num_nodes] = ScalingRunStats(
+                            t_wall=float(runtime),
+                            niter_mean=_mean_niter(solution_stats),
+                            e_emb_post_step=e_emb_post_step,
+                            e_global_post_step=e_global_post_step,
+                            qend_max_final_error=(
+                                float(qend_max_final_err) if problem_name == "ANDREWS-SQUEEZER" else None
+                            ),
+                        )
 
                 # Persist after each serial block for robustness.
                 assert results_path is not None

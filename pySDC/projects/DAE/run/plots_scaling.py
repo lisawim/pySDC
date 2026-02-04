@@ -12,6 +12,7 @@ from pySDC.projects.DAE.run.utils import set_correct_sweeper_type
 from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.run.mpi_test import build_filename, run_mpi_test
 from pySDC.projects.DAE.misc.methods_config import QI_SERIAL, RADAU_METHODS, RK_METHODS
+from pySDC.projects.DAE.run.plots_work_prec import get_ylabel_based_on_metric
 
 
 def compute_speedups_and_efficiencies(
@@ -52,8 +53,8 @@ def compute_speedups_and_efficiencies(
                         if num_nodes not in all_stats[key_par]:
                             continue
 
-                        timings_ser = all_stats[key_ser][num_nodes]["t_wall"]
-                        timings_par = all_stats[key_par][num_nodes]["t_wall"]
+                        timings_ser = all_stats[key_ser][num_nodes].t_wall
+                        timings_par = all_stats[key_par][num_nodes].t_wall
 
                         s = timings_ser / timings_par
                         speedups[key_ser][key_par][num_nodes] = s
@@ -173,23 +174,16 @@ def plots_scaling(
                 **kwargs,
             )
 
-        plot_wallclocktime_vs_mpi_ranks(
-            all_stats,
-            problem_name,
-            sweepers,
-            QI_serial_methods,
-            QI_parallel_methods,
-            nodes_to_plot=nodes_to_plot,
-        )
-
-        plot_mean_iterations_vs_mpi_ranks(
-            all_stats,
-            problem_name,
-            sweepers,
-            QI_serial_methods,
-            QI_parallel_methods,
-            nodes_to_plot=nodes_to_plot,
-        )
+        plot_functions = [plot_wallclocktime_vs_mpi_ranks, plot_mean_iterations_vs_mpi_ranks, plot_error_vs_mpi_ranks]
+        for plot_function in plot_functions:
+            plot_function(
+                all_stats,
+                problem_name,
+                sweepers,
+                QI_serial_methods,
+                QI_parallel_methods,
+                nodes_to_plot=nodes_to_plot,
+            )
 
 
 def plot_speedup_and_efficiency(
@@ -340,7 +334,7 @@ def plot_wallclocktime_vs_mpi_ranks(
 
             used_nodes_all.update(nodes)
 
-            t_wall = [all_stats[key][num_nodes]["t_wall"] for num_nodes in nodes]
+            t_wall = [all_stats[key][num_nodes].t_wall for num_nodes in nodes]
 
             label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
             axs.loglog(
@@ -419,7 +413,7 @@ def plot_mean_iterations_vs_mpi_ranks(
 
             used_nodes_all.update(nodes)
 
-            mean_iter = [all_stats[key][num_nodes]["niter_mean"] for num_nodes in nodes]
+            mean_iter = [all_stats[key][num_nodes].niter_mean for num_nodes in nodes]
 
             label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
             axs.loglog(
@@ -456,6 +450,92 @@ def plot_mean_iterations_vs_mpi_ranks(
     plt.close(fig)
 
 
+def plot_error_vs_mpi_ranks(
+    all_stats: dict[str, dict[int, dict[str, float]]],
+    problem_name: str,
+    sweepers: list[str],
+    QI_serial_methods: list[str],
+    QI_parallel_methods: list[str],
+    serial_mode: str = "sdc",
+    nodes_to_plot: list[int] = None,
+    journal: str = "Springer_Scientific_Computing",
+    format: str = "png",
+    **kwargs: Any,
+) -> None:
+
+    assert serial_mode == "sdc"  # Only SDC methods
+
+    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
+
+    my_setup_mpl(fontsize=7)
+    colors, markers, sweeper_labels = my_plot_style_config()
+
+    fig, axs = plt.subplots(1, 1, figsize=figsize)
+
+    qi_serial_sdc_methods = [qi for qi in QI_serial_methods if qi in QI_SERIAL]
+    qi_all = qi_serial_sdc_methods + QI_parallel_methods
+
+    for QI in qi_all:
+        for sweeper_type in sweepers:
+            key = f"{sweeper_type}_{QI}"
+
+            # collect x-values we actually used (for ticks)
+            used_nodes_all = set()
+
+            available_nodes = all_stats[key].keys()
+            nodes = (
+                list(available_nodes) if nodes_to_plot is None else [n for n in nodes_to_plot if n in available_nodes]
+            )
+
+            if len(nodes) == 0:
+                continue
+
+            used_nodes_all.update(nodes)
+
+            if not problem_name == "ANDREWS-SQUEEZER":
+                errs = [max(all_stats[key][num_nodes].e_global_post_step) for num_nodes in nodes]
+            else:
+                errs = [all_stats[key][num_nodes].qend_max_final_error for num_nodes in nodes]
+
+            label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
+            axs.loglog(
+                nodes,
+                errs,
+                color=colors[key],
+                marker=markers[key],
+                label=label,
+            )
+
+    used_nodes_sorted = sorted(used_nodes_all)
+
+    axs.tick_params(axis="both", which="minor", bottom=False, left=False)
+    axs.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
+
+    axs.set_xticks(used_nodes_sorted)
+    axs.set_xticklabels(used_nodes_sorted)
+
+    axs.set_xscale("log", base=2)
+    axs.set_yscale("log", base=10)
+
+    axs.set_ylim((1e-15, 1e1))
+
+    axs.grid(linewidth=0.5)
+
+    metric_key = "q_max_final_error" if problem_name == "ANDREWS-SQUEEZER" else "all_max_global_error"
+    ylabel = get_ylabel_based_on_metric(metric_key=metric_key)
+    axs.set_ylabel(ylabel)
+
+    handles, labels = axs.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
+
+    filename = "data" + "/" + f"{problem_name}" + "/" + "error_vs_mpi_ranks_nodes" + "." + format
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     global_comm = MPI.COMM_WORLD
     config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
@@ -463,8 +543,11 @@ if __name__ == "__main__":
     config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
 
     nodes_to_plot = None  # [2, 4, 8, 16, 32, 64]
-    filename = "results_scaling_dt=0.05_linear.pkl"
+    filename = None
+    # filename = "results_scaling_dt=0.05_linear.pkl"
+    # filename = 'results_scaling_dt=0.001_andrews.pkl'
+    # filename = 'results_scaling_dt=0.025_reaction_diffusion.pkl'
 
     plots_scaling(
-        global_comm=global_comm, format="png", nodes_to_plot=nodes_to_plot, filename=filename, **config_linear
+        global_comm=global_comm, format="png", nodes_to_plot=nodes_to_plot, filename=filename, **config_andrews
     )

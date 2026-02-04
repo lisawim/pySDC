@@ -1,5 +1,6 @@
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedErrorEstimate
+from pySDC.implementations.hooks.log_solution import LogSolution
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
 
 
@@ -33,7 +34,7 @@ def get_configs(problem_name: str, config_type: str) -> dict:
         sweepers = ["constrainedDAE", "semiImplicitDAE"]
         dt_list, _ = choose_time_step_sizes(problem_name=problem_name)
 
-        hook_class = [LogEmbeddedErrorEstimate, LogGlobalErrorPostStep]
+        hook_class = [LogEmbeddedErrorEstimate, LogGlobalErrorPostStep, LogSolution]
 
         if problem_name == "REACTION-DIFFUSION":
             QI_serial_methods = ["LU", "RadauIIA5", "RadauIIA7"]

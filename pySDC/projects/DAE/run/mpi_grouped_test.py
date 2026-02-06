@@ -6,8 +6,12 @@ from typing import Any, Optional
 from pySDC.core.errors import ParameterError
 from pySDC.projects.DAE import compute_solution
 from pySDC.projects.DAE.misc.configurations import get_configs
+from pySDC.projects.DAE.misc.dataclasses import ScalingRunStats
 from pySDC.projects.DAE.run.mpi_test import ensure_results_path, _mean_niter, run_warmup_step
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
+from pySDC.projects.DAE.run.run_single_experiment import compute_qend_max_final_err
+
+from pySDC.helpers.stats_helper import get_sorted
 
 
 _FILENAME_TEMPLATES = {
@@ -31,7 +35,7 @@ def format_dt(dt: float) -> str:
     return f"{dt:.1e}"
 
 
-def build_ranks_to_test(num_nodes: int, ranks_to_test: list = None) -> list:
+def build_ranks_to_test(num_nodes: int, ranks_to_test: list[int] = None) -> list[int]:
     """
     Build a list of MPI ranks to test, starting from num_nodes and halving until 1.
 
@@ -39,14 +43,15 @@ def build_ranks_to_test(num_nodes: int, ranks_to_test: list = None) -> list:
     ----------
     num_nodes : int
         Maximum number of ranks (e.g. number of collocation nodes).
-    ranks_to_test : list or None, optional
+    ranks_to_test : list of int or None, optional
         If provided, this list is returned unchanged. If None, it is generated.
 
     Returns
     -------
-    list
-        List like [num_nodes, num_nodes//2, ..., 1]
+     : list of int
+        List like [num_nodes, num_nodes//2, ..., 1].
     """
+
     if ranks_to_test is not None:
         return ranks_to_test
 
@@ -77,7 +82,7 @@ def run_grouped_case(
     use_mpi: bool,
     use_mpi_grouped: bool,
     **kwargs: Any,
-):
+) -> Optional[ScalingRunStats]:
     """
     Run one grouped MPI test with fixed M=num_nodes but varying P=num_ranks.
 
@@ -112,19 +117,39 @@ def run_grouped_case(
 
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
 
+    if sub_rank == 0:
+        e_emb_post_step = [me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate", sortby="time")]
+
+        e_global_post_step = [me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
+
+        if problem_name == "ANDREWS-SQUEEZER":
+            res = compute_qend_max_final_err(solution_stats, Tend)
+            qend_max_final_err = res.qend_max_final_err
+
+        result = ScalingRunStats(
+            t_wall=t_wall,
+            niter_mean=niter_mean,
+            e_emb_post_step=e_emb_post_step,
+            e_global_post_step=e_global_post_step,
+            qend_max_final_error=(qend_max_final_err if problem_name == "ANDREWS-SQUEEZER" else None),
+        )
+
+    else:
+        result = None
+
     sub_comm.Free()
-    return (t_wall, niter_mean) if sub_rank == 0 else (None, None)
+    return result
 
 
 def run_mpi_grouped_breakeven_test(
     global_comm: MPI.Comm,
     problem_name: str,
     dt: float,
-    sweepers: list,
-    QI_parallel_methods: list,
+    sweepers: list[str],
+    QI_parallel_methods: list[str],
     num_nodes: int,
-    ranks_to_test: list = None,
-    **kwargs,
+    ranks_to_test: list[int] = None,
+    **kwargs: Any,
 ) -> None:
     """Run grouped-MPI breakeven test for fixed M and varying P."""
 
@@ -134,13 +159,13 @@ def run_mpi_grouped_breakeven_test(
 
     ranks_to_test = build_ranks_to_test(num_nodes, ranks_to_test)
 
-    sanity_checks(global_size, ranks_to_test)
+    sanity_checks(global_size, num_nodes, ranks_to_test)
 
     # Prepare output
     results_path: Optional[Path] = None
     if global_rank == 0:
         # Use explicit filename by default, but keep helper around:
-        results_filename = build_filename(dt, problem_name)
+        results_filename = build_filename(dt, problem_name, global_size)
         # results_filename = "results_scaling_test.pkl"
         results_path = ensure_results_path(problem_name, results_filename)
 
@@ -162,7 +187,10 @@ def run_mpi_grouped_breakeven_test(
             for P in ranks_to_test:
                 global_comm.Barrier()
 
-                t_wall, niter_mean = run_grouped_case(
+                if global_rank == 0:
+                    print(f".. Running with {P} processes ..\n")
+
+                result = run_grouped_case(
                     problem_name=problem_name,
                     t0=t0,
                     dt=dt,
@@ -173,16 +201,15 @@ def run_mpi_grouped_breakeven_test(
                     num_ranks=P,
                     QI=QI_par,
                     sweeper_type=sweeper_type,
+                    use_mpi=True,
+                    use_mpi_grouped=True,
                     **kwargs,
                 )
 
                 global_comm.Barrier()
 
                 if global_rank == 0:
-                    results[key][P] = {
-                        "t_wall": t_wall,
-                        "niter_mean": niter_mean,
-                    }
+                    results[key][P] = result
 
                     with open(results_path, "wb") as f:
                         dill.dump(results, f)
@@ -192,7 +219,7 @@ def run_mpi_grouped_breakeven_test(
             dill.dump(results, f)
 
 
-def sanity_checks(global_size: int, ranks_to_test: list) -> None:
+def sanity_checks(global_size: int, num_nodes: int, ranks_to_test: list[int]) -> None:
     """Some checking."""
     if max(ranks_to_test) > global_size:
         raise ParameterError(
@@ -207,7 +234,7 @@ def sanity_checks(global_size: int, ranks_to_test: list) -> None:
 
 if __name__ == "__main__":
     global_comm = MPI.COMM_WORLD
-    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
+    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="breakeven")
     num_nodes = global_comm.Get_size()
     config_linear["num_nodes"] = num_nodes
     run_mpi_grouped_breakeven_test(global_comm=global_comm, num_nodes=num_nodes, **config_linear)

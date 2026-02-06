@@ -6,6 +6,8 @@ import os
 from typing import Any, Optional, Tuple
 
 from pySDC.core.errors import ParameterError
+from pySDC.core.hooks import Hooks
+
 from pySDC.projects.DAE import compute_solution
 from pySDC.projects.DAE.misc.configurations import get_configs
 from pySDC.projects.DAE.misc.dataclasses import ScalingRunStats
@@ -91,7 +93,7 @@ def run_test_and_split_communicator(
     sweeper_type: str,
     use_mpi: bool,
     **kwargs: Any,
-) -> Tuple[Optional[float], Optional[float]]:
+) -> Optional[ScalingRunStats]:
     r"""
     In this function the speed-up test is done. Here, the communicator is then splitted. Number of collocation nodes
     is adapted as well.
@@ -139,9 +141,7 @@ def run_test_and_split_communicator(
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
 
     if sub_rank == 0:
-        e_emb_post_step = [
-            me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_step", sortby="time")
-        ]
+        e_emb_post_step = [me[1] for me in get_sorted(solution_stats, type=f"error_embedded_estimate", sortby="time")]
 
         e_global_post_step = [me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
 
@@ -150,8 +150,8 @@ def run_test_and_split_communicator(
             qend_max_final_err = res.qend_max_final_err
 
         result = ScalingRunStats(
-            t_wall=runtime,
-            niter_mean=_mean_niter(solution_stats),
+            t_wall=t_wall,
+            niter_mean=niter_mean,
             e_emb_post_step=e_emb_post_step,
             e_global_post_step=e_global_post_step,
             qend_max_final_error=(qend_max_final_err if problem_name == "ANDREWS-SQUEEZER" else None),
@@ -166,7 +166,7 @@ def run_test_and_split_communicator(
 
 def run_mpi_test(
     global_comm: MPI.Comm,
-    hook_class: list,
+    hook_class: list[Hooks],
     problem_name: str,
     dt: float,
     sweepers: list,
@@ -269,9 +269,7 @@ def run_mpi_test(
 
                         e_emb_post_step = [
                             me[1]
-                            for me in get_sorted(
-                                solution_stats, type=f"error_embedded_estimate_post_step", sortby="time"
-                            )
+                            for me in get_sorted(solution_stats, type=f"error_embedded_estimate", sortby="time")
                         ]
 
                         e_global_post_step = [

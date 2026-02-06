@@ -58,7 +58,6 @@ def get_configs(problem_name: str, config_type: str) -> dict:
 
     elif config_type == "breakeven":
         config = get_configs(problem_name=problem_name, config_type="scaling")
-        config.pop("hook_class", None)
         config.pop("QI_serial_methods", None)
 
     return config

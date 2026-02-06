@@ -5,6 +5,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from typing import Any, Callable, Optional
 
+from pySDC.core.hooks import Hooks
+
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.projects.DAE.misc.configurations import get_configs
 from pySDC.projects.DAE.run.utils import set_correct_sweeper_type
@@ -91,7 +93,7 @@ def get_serial_methods_and_key_builder(
 
 def plots_scaling(
     global_comm: MPI.Comm,
-    hook_class: list,
+    hook_class: list[Hooks],
     problem_name: str,
     dt: float,
     sweepers: list[str],
@@ -151,11 +153,6 @@ def plots_scaling(
         with open(path, "rb") as f:
             all_stats = dill.load(f)
 
-        # filename = build_filename(dt, problem_name)
-        # path = "data" + "/" + f"{problem_name}" + "/" + "results" + "/" + filename
-        with open(path, "rb") as f:
-            all_stats = dill.load(f)
-
         speedups, efficiencies, num_processes_by_key_ser = compute_speedups_and_efficiencies(
             all_stats, sweepers, QI_serial_methods, QI_parallel_methods, **kwargs
         )
@@ -174,7 +171,12 @@ def plots_scaling(
                 **kwargs,
             )
 
-        plot_functions = [plot_wallclocktime_vs_mpi_ranks, plot_mean_iterations_vs_mpi_ranks, plot_error_vs_mpi_ranks]
+        plot_functions = [
+            plot_wallclocktime_vs_mpi_ranks,
+            plot_mean_iterations_vs_mpi_ranks,
+            plot_error_vs_mpi_ranks,
+            plot_embedded_error_vs_mpi_ranks,
+        ]
         for plot_function in plot_functions:
             plot_function(
                 all_stats,
@@ -200,7 +202,38 @@ def plot_speedup_and_efficiency(
     format: str = "png",
     **kwargs: Any,
 ) -> None:
-    r"""Plots speedup and efficiency."""
+    r"""
+    Plots speedup and efficiency.
+
+    Parameters
+    ----------
+    problem_name : str
+        Name of the problem.
+    speedups : dict
+        Contains the speedups.
+    efficiencies : dict
+        Contains the efficiencies.
+    num_processes_by_key_ser : dict
+        Contains the number of processes that are used in the run.
+    sweepers : list of Sweeper
+        Sweepers.
+    QI_serial_methods : list of str
+        The QIs indicate the serial methods, i.e., the serial SDC methods,
+        the Radau methods, and the Runge-Kutta method(s).
+    QI_parallel_methods : list of str
+        Contains the QIs that indicate the parallel SDC schemes.
+    serial_mode : str
+        If set to ``"sdc"`` results are plotted against serial SDC methods.
+        If it is set to ``"radau_rk"`` only Radau and Runge-Kutta methods
+        are considered in plotting. Default is ``"sdc"``.
+    nodes_to_plot : list of int
+        The number of nodes that should be plottet. Default is ``None``, i.e.,
+        all nodes from the run are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str
+        Format of plot. Default is ``"png"``.
+    """
 
     figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
 
@@ -266,7 +299,7 @@ def plot_speedup_and_efficiency(
         used_nodes_sorted = sorted(used_nodes_all)
         for ax in axs:
             ax.tick_params(axis="both", which="minor", bottom=False, left=False)
-            ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
+            ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks")
 
             ax.set_xticks(used_nodes_sorted)
             ax.set_xticklabels(used_nodes_sorted)
@@ -279,7 +312,7 @@ def plot_speedup_and_efficiency(
 
         axs[0].set_ylabel("speedup")
         axs[1].set_ylabel("efficiency")
-        # axs[1].set_ylim((0.0, 1.0))
+        axs[1].set_ylim((0.0, 1.0))
 
         handles, labels = axs[0].get_legend_handles_labels()
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
@@ -308,18 +341,45 @@ def _plot_metric_vs_mpi_ranks(
     ylim: Optional[tuple[float, float]] = None,
     yscale_log_base: Optional[int] = 10,
 ) -> None:
-    """
-    Generic plotting routine for y(metric) vs number of MPI ranks/nodes.
+    r"""
+    Generic plotting routine for y(metric) versus number of MPI ranks. Note that the number of
+    collocation nodes is equal to the number of MPI ranks. Since the data is stored as a data
+    class, it is only possible to plot the respective attributes from the data class. These
+    are then transferred using the ``y_of`` function.
 
     Parameters
     ----------
     all_stats : dict
-        Mapping: key -> num_nodes -> ScalingRunStats (or similar object with attributes).
-    y_of
+        Contains the statistics from the run. It maps from key of the form
+        ``f"{sweeper_type}_{QI}"`` to the number of nodes to the statistics
+        of dataclass ScalingRunStats.
+    problem_name : str
+        Name of the problem.
+    sweepers : str
+        List of sweepers.
+    QI_serial_methods : list of str
+        The QIs indicate the serial methods, i.e., the serial SDC methods,
+        the Radau methods, and the Runge-Kutta method(s).
+    QI_parallel_methods : list of str
+        Contains the QIs that indicate the parallel SDC schemes.
+    y_of : callable
         Function that maps a per-node stats object to a scalar y-value.
-    filename_stem
-        Saved under data/{problem_name}/{filename_stem}.{format}
+    filename_stem : str
+        Filename for which the plot is stored. It is saved under
+        data/{problem_name}/{filename_stem}.{format}.
+    nodes_to_plot : list of int
+        The number of nodes that should be plottet. Default is ``None``, i.e.,
+        all nodes from the run are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str
+        Format of plot. Default is ``"png"``.
+    ylim : tuple of float
+        Limits for y-axis in plot.
+    yscale_log_base : int
+        Base of logarithm to scale y-axis.
     """
+
     figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
 
     my_setup_mpl(fontsize=7)
@@ -330,8 +390,8 @@ def _plot_metric_vs_mpi_ranks(
     qi_serial_sdc_methods = [qi for qi in QI_serial_methods if qi in QI_SERIAL]
     qi_all = qi_serial_sdc_methods + QI_parallel_methods
 
-    used_nodes_all: set[int] = set()
-
+    used_nodes_all = set()
+    print(filename_stem)
     for QI in qi_all:
         for sweeper_type in sweepers:
             key = f"{sweeper_type}_{QI}"
@@ -367,6 +427,7 @@ def _plot_metric_vs_mpi_ranks(
                 continue
 
             label = f"{sweeper_labels[sweeper_type]}-{QI}"
+            print(label, ys, len(ys))
             ax.loglog(
                 xs,
                 ys,
@@ -374,7 +435,7 @@ def _plot_metric_vs_mpi_ranks(
                 marker=markers[key],
                 label=label,
             )
-
+    print()
     used_nodes_sorted = sorted(used_nodes_all)
     ax.tick_params(axis="both", which="minor", bottom=False, left=False)
     ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks/nodes")
@@ -414,6 +475,36 @@ def plot_wallclocktime_vs_mpi_ranks(
     format: str = "png",
     **kwargs: Any,
 ) -> None:
+    r"""
+    Plots wallclock time versus number of MPI ranks. The wrapper function is used to do that.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains the statistics from the run. It maps from key of the form
+        ``f"{sweeper_type}_{QI}"`` to the number of nodes to the statistics
+        of dataclass ScalingRunStats.
+    problem_name : str
+        Name of the problem.
+    sweepers : list of Sweeper
+        Sweepers.
+    QI_serial_methods : list of str
+        The QIs indicate the serial methods, i.e., the serial SDC methods,
+        the Radau methods, and the Runge-Kutta method(s).
+    QI_parallel_methods : list of str
+        Contains the QIs that indicate the parallel SDC schemes.
+    serial_mode : str
+        If set to ``"sdc"`` results are plotted against serial SDC methods.
+        If it is set to ``"radau_rk"`` only Radau and Runge-Kutta methods
+        are considered in plotting. Default is ``"sdc"``.
+    nodes_to_plot : list of int
+        The number of nodes that should be plottet. Default is ``None``, i.e.,
+        all nodes from the run are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str
+        Format of plot. Default is ``"png"``.
+    """
 
     assert serial_mode == "sdc"  # Only SDC methods
 
@@ -445,6 +536,36 @@ def plot_mean_iterations_vs_mpi_ranks(
     format: str = "png",
     **kwargs: Any,
 ) -> None:
+    r"""
+    Plots the mean number of iterations versus number of MPI ranks. The wrapper function is used to do that.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains the statistics from the run. It maps from key of the form
+        ``f"{sweeper_type}_{QI}"`` to the number of nodes to the statistics
+        of dataclass ScalingRunStats.
+    problem_name : str
+        Name of the problem.
+    sweepers : list of Sweeper
+        Sweepers.
+    QI_serial_methods : list of str
+        The QIs indicate the serial methods, i.e., the serial SDC methods,
+        the Radau methods, and the Runge-Kutta method(s).
+    QI_parallel_methods : list of str
+        Contains the QIs that indicate the parallel SDC schemes.
+    serial_mode : str
+        If set to ``"sdc"`` results are plotted against serial SDC methods.
+        If it is set to ``"radau_rk"`` only Radau and Runge-Kutta methods
+        are considered in plotting. Default is ``"sdc"``.
+    nodes_to_plot : list of int
+        The number of nodes that should be plottet. Default is ``None``, i.e.,
+        all nodes from the run are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str
+        Format of plot. Default is ``"png"``.
+    """
 
     assert serial_mode == "sdc"  # Only SDC methods
 
@@ -476,6 +597,38 @@ def plot_error_vs_mpi_ranks(
     format: str = "png",
     **kwargs: Any,
 ) -> None:
+    r"""
+    Plots the error versus number of MPI ranks. The wrapper function is used to do that. For
+    ``problem_name = "ANDREWS-SQUEEZER"`` the error of ``q``is computed at the end time,
+    i.e., ``Tend = 0.03``, otherwise the global error across all unknowns is plotted.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains the statistics from the run. It maps from key of the form
+        ``f"{sweeper_type}_{QI}"`` to the number of nodes to the statistics
+        of dataclass ScalingRunStats.
+    problem_name : str
+        Name of the problem.
+    sweepers : list of Sweeper
+        Sweepers.
+    QI_serial_methods : list of str
+        The QIs indicate the serial methods, i.e., the serial SDC methods,
+        the Radau methods, and the Runge-Kutta method(s).
+    QI_parallel_methods : list of str
+        Contains the QIs that indicate the parallel SDC schemes.
+    serial_mode : str
+        If set to ``"sdc"`` results are plotted against serial SDC methods.
+        If it is set to ``"radau_rk"`` only Radau and Runge-Kutta methods
+        are considered in plotting. Default is ``"sdc"``.
+    nodes_to_plot : list of int
+        The number of nodes that should be plottet. Default is ``None``, i.e.,
+        all nodes from the run are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str
+        Format of plot. Default is ``"png"``.
+    """
 
     assert serial_mode == "sdc"  # Only SDC methods
 
@@ -505,6 +658,71 @@ def plot_error_vs_mpi_ranks(
     )
 
 
+def plot_embedded_error_vs_mpi_ranks(
+    all_stats: dict[str, dict[int, dict[str, float]]],
+    problem_name: str,
+    sweepers: list[str],
+    QI_serial_methods: list[str],
+    QI_parallel_methods: list[str],
+    serial_mode: str = "sdc",
+    nodes_to_plot: list[int] = None,
+    journal: str = "Springer_Scientific_Computing",
+    format: str = "png",
+    **kwargs: Any,
+) -> None:
+    r"""
+    Plots the maximum increment across all time steps versus number of MPI ranks.
+    The wrapper function is used to do that.
+
+    Parameters
+    ----------
+    all_stats : dict
+        Contains the statistics from the run. It maps from key of the form
+        ``f"{sweeper_type}_{QI}"`` to the number of nodes to the statistics
+        of dataclass ScalingRunStats.
+    problem_name : str
+        Name of the problem.
+    sweepers : list of Sweeper
+        Sweepers.
+    QI_serial_methods : list of str
+        The QIs indicate the serial methods, i.e., the serial SDC methods,
+        the Radau methods, and the Runge-Kutta method(s).
+    QI_parallel_methods : list of str
+        Contains the QIs that indicate the parallel SDC schemes.
+    serial_mode : str
+        If set to ``"sdc"`` results are plotted against serial SDC methods.
+        If it is set to ``"radau_rk"`` only Radau and Runge-Kutta methods
+        are considered in plotting. Default is ``"sdc"``.
+    nodes_to_plot : list of int
+        The number of nodes that should be plottet. Default is ``None``, i.e.,
+        all nodes from the run are plotted.
+    journal : str, optional
+        Name of the journal to obtain specified scale and height for figsize.
+    format : str
+        Format of plot. Default is ``"png"``.
+    """
+
+    assert serial_mode == "sdc"  # Only SDC methods
+
+    y_of = lambda st: max(st.e_emb_post_step)
+
+    _plot_metric_vs_mpi_ranks(
+        all_stats,
+        problem_name=problem_name,
+        sweepers=sweepers,
+        QI_serial_methods=QI_serial_methods,
+        QI_parallel_methods=QI_parallel_methods,
+        nodes_to_plot=nodes_to_plot,
+        journal=journal,
+        format=format,
+        y_of=y_of,
+        ylabel="embedded error estimate",
+        filename_stem="embedded_error_vs_mpi_ranks_nodes",
+        ylim=(1e-15, 1e1),
+        **kwargs,
+    )
+
+
 if __name__ == "__main__":
     global_comm = MPI.COMM_WORLD
     config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
@@ -512,11 +730,11 @@ if __name__ == "__main__":
     config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
 
     nodes_to_plot = None  # [2, 4, 8, 16, 32, 64]
-    filename = None
-    # filename = "results_scaling_dt=0.05_linear.pkl"
+    # filename = None
+    filename = "results_scaling_dt=0.05_linear.pkl"
     # filename = 'results_scaling_dt=0.001_andrews.pkl'
     # filename = 'results_scaling_dt=0.025_reaction_diffusion.pkl'
 
     plots_scaling(
-        global_comm=global_comm, format="png", nodes_to_plot=nodes_to_plot, filename=filename, **config_andrews
+        global_comm=global_comm, format="png", nodes_to_plot=nodes_to_plot, filename=filename, **config_linear
     )

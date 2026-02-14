@@ -258,7 +258,7 @@ def setup_problem(
             )
 
         description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-9)
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 15)}
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 20)}
         description["problem_params"] = {"index": 1, "solver_type": "newton"}
 
     elif problem_name == "LINEAR-TEST":
@@ -289,11 +289,10 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-14)  # for M > 5 we need to set e_tol = 1e-12!
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 15)}
+        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-13)  # for M > 5 we need to set e_tol = 1e-12!
+        description["step_params"] = {"maxiter": kwargs.get("maxiter", 25)}
 
         tol = newton_tol(dt)
-        print(tol)
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),
             "newton_tol": tol,
@@ -558,9 +557,10 @@ def compute_solution(
     use_mpi_grouped: bool = False,
     hook_class: list[Hooks] = [],
     measure: bool = True,
+    return_uend: bool = False,
     **kwargs: Any,
 ) -> tuple[Optional[float], dict]:
-    """
+    r"""
     Computes the numerical solution. Main things are done in this routine.
 
     Parameters
@@ -591,10 +591,31 @@ def compute_solution(
 
     Returns
     -------
-    : float
+    runtime : float
         Runtime of the simulation.
+    uend : dtype_u, optional
+        Numerical solution at time ``Tend``. Only returned if ``return_uend`` is True.
     solution_stats : dict
         Statistics of the run.
+
+    Notes
+    -----
+    The returned tuple depends on the flags ``use_mpi``, ``measure`` and
+    ``return_uend``:
+
+    - If ``use_mpi`` or ``measure`` is True:
+
+    - If ``return_uend`` is False:
+        ``(runtime, solution_stats)``
+    - If ``return_uend`` is True:
+        ``(runtime, uend, solution_stats)``
+
+    - If neither ``use_mpi`` nor ``measure`` is True:
+
+    - If ``return_uend`` is False:
+        ``solution_stats``
+    - If ``return_uend`` is True:
+        ``(uend, solution_stats)``
     """
 
     comm = kwargs.get("comm", None)
@@ -636,14 +657,23 @@ def compute_solution(
         t_start = time.time()
 
     # call main function to get things done...
-    _, solution_stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
+    uend, solution_stats = controller.run(u0=uinit, t0=t0, Tend=Tend)
+
+    runtime = None
 
     if use_mpi:
         comm.Barrier()
-        t_end = MPI.Wtime()
-        return (t_end - t_start), solution_stats
+        runtime = MPI.Wtime() - t_start
     elif measure:
-        t_end = time.time()
-        return (t_end - t_start), solution_stats
+        runtime = time.time() - t_start
+
+    if runtime is not None:
+        if return_uend:
+            return runtime, uend, solution_stats
+        return runtime, solution_stats
+
+    # no runtime measured
+    if return_uend:
+        return uend, solution_stats
 
     return solution_stats

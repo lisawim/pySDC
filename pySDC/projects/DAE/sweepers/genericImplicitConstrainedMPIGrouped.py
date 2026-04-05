@@ -11,9 +11,10 @@ class SweeperMPIGrouped(Sweeper):
     def __init__(self, params, level):
         self.logger = logging.getLogger('sweeper')
 
-        if 'comm' not in params.keys():
-            params['comm'] = MPI.COMM_WORLD
-            self.logger.debug('Using MPI.COMM_WORLD for the communicator because none was supplied in the params.')
+        if "comm" not in params.keys():
+            params["comm"] = MPI.COMM_WORLD
+            self.logger.debug("Using MPI.COMM_WORLD for the communicator because none was supplied in the params.")
+
         super().__init__(params, level)
 
         self.M = self.coll.num_nodes
@@ -110,15 +111,15 @@ class SweeperMPIGrouped(Sweeper):
         L.f[0] = P.eval_f(L.u[0], L.time)
 
         for m in self.local_nodes:
-            if self.params.initial_guess == 'spread':
+            if self.params.initial_guess == "spread":
                 # copy u[0] to all collocation nodes, evaluate RHS
                 L.u[m + 1] = P.dtype_u(L.u[0])
                 L.f[m + 1] = P.eval_f(L.u[m + 1], L.time + L.dt * self.coll.nodes[m])
-            elif self.params.initial_guess == 'copy':
+            elif self.params.initial_guess == "copy":
                 # copy u[0] and RHS evaluation to all collocation nodes
                 L.u[m + 1] = P.dtype_u(L.u[0])
                 L.f[m + 1] = P.dtype_f(L.f[0])
-            elif self.params.initial_guess == 'zero':
+            elif self.params.initial_guess == "zero":
                 # zeros solution for u and RHS
                 L.u[m + 1] = P.dtype_u(init=P.init, val=0.0)
                 L.f[m + 1] = P.dtype_f(init=P.init, val=0.0)

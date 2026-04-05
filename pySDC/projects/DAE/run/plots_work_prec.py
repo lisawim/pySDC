@@ -7,16 +7,45 @@ from matplotlib.axes import Axes
 from matplotlib.artist import Artist
 from typing import Any
 
+from pySDC.core.hooks import Hooks
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
-from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.misc.configurations import get_configs
+from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.plotting.plot_svd import sync_xlim
-from pySDC.projects.DAE.misc.methods_config import RADAU_METHODS, RK_METHODS
+from pySDC.projects.DAE.misc.methods_config import RADAU_METHODS, RK_METHODS, SDC_METHODS
 
 from pySDC.projects.DAE.run.work_precision import run_all_simulations
 
 
-def get_ylabel_based_on_metric(metric_key: str) -> str:
+def get_method_label(sweeper_type: str, QI: str) -> str:
+    _, _, sweeper_labels = my_plot_style_config()
+    return sweeper_labels[sweeper_type] + "-" + f"{QI}" if QI in SDC_METHODS else f"{QI}"
+
+
+def get_metric_key(problem_name: str) -> str:
+    """
+    Returns the key for the metric to plot based on the problem name.
+
+    Parameters
+    ----------
+    problem_name : str
+        Name of problem. Can be 'ANDREWS-SQUEEZER', 'LINEAR-TEST', or 'REACTION-DIFFUSION'.
+
+    Returns
+    -------
+    metric_key : str
+        Key for metric to plot.
+    """
+
+    if problem_name == "ANDREWS-SQUEEZER":
+        return "q_max_final_error"
+    elif problem_name in ["LINEAR-TEST", "REACTION-DIFFUSION"]:
+        return "all_max_global_error"
+    else:
+        raise ValueError(f"Unknown problem name: {problem_name}")
+
+
+def get_ylabel_based_on_metric(metric_key: str, type: str = "step") -> str:
     """
     Returns labels for y-axis indicating the correct kind of error.
 
@@ -31,9 +60,16 @@ def get_ylabel_based_on_metric(metric_key: str) -> str:
     """
 
     if metric_key == "q_max_final_error":
-        return r"error $||q(T) - q^{\tilde{k}}_M||_{\infty}$"
+        if type == "step":
+            return r"error $||q(T) - q^{\tilde{k}}_M||_{\infty}$"
+        elif type == "iter":
+            return r"error $||q(T) - q^{k}_M||_{\infty}$"
+
     elif metric_key == "all_max_global_error":
-        return r"$L_\infty$ error"
+        if type == "step":
+            return r"$L_\infty$ error"
+        elif type == "iter":
+            return r"$L_\infty$ error after iteration $k$"
 
 
 def get_sorted_handles_and_labels(
@@ -69,14 +105,15 @@ def get_sorted_handles_and_labels(
 
 
 def plots_work_vs_error(
-    hook_class: list[Any],
+    hook_class: list[Hooks],
     num_nodes: int,
+    nsweeps: int,
     problem_name: str,
     sweepers: list[str],
     test_methods: list[str],
-    metric_key: str = "all_max_global_error",
     qDelta_best: list[str] = ["LU", "MIN-SR-NS"],
     include_dopri: bool = True,
+    filename: str = None,
     **kwargs: Any,
 ) -> None:
     """
@@ -85,7 +122,7 @@ def plots_work_vs_error(
     Parameters
     ----------
     hook_class : list
-        Contains classes for logging.
+        Contains hook classes for logging.
     num_nodes : int
         Number of collocation nodes.
     problem_name : str
@@ -109,19 +146,27 @@ def plots_work_vs_error(
         "REACTION-DIFFUSION": f"results_experiment_{num_nodes}_reaction_diffusion.pkl",
     }
 
-    if problem_name in precomputed_files:
-        print("Use precomputed results.. \n")
-        filename = precomputed_files[problem_name]
-        path = os.path.join(base_path, filename)
-        if not os.path.exists(path):
-            run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
-            path = os.path.join(base_path, f"results_experiment_{num_nodes}.pkl")
-    else:
-        run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
-        path = os.path.join(base_path, f"results_experiment_{num_nodes}.pkl")
+    if filename is not None:
+        print("Use precomputed results..\n")
 
+        results_file = filename
+    else:
+        if problem_name in precomputed_files:
+            print("Use precomputed results.. \n")
+            results_file = precomputed_files[problem_name]
+            path = os.path.join(base_path, results_file)
+            if not os.path.exists(path):
+                run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, test_methods, **kwargs)
+                results_file = f"results_experiment_{num_nodes}_{nsweeps}.pkl"
+        else:
+            run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, test_methods, **kwargs)
+            results_file = f"results_experiment_{num_nodes}_{nsweeps}.pkl"
+
+    path = os.path.join(base_path, results_file)
     with open(path, "rb") as f:
         all_stats = dill.load(f)
+
+    metric_key = get_metric_key(problem_name)
 
     plot_work_vs_error_single(all_stats, metric_key, problem_name, test_methods, **kwargs)
 
@@ -147,7 +192,6 @@ def plot_work_vs_error_single(
     test_methods: list[str],
     sweeper_type: str = "constrainedDAE",
     journal: str = "Springer_Scientific_Computing",
-    format: str = "eps",
 ) -> None:
     r"""
     Plots work versus error (kind of error is indicated by ``metric_key``) for one single SDC variant
@@ -167,8 +211,6 @@ def plot_work_vs_error_single(
         Type of sweeper to plot results for. Default is 'constrainedDAE' (SDC-C).
     journal : str, optional
         Name of the journal to obtain specified scale and height for figsize.
-    format : str, optional
-        Format of plot.
     """
 
     plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig8", "REACTION-DIFFUSION": "Fig11"}
@@ -211,7 +253,7 @@ def plot_work_vs_error_single(
     fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
 
     plot_name = plot_names[problem_name]
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -228,7 +270,6 @@ def plot_work_vs_error_sdc_radau(
     sweeper_type_best: list[str] = ["constrainedDAE", "semiImplicitDAE"],
     radau_methods_plot: list[str] = ["RadauIIA5", "RadauIIA7"],
     journal: str = "Springer_Scientific_Computing",
-    format: str = "eps",
     include_dopri: bool = True,
 ) -> None:
     r"""
@@ -252,8 +293,6 @@ def plot_work_vs_error_sdc_radau(
         Radau methods that are plotted.
     journal : str, optional
         Name of the journal to obtain specified scale and height for figsize.
-    format : str, optional
-        Format of plot.
     include_dopri : bool, optional
         Indicates if half-explicit RK method using Dormand & Prince coefficients should be used.
     """
@@ -295,7 +334,7 @@ def plot_work_vs_error_sdc_radau(
                 wc_times = stats["wc_times"]
                 metric_values = stats[metric_key]
 
-                label = sweeper_labels[sweeper_type] + "-" + f"{QI}" if QI in qDelta_best else f"{QI}"
+                label = get_method_label(sweeper_type, QI)
                 axs.loglog(
                     wc_times,
                     metric_values,
@@ -316,7 +355,7 @@ def plot_work_vs_error_sdc_radau(
     fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
 
     plot_name = plot_names[problem_name]
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -509,7 +548,6 @@ def plot_speedup_vs_error(
     baseline_keys: list[str],
     metric_key: str,
     journal: str = "Springer_Scientific_Computing",
-    format: str = "eps",
 ) -> None:
     """
     Plots speedup(e) = t_baseline(e) / t_sdc(e) for all baseline keys,
@@ -529,8 +567,6 @@ def plot_speedup_vs_error(
         Indicates kind of error to plot.
     journal : str, optional
         Name of the journal to obtain specified scale and height for figsize.
-    format : str, optional
-        Format of plot.
     """
 
     figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
@@ -607,7 +643,7 @@ def plot_speedup_vs_error(
         "REACTION-DIFFUSION": "Fig_speedup_vs_error_reacdiff",
     }
     plot_name = plot_names.get(problem_name, "Fig_speedup_vs_error")
-    filename = f"data/{problem_name}/{plot_name}.{format}"
+    filename = f"data/{problem_name}/{plot_name}.png"
     Path(filename).parent.mkdir(parents=True, exist_ok=True)
 
     fig.savefig(filename, dpi=400, bbox_inches="tight")

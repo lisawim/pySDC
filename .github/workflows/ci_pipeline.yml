@@ -4,8 +4,6 @@ name: CI pipeline for pySDC
 
 on:
   push:
-    branches:
-      - master
   pull_request:
   schedule:
     - cron: '1 5 * * 1'
@@ -101,6 +99,7 @@ jobs:
           - Second_orderSDC
           - soft_failure
           - TOMS
+          - StroemungsRaum
     defaults:
       run:
         shell: bash -l {0}

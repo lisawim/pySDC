@@ -41,9 +41,6 @@ def my_setup_mpl(fontsize: int = 16) -> None:
     # sets fig.tight_layout()
     plt.rcParams["figure.autolayout"] = True
 
-    # plt.rcParams['mathtext.fontset'] = 'cm'
-    # plt.rcParams['mathtext.rm'] = 'serif'
-
 
 def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
     r"""
@@ -65,6 +62,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_LU": "orange",
         "constrainedDAE_MIN-SR-NS": "firebrick",
         "constrainedDAE_MIN-SR-S": "purple",
+        "constrainedDAE_MIN-SR-FLEX": "darkgrey",
         "constrainedDAE_Picard": "dodgerblue",
         "constrainedDAE_DOPRI5": "darkmagenta",
         "embeddedDAE_IE": "royalblue",
@@ -84,7 +82,8 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "semiImplicitDAE_IE": "yellow",
         "semiImplicitDAE_LU": "royalblue",
         "semiImplicitDAE_MIN-SR-NS": "mediumseagreen",
-        "semiImplicitDAE_MIN-SR-S": "khaki",
+        "semiImplicitDAE_MIN-SR-S": "gold",
+        "semiImplicitDAE_MIN-SR-FLEX": "lightskyblue",
         "semiImplicitDAE_Picard": "darkmagenta",
     }
 
@@ -94,6 +93,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_LU": "s",
         "constrainedDAE_MIN-SR-NS": "^",
         "constrainedDAE_MIN-SR-S": "d",
+        "constrainedDAE_MIN-SR-FLEX": "*",
         "constrainedDAE_Picard": "H",
         "constrainedDAE_DOPRI5": "p",
         "embeddedDAE_IE": "D",
@@ -113,7 +113,8 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "semiImplicitDAE_IE": "d",
         "semiImplicitDAE_LU": "8",
         "semiImplicitDAE_MIN-SR-NS": "s",
-        "semiImplicitDAE_MIN-SR-S": "^",
+        "semiImplicitDAE_MIN-SR-S": "*",
+        "semiImplicitDAE_MIN-SR-FLEX": "H",
         "semiImplicitDAE_Picard": "D",
     }
 
@@ -179,7 +180,7 @@ def set_correct_sweeper_type(sweeper_type: str, QI: str) -> str:
 
 
 def setup_convergence_controllers(
-    description: dict[str, dict[str, Any]], use_mpi: bool, use_mpi_grouped: bool
+    description: dict[str, dict[str, Any]], stop_at_accuracy_for_speedup: bool, use_mpi: bool, use_mpi_grouped: bool
 ) -> dict[str, dict[str, Any]]:
     r"""
     Convergence controllers for run are added to the ``description`` dictionary. For the
@@ -190,6 +191,10 @@ def setup_convergence_controllers(
     ----------
     description : dict
         Description of all parameters for the run.
+    stop_at_accuracy_for_speedup : bool
+        If True, the CheckExactError convergence controller is added. The convergence controller checks
+        if the numerical solution achieves a certain accuracy and if so, step is converged. Note that method
+        ``u_exact`` needs to be implemented for a problem.
     use_mpi : bool
         Indicate the usage of MPI.
     use_mpi_grouped : bool
@@ -206,11 +211,20 @@ def setup_convergence_controllers(
 
         description["convergence_controllers"] = {EstimateEmbeddedErrorMPIGrouped: {}}
 
+    if stop_at_accuracy_for_speedup:
+        from pySDC.projects.DAE.misc.check_exact_error import CheckExactError
+
+        description["convergence_controllers"] = {CheckExactError: {}}
+
     return description
 
 
 def setup_problem(
-    problem_name: str, QI: str, description: dict[str, dict[str, Any]], sweeper_type: str, **kwargs: Any
+    problem_name: str,
+    QI: str,
+    description: dict[str, dict[str, Any]],
+    sweeper_type: str,
+    **kwargs: Any,
 ) -> dict[str, dict[str, Any]]:
     """
     Sets up the problem with certain parameters.
@@ -233,6 +247,7 @@ def setup_problem(
     """
 
     dt = description["level_params"]["dt"]
+    stop_at_accuracy_for_speedup = kwargs.get("stop_at_accuracy_for_speedup", False)
 
     if problem_name == "ANDREWS-SQUEEZER":
         if sweeper_type == "constrainedDAE":
@@ -257,8 +272,10 @@ def setup_problem(
                 SemiImplicitAndrewsSqueezingMechanismDAE as problem,
             )
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-9)
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 20)}
+        maxiter = kwargs.get("maxiter", 20)
+        e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-9)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
         description["problem_params"] = {"index": 1, "solver_type": "newton"}
 
     elif problem_name == "LINEAR-TEST":
@@ -274,8 +291,10 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-12)
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 12)}
+        maxiter = kwargs.get("maxiter", 12)
+        e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
         description["problem_params"] = {"solver_type": "direct"}
 
     elif problem_name == "REACTION-DIFFUSION":
@@ -289,8 +308,10 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        description["level_params"]["e_tol"] = kwargs.get("e_tol", 1e-13)  # for M > 5 we need to set e_tol = 1e-12!
-        description["step_params"] = {"maxiter": kwargs.get("maxiter", 25)}
+        maxiter = kwargs.get("maxiter", 25)
+        e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-13)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
 
         tol = newton_tol(dt)
         description["problem_params"] = {
@@ -454,7 +475,8 @@ def setup_sweeper_sdc(
         "skip_residual_computation": kwargs.get("skip_residual_computation", skip_residual_computation_default),
     }
 
-    description["level_params"].update({"nsweeps": 1, "restol": -1})
+    nsweeps = kwargs.get("nsweeps", 1)
+    description["level_params"].update({"nsweeps": nsweeps, "restol": -1})
 
     # MPI-related checks
     if use_mpi and "comm" in kwargs:
@@ -623,7 +645,8 @@ def compute_solution(
     description = {}
     description["level_params"] = {"dt": dt}
 
-    description = setup_convergence_controllers(description, use_mpi, use_mpi_grouped)
+    stop_at_accuracy_for_speedup = kwargs.get("stop_at_accuracy_for_speedup", False)
+    description = setup_convergence_controllers(description, stop_at_accuracy_for_speedup, use_mpi, use_mpi_grouped)
 
     corrected_sweeper_type = set_correct_sweeper_type(sweeper_type, QI)
 

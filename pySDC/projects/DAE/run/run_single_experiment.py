@@ -16,6 +16,7 @@ def compute_qend_max_final_err(
     solution_stats: Any,
     Tend: float,
     *,
+    prefix: str = "",
     q_dim: int = 7,
     atol: float = 1e-14,
     on_fail: Literal["raise", "nan", "none"] = "raise",
@@ -44,9 +45,11 @@ def compute_qend_max_final_err(
     QEndErrorResult or None
     """
 
-    u_val = get_sorted(solution_stats, type="u", sortby="time")
+    assert prefix in {"", "_post_iteration"}, f"Unexpected prefix={prefix!r}"
+
+    u_val = get_sorted(solution_stats, type=f"u{prefix}", sortby="time")
     if not u_val:
-        msg = "solution_stats contains no 'u' entries."
+        msg = f"solution_stats contains no 'u{prefix}' entries."
         if on_fail == "raise":
             raise ValueError(msg)
         if on_fail == "none":
@@ -94,7 +97,7 @@ def compute_qend_max_final_err(
         t_ref=t_ref,
         qend=qend,
         qend_ref=qend_ref,
-        qend_max_final_err=qend_max_final_err,
+        qend_error=qend_max_final_err,
     )
 
 
@@ -113,6 +116,7 @@ def parse_args():
     parser.add_argument("--sweeper_type", type=str, required=True)
     parser.add_argument("--problem_name", type=str, default="DPR")
     parser.add_argument("--num_nodes", type=int, default=3)
+    parser.add_argument("--nsweeps", type=int, default=3)
     parser.add_argument("--use_mpi", action="store_true")
     parser.add_argument("--hook_class", nargs='+', type=parse_hook, default=[])
     # parser.add_argument("--skip_residual_computation", type=str, )
@@ -147,6 +151,7 @@ def main():
             dt=dt_dummy,
             Tend=args.t0 + dt_dummy,
             num_nodes=args.num_nodes,
+            nsweeps=args.nsweeps,
             QI="MIN-SR-NS",
             sweeper_type="constrainedDAE",
             use_mpi=args.use_mpi,
@@ -177,6 +182,7 @@ def main():
                 dt=dt,
                 Tend=args.Tend,
                 num_nodes=args.num_nodes,
+                nsweeps=args.nsweeps,
                 QI=args.QI,
                 sweeper_type=args.sweeper_type,
                 use_mpi=args.use_mpi,
@@ -202,6 +208,7 @@ def main():
                     dt=dt,
                     Tend=args.Tend,
                     num_nodes=args.num_nodes,
+                    nsweeps=args.nsweeps,
                     QI=args.QI,
                     sweeper_type=args.sweeper_type,
                     use_mpi=args.use_mpi,
@@ -219,11 +226,11 @@ def main():
             # Store solution at Tend = 0.03 (for Andrews' problem)
             if args.problem_name == "ANDREWS-SQUEEZER":
                 res = compute_qend_max_final_err(solution_stats, args.Tend)
-                qend_max_final_err = res.qend_max_final_err
+                qend_max_final_err = res.qend_error
                 q_max_final_error_full.append(qend_max_final_err)
 
     if rank == 0:
-        fname = f"results_experiment_{args.num_nodes}.pkl"
+        fname = f"results_experiment_{args.num_nodes}_{args.nsweeps}.pkl"
         path = os.path.join(args.output_dir, fname)
 
         if os.path.exists(path) and os.path.getsize(path) > 0:

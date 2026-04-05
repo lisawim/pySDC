@@ -2,6 +2,8 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.axes import Axes
+from typing import Optional
 
 from pySDC.implementations.hooks.log_solution import LogSolution
 
@@ -17,7 +19,16 @@ from pySDC.helpers.stats_helper import get_sorted
 from pySDC.helpers.plot_helper import figsize_by_journal
 
 
-def plot_numerical_solution(problem_name, dt=1e-2, num_nodes=3, problem_type="constrainedDAE", QI="LU", Tend=1.0):
+def plot_solution_linear(
+    problem_name:str = "LINEAR-TEST",
+    dt: float = 1e-2,
+    num_nodes: int = 3,
+    problem_type: str = "constrainedDAE",
+    QI: str = "LU",
+    Tend: float = 1.0,
+    filename: str = "solution",
+    journal: str = "Springer_Scientific_Computing"
+):
     t0 = 0.0
     Tend = Tend
 
@@ -27,64 +38,26 @@ def plot_numerical_solution(problem_name, dt=1e-2, num_nodes=3, problem_type="co
         problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
     )
 
-    my_setup_mpl()
+    my_setup_mpl(fontsize=7)
+    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
+    fig, axs = plt.subplots(1, 2, figsize=figsize)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
-
     t = np.array([me[0] for me in u_val])
-    if problem_name == "ANDREWS-SQUEEZER":
-        fig, axs = plt.subplots(1, 1, figsize=(20, 10))
 
-        q1 = np.array([me[1].diff[0] for me in u_val])
-        q2 = np.array([me[1].diff[1] for me in u_val])
-        q3 = np.array([me[1].diff[2] for me in u_val])
-        q4 = np.array([me[1].diff[3] for me in u_val])
-        q5 = np.array([me[1].diff[4] for me in u_val])
-        q6 = np.array([me[1].diff[5] for me in u_val])
-        q7 = np.array([me[1].diff[6] for me in u_val])
+    y = np.array([me[1].diff[0] for me in u_val])
+    z = np.array([me[1].alg[0] for me in u_val])
 
-        # Transform solution to get plot as in Hairer & Wanner (1996)
-        q1 = ((q1 + np.pi) % (2 * np.pi)) - np.pi
-        q2 = ((q2 + np.pi) % (2 * np.pi)) - np.pi
-        q3 = ((q3 + np.pi) % (2 * np.pi)) - np.pi
-        q4 = ((q4 + np.pi) % (2 * np.pi)) - np.pi
-        q5 = ((q5 + np.pi) % (2 * np.pi)) - np.pi
-        q6 = ((q6 + np.pi) % (2 * np.pi)) - np.pi
-        q7 = ((q7 + np.pi) % (2 * np.pi)) - np.pi
+    axs[0].plot(t, y)
+    axs[1].plot(t, z)
 
-        axs.plot(t, q1, label=r"$\beta$")  # label=r"$q_1$")
-        axs.plot(t, q2, label=r"$\Theta$")  # label=r"$q_2$")
-        axs.plot(t, q3, label=r"$\gamma$")  # label=r"$q_3$")
-        axs.plot(t, q4, label=r"$\Phi$")  # label=r"$q_4$")
-        axs.plot(t, q5, label=r"$\delta$")  # label=r"$q_5$")
-        axs.plot(t, q6, label=r"$\Omega$")  # label=r"$q_6$")
-        axs.plot(t, q7, label=r"$\varepsilon$")
+    for ax in axs:
+        ax.set_xlabel(r"$t$")
 
-        axs.set_xlabel(r'$t$')
-        axs.set_ylabel(r'Solution')
+    axs[0].set_ylabel(r"$y$")
+    axs[1].set_ylabel(r"$z$")
 
-        axs.set_xlim((0.0, 0.03))
-        # axs.set_ylim((-0.7, 0.7))
-        axs.set_ylim((-4.0, 4.0))
-
-        axs.legend(loc='upper right')
-
-    elif problem_name == "LINEAR-TEST":
-        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-
-        y = np.array([me[1].diff[0] for me in u_val])
-        z = np.array([me[1].alg[0] for me in u_val])
-
-        axs[0].plot(t, y)
-        axs[1].plot(t, z)
-
-        for ax in axs:
-            ax.set_xlabel(r"$t$")
-
-        axs[0].set_ylabel(r"$y$")
-        axs[1].set_ylabel(r"$z$")
-
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"solution.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -92,15 +65,95 @@ def plot_numerical_solution(problem_name, dt=1e-2, num_nodes=3, problem_type="co
     plt.close(fig)
 
 
-def plot_numerical_solution_reaction_diffusion(
-    dt=1e-2,
-    journal="Springer_Scientific_Computing",
-    num_nodes=3,
-    problem_type="semiImplicitDAE",
-    QI="LU",
-    Tend=0.5,
+def plot_solution_andrews(
+    problem_name: str = "ANDREWS-SQUEEZER",
+    dt: float = 1e-4,
+    num_nodes: int = 6,
+    problem_type: str = "constrainedDAE",
+    QI: str = "LU",
+    Tend: float = 0.03,
+    filename: str = "solution",
+    journal: str = "Springer_Scientific_Computing",
+    ax: Optional[Axes] = None,
+    return_ax: bool = False,
+) -> Optional[Axes]:
+
+    created_fig = ax is None
+    if created_fig:
+        my_setup_mpl(fontsize=7)
+        figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+    else:
+        fig = ax.figure
+
+    t0 = 0.0
+    Tend = Tend
+
+    hook_class = [LogSolution]
+
+    print(f"\n ... Generating solution of {problem_name} ... \n")
+
+    solution_stats = compute_solution(
+        problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
+    )
+
+    u_val = get_sorted(solution_stats, type="u", sortby="time")
+
+    t = np.array([me[0] for me in u_val])
+
+    q1 = np.array([me[1].diff[0] for me in u_val])
+    q2 = np.array([me[1].diff[1] for me in u_val])
+    q3 = np.array([me[1].diff[2] for me in u_val])
+    q4 = np.array([me[1].diff[3] for me in u_val])
+    q5 = np.array([me[1].diff[4] for me in u_val])
+    q6 = np.array([me[1].diff[5] for me in u_val])
+    q7 = np.array([me[1].diff[6] for me in u_val])
+
+    # Transform solution to get plot as in Hairer & Wanner (1996)
+    q1 = ((q1 + np.pi) % (2 * np.pi)) - np.pi
+    q2 = ((q2 + np.pi) % (2 * np.pi)) - np.pi
+    q3 = ((q3 + np.pi) % (2 * np.pi)) - np.pi
+    q4 = ((q4 + np.pi) % (2 * np.pi)) - np.pi
+    q5 = ((q5 + np.pi) % (2 * np.pi)) - np.pi
+    q6 = ((q6 + np.pi) % (2 * np.pi)) - np.pi
+    q7 = ((q7 + np.pi) % (2 * np.pi)) - np.pi
+
+    ax.plot(t, q1, label=r"$\beta$")  # label=r"$q_1$")
+    ax.plot(t, q2, label=r"$\Theta$")  # label=r"$q_2$")
+    ax.plot(t, q3, label=r"$\gamma$")  # label=r"$q_3$")
+    ax.plot(t, q4, label=r"$\Phi$")  # label=r"$q_4$")
+    ax.plot(t, q5, label=r"$\delta$")  # label=r"$q_5$")
+    ax.plot(t, q6, label=r"$\Omega$")  # label=r"$q_6$")
+    ax.plot(t, q7, label=r"$\varepsilon$")
+
+    ax.set_xlabel(r"time $t$")
+    ax.set_ylabel(r"solution $q$")
+
+    ax.set_xlim((dt, 0.03))
+    ax.set_ylim((-4.0, 4.0))
+
+    if created_fig:
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.19), ncol=7)
+
+        out = Path("data") / problem_name / f"{filename}.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=400, bbox_inches="tight")
+
+        if not return_ax:
+            plt.close(fig)
+            return None
+
+
+def plot_numerical_reaction_diffusion(
+    problem_name: str = "REACTION-DIFFUSION",
+    dt: float = 1e-2,
+    num_nodes: int = 3,
+    problem_type: str = "semiImplicitDAE",
+    QI: str = "LU",
+    Tend: float = 0.25,
+    journal: str = "Springer_Scientific_Computing",
 ):
-    problem_name = "REACTION-DIFFUSION"
+    my_setup_mpl(fontsize=8)
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
 
     t0 = 0.0
@@ -127,8 +180,6 @@ def plot_numerical_solution_reaction_diffusion(
 
     problem_params = {"nvars": nvars}
     prob = ReactionDiffusionPDAEConstrained(**problem_params)
-
-    my_setup_mpl(fontsize=8)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
 
@@ -354,20 +405,20 @@ def plot_numerical_solution_reaction_diffusion_video(
 
 if __name__ == "__main__":
     # plot_numerical_solution("LINEAR-TEST")
-    # plot_numerical_solution(
-    #     "ANDREWS-SQUEEZER",
-    #     dt=1e-5,
-    #     num_nodes=6,
-    #     problem_type="fullyImplicitDAE",
-    #     QI="RadauIIA7",
-    #     Tend=0.03,
-    # )
-
-    t0 = 0.0
-    dt = 1e-2
-    plot_numerical_solution_reaction_diffusion(
-        dt=dt, num_nodes=3, problem_type="fullyImplicitDAE", QI="RadauIIA5", Tend=t0 + dt
+    plot_solution_andrews(
+        "ANDREWS-SQUEEZER",
+        dt=1e-4,
+        num_nodes=6,
+        problem_type="constrainedDAE",
+        QI="LU",
+        Tend=0.03,
     )
+
+    # t0 = 0.0
+    # dt = 1e-2
+    # plot_numerical_solution_reaction_diffusion(
+    #     dt=dt, num_nodes=3, problem_type="fullyImplicitDAE", QI="RadauIIA5", Tend=t0 + dt
+    # )
     # plot_numerical_solution_pre_iteration0_reaction_diffusion(
     #     dt=dt, num_nodes=3, problem_type="fullyImplicitDAE", QI="RadauIIA5", Tend=t0+dt
     # )

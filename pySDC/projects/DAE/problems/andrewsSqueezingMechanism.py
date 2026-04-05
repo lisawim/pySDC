@@ -10,6 +10,37 @@ from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 # Problem specific hooks
+class LogPositionErrorEndPostIteration(Hooks):
+    """
+    Logs the error in q after each iteration. The exact solution of q is
+    only known at the end of the interval, i.e., at time 0.03. Thus, it
+    only makes sense to use the data from this hook in the last step.
+    """
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        qend_ex = qend_ref_testset(t=0.03)
+        uend = L.uend.flatten()
+        q = uend[:7]
+
+        e_position = abs(qend_ex - q)
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="e_position_end_post_iteration",
+            value=e_position,
+        )
+
+
 class LogGlobalErrorPreIterMechanicalVars(Hooks):
     """Logs global error of Andrews' squeezer components after prediction."""
 

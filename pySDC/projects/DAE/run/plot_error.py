@@ -146,8 +146,8 @@ def plot_error_vs_iteration(
 def run_and_plot_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
-    sweeper_types = ["constrainedDAE"]
-    QI_list = ["EE", "MIN-SR-NS", "Picard"]
+    sweeper_types = ["constrainedDAE", "semiImplicitDAE"]
+    QI_list = ["LU", "MIN-SR-NS"]
 
     t0 = 0.0
 
@@ -220,8 +220,8 @@ def run_and_plot_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", j
 def run_and_plot_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.6, ratio=0.9)
 
-    sweeper_types = ["constrainedDAE"]
-    QI_list = ["IE", "LU", "MIN-SR-S"]
+    sweeper_types = ["constrainedDAE", "semiImplicitDAE"]
+    QI_list = ["MIN-SR-S"]
 
     t0 = 0.0
     _, Tend = choose_time_step_sizes(problem_name)
@@ -249,7 +249,10 @@ def run_and_plot_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journa
                 False,
                 hook_class=hook_class,
                 measure=True,  # False,
+                # maxiter=30,
+                # e_tol=1e-13,
             )
+
             print(f"Runtime: {runtime} s")
             x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
             err_values = [me[1] for me in get_sorted(solution_stats, type=f"e_global_post_step", sortby="time")]
@@ -495,8 +498,8 @@ def plot_embedded_error_vs_iteration(
 def plot_embedded_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
 
-    sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
-    QI_list = ["IE", "LU", "MIN-SR-S"]
+    sweeper_types = ["constrainedDAE", "semiImplicitDAE"]
+    QI_list = ["LU", "MIN-SR-S"]
 
     t0 = 0.0
     _, Tend = choose_time_step_sizes(problem_name)
@@ -703,3 +706,88 @@ def plot_algebraic_equation_vs_iteration(
 
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
+
+
+def plot_embedded_error_along_iterations_vs_time(dt, num_nodes, problem_name, journal="Springer_Scientific_Computing"):
+    figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
+
+    sweeper_types = ["constrainedDAE", "semiImplicitDAE"]
+    QI_list = ["LU", "MIN-SR-S"]
+
+    t0 = 0.0
+    _, Tend = choose_time_step_sizes(problem_name)
+
+    hook_class = [LogEmbeddedErrorEstimatePostIter]
+
+    maxiter = 25
+
+    my_setup_mpl(fontsize=8)
+    colors, markers, sweeper_labels = my_plot_style_config()
+
+    fig, axs = plt.subplots(1, 1, figsize=(12, 6))
+
+    for q, QI in enumerate(QI_list):
+        for sweeper_type in sweeper_types:
+            print(f"Running for {sweeper_type} with {QI}..")
+            key = f"{sweeper_type}_{QI}"
+
+            solution_stats = compute_solution(
+                problem_name,
+                t0,
+                dt,
+                Tend,
+                num_nodes,
+                QI,
+                sweeper_type,
+                False,
+                hook_class=hook_class,
+                measure=False,
+                maxiter=maxiter,
+                e_tol=-1,
+            )
+
+            # print(get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="time"))
+
+            # x = [
+            #     me[0]
+            #     for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="iter")
+            # ]
+            embedded_err_values = [
+                me[1]
+                for me in get_sorted(solution_stats, type=f"error_embedded_estimate_post_iteration", sortby="time")
+            ]
+
+            label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
+            axs.semilogy(embedded_err_values, color=colors[key], label=label)
+
+        axs.set_xlabel("iteration")
+
+        axs.set_ylabel("embedded error estimate")
+
+        axs.set_ylim((1e-15, 1e0))
+
+    handles, labels = axs.get_legend_handles_labels()
+
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=3)
+
+    plot_name = f"embedded_error_along_iteration_vs_time_{num_nodes=}_{dt=}_{maxiter=}.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    plt.close(fig)
+
+
+
+if __name__ == "__main__":
+    problem_name = "LINEAR-TEST"
+    dt_list, _ = choose_time_step_sizes(problem_name=problem_name)
+    for M in range(2, 6):
+        # plot_algebraic_error_vs_iteration(dt_list[2], M, problem_name=problem_name)
+        run_and_plot_error_vs_iteration(dt_list[3], M, problem_name=problem_name)
+    # run_and_plot_error_vs_time(dt_list[4], 13, problem_name=problem_name)
+    # run_and_plot_error_vs_time(dt_list[2], 3, problem_name=problem_name)
+    # plot_embedded_error_vs_time(dt_list[2], 2, problem_name=problem_name)
+    # for M in range(10, 13):
+    #     plot_embedded_error_along_iterations_vs_time(dt_list[2], M, problem_name=problem_name)

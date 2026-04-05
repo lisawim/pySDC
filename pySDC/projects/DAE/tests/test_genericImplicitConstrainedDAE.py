@@ -64,7 +64,7 @@ def test_integrate_method_integrates_correctly():
 
     sdc_c = genericImplicitConstrained(params=sweeper_params, level=lvl)
 
-    lvl.status.time = 1.0
+    lvl.status.time = 0.0
     lvl.u[0] = prob.u_exact(lvl.time)
 
     sdc_c.predict()
@@ -122,7 +122,7 @@ def test_residual_is_correctly_computed(residual_type):
 
     sdc_c = genericImplicitConstrained(params=sweeper_params, level=lvl)
 
-    lvl.status.time = 1.0
+    lvl.status.time = 0.0
     lvl.u[0] = prob.u_exact(lvl.time)
 
     sdc_c.predict()

@@ -90,7 +90,7 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
     linestyles = ["solid", "dotted"]
 
     sweeper_type = "constrainedDAE"
-    QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
+    QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
     num_nodes = 3
     maxiter = 2 * num_nodes - 1
     e_tol = -1
@@ -109,6 +109,8 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
     ]
 
     my_setup_mpl(fontsize=7)
+
+    offsets = [0.7, 0.45, 0.6, 0.55, 0.55, 0.5, 0.45]
 
     for q, QI in enumerate(QI_list):
         errors_y, errors_z = [], []
@@ -175,20 +177,42 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
             Cz = compute_constant_reference_order(dt_list, err_z_iter, k)
 
             # Reference order
+            ref_y = [Cy * dt ** (k + 1) for dt in dt_list_short]
             axs[0].loglog(
                 dt_list_short,
-                [Cy * dt ** (k + 1) for dt in dt_list_short],
+                ref_y,
                 color="black",
                 linewidth=1.0,
                 linestyle="dashed",
             )
 
+            axs[0].text(
+                dt_list_short[-1] * 0.8,
+                ref_y[-1] * offsets[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
+            )
+
+            ref_z = [Cz * dt ** (k + 1) for dt in dt_list_short]
             axs[1].loglog(
                 dt_list_short,
-                [Cz * dt ** (k + 1) for dt in dt_list_short],
+                ref_z,
                 color="black",
                 linewidth=1.0,
                 linestyle="dashed",
+            )
+
+            axs[1].text(
+                dt_list_short[-1] * 0.8,
+                ref_z[-1] * offsets[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
             )
 
         for ax in axs:
@@ -207,7 +231,8 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
-        plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
+        # plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
+        plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
         filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -249,6 +274,11 @@ def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Spr
     ]
 
     my_setup_mpl(fontsize=7)
+
+    offsets_pos = [0.8, 0.1, 0.6, 0.25, 0.55, 0.5, 0.45]
+    offsets_vel = [0.15, 0.57, 0.6, 0.55, 0.55, 0.5, 0.35]
+    offsets_acc = [0.8, 0.1, 0.6, 0.55, 0.55, 0.5, 0.45]
+    offsets_lag = [0.8, 0.1, 0.6, 0.1, 0.55, 0.5, 0.45]
 
     for q, QI in enumerate(QI_list):
         print(f"Running for {QI}..")
@@ -357,36 +387,80 @@ def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Spr
             C_lag = compute_constant_reference_order(dt_list, err_lag_iter, k)
 
             # Reference order
+            ref_pos = [C_pos * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[0].loglog(
                 dt_list_short,
-                [C_pos * dt ** (k + 1) for dt in dt_list_short],
+                ref_pos,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
             )
 
+            ax_flatten[0].text(
+                dt_list_short[-1] * 0.75,
+                ref_pos[-1] * offsets_pos[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
+            )
+
+            ref_vel = [C_vel * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[1].loglog(
                 dt_list_short,
-                [C_vel * dt ** (k + 1) for dt in dt_list_short],
+                ref_vel,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
             )
 
+            ax_flatten[1].text(
+                dt_list_short[-1] * 0.75,
+                ref_vel[-1] * offsets_vel[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
+            )
+
+            ref_acc = [C_acc * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[2].loglog(
                 dt_list_short,
-                [C_acc * dt ** (k + 1) for dt in dt_list_short],
+                ref_acc,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
             )
 
+            ax_flatten[2].text(
+                dt_list_short[-1] * 0.75,
+                ref_acc[-1] * offsets_acc[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
+            )
+
+            ref_lag = [C_lag * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[3].loglog(
                 dt_list_short,
-                [C_lag * dt ** (k + 1) for dt in dt_list_short],
+                ref_lag,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
+            )
+
+            ax_flatten[3].text(
+                dt_list_short[-1] * 0.75,
+                ref_lag[-1] * offsets_lag[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
             )
 
         for ax in ax_flatten:
@@ -453,6 +527,8 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
     ]
 
     my_setup_mpl(fontsize=8)
+
+    offsets = [0.18, 0.18, 0.2, 0.25, 0.3, 0.3, 0.35]
 
     for q, QI in enumerate(QI_list):
         print(f"Running for {QI}..")
@@ -546,28 +622,61 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
             C_w = compute_constant_reference_order(dt_list_pov, err_w_iter, k)
 
             # Reference order
+            ref_u = [C_u * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[0].loglog(
                 dt_list_short,
-                [C_u * dt ** (k + 1) for dt in dt_list_short],
+                ref_u,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
             )
 
+            ax_flatten[0].text(
+                dt_list_short[-1] * 0.82,
+                ref_u[-1] * offsets[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
+            )
+
+            ref_v = [C_v * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[1].loglog(
                 dt_list_short,
-                [C_v * dt ** (k + 1) for dt in dt_list_short],
+                ref_v,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
             )
 
+            ax_flatten[1].text(
+                dt_list_short[-1] * 0.82,
+                ref_v[-1] * offsets[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
+            )
+
+            ref_w = [C_w * dt ** (k + 1) for dt in dt_list_short]
             ax_flatten[2].loglog(
                 dt_list_short,
-                [C_w * dt ** (k + 1) for dt in dt_list_short],
+                ref_w,
                 color="black",
                 linewidth=0.9,
                 linestyle="dashed",
+            )
+
+            ax_flatten[2].text(
+                dt_list_short[-1] * 0.82,
+                ref_w[-1] * offsets[k],
+                rf"${k+1}$",
+                fontsize=6,
+                va="center",
+                ha="left",
+                color="black",
             )
 
         for ax in ax_flatten:
@@ -581,7 +690,7 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
         ax_flatten[1].set_ylabel(r"LTE $||v(t_1) - v^k_{M,t_1}||_{\infty}$")
         ax_flatten[2].set_ylabel(r"LTE $||w(t_1) - w^k_{M,t_1}||_{\infty}$")
 
-        ax_flatten = sync_ylim(ax_flatten, min_y_set=1e-16)
+        ax_flatten = sync_ylim(ax_flatten, min_y_set=5e-17)
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
@@ -1198,6 +1307,6 @@ def plot_order_integration_error_reaction_diffusion(
 
 if __name__ == "__main__":
     format = "png"
-    # plot_order_linear(format=format)
+    plot_order_linear(format=format)
     # plot_order_andrews(format=format)
-    plot_order_reaction_diffusion(format=format)
+    # plot_order_reaction_diffusion(format=format)

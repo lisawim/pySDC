@@ -28,7 +28,7 @@ def get_configs(problem_name: str, config_type: str, nsweeps: int = None) -> dic
                 "LU",
                 "MIN-SR-NS",
                 "MIN-SR-S",
-                "MIN-SR-FLEX",
+                # "MIN-SR-FLEX",
                 "Picard",
                 "DOPRI5",
                 "RadauIIA5",

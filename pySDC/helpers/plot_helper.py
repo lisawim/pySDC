@@ -49,6 +49,7 @@ def figsize_by_journal(journal, scale, ratio):  # pragma: no cover
     }
     # store text height in points here, get this from LaTeX using \the\textheight
     textheights = {
+        'BUW_thesis': 631.65118,
         'JSC_beamer': 214.43411,
         'JSC_thesis': 635.5,
         'TUHH_thesis': 631.65118,

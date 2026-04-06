@@ -1,10 +1,12 @@
 def make_plots_for_chapter_application(journal="BUW_thesis"):
+    from pySDC.projects.PinTSimE import pwm_signal
     from pySDC.projects.DAE.run.solution import (
         plot_solution_piline,
         plot_solution_buck_converter,
         plot_solution_battery,
     )
 
+    pwm_signal(filename="pwm_signal", journal=journal)
     plot_solution_piline(filename="piline_solution", journal=journal)
     plot_solution_buck_converter(filename="buck_converter_solution", journal=journal)
     plot_solution_battery(filename="battery_solution", journal=journal)

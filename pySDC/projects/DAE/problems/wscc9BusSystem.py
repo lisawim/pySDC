@@ -835,7 +835,7 @@ class WSCC9BusSystem(ProblemDAE):
 
         # excitation limiter vmax
         # self.vmax = 2.1
-        self.psv_max = 1.0
+        self.psv_max = 0.05
 
         self.IC1 = [row[7] for row in self.bus]  # Column 8 in MATLAB is indexed as 7 in Python (0-based index)
         self.IC2 = [row[8] for row in self.bus]  # Column 9 in MATLAB is indexed as 8 in Python

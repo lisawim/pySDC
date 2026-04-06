@@ -488,7 +488,7 @@ def plot_solution_buck_converter(
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $i_{L_\pi}, V_{C_1}, V_{C_2}$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)
@@ -538,7 +538,7 @@ def plot_solution_piline(
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $i_{L_\pi}, V_{C_1}, V_{C_2}$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)

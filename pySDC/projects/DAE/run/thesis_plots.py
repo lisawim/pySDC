@@ -1,5 +1,5 @@
 def make_plots_for_chapter_application(journal="BUW_thesis"):
-    from pySDC.projects.PinTSimE import plot_pwm
+    from pySDC.projects.PinTSimE.pwm_signal import plot_pwm
     from pySDC.projects.DAE.run.solution import (
         plot_solution_piline,
         plot_solution_buck_converter,

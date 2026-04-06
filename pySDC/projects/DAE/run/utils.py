@@ -278,8 +278,48 @@ def setup_problem(
         description["step_params"] = {"maxiter": maxiter}
         description["problem_params"] = {"index": 1, "solver_type": "newton"}
 
+    elif problem_name == "BATTERY":
+        if sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.batteryDAE import BatteryDAE as problem
+        else:
+            raise NotImplementedError("Battery problem only implemented for fully implicit DAE sweeper.")
+
+        maxiter = kwargs.get("maxiter", 10)
+        e_tol = kwargs.get("e_tol", 1e-12)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
+        description["problem_params"] = {}
+    
+    elif problem_name == "BUCK-CONVERTER":
+        if sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.buckConverterDAE import BuckConverterDAE as problem
+        else:
+            raise NotImplementedError("Buck converter problem only implemented for fully implicit DAE sweeper.")
+
+        maxiter = kwargs.get("maxiter", 10)
+        e_tol = kwargs.get("e_tol", 1e-12)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
+        description["problem_params"] = {}
+
+    elif problem_name == "DISC-TEST":
+        if sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.discontinuousTestDAE import DiscontinuousTestDAE as problem
+        else:
+            raise NotImplementedError("Discontinuous test problem only implemented for fully implicit DAE sweeper.")
+
+        maxiter = kwargs.get("maxiter", 12)
+        e_tol = kwargs.get("e_tol", 1e-12)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
+        description["problem_params"] = {}
+
     elif problem_name == "LINEAR-TEST":
-        if sweeper_type == "constrainedDAE":
+        eps = kwargs.get("eps", 0.0)
+        if eps > 0.0:
+            from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP as problem
+            # from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
+        elif sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEConstrained as problem
         elif sweeper_type == "embeddedDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEEmbedded as problem
@@ -296,6 +336,20 @@ def setup_problem(
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
         description["problem_params"] = {"solver_type": "direct"}
+        if eps > 0.0:
+            description["problem_params"]["eps"] = eps
+
+    elif problem_name == "PILINE":
+        if sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.pilineDAE import PilineDAE as problem
+        else:
+            raise NotImplementedError("Piline problem only implemented for fully implicit DAE sweeper.")
+
+        maxiter = kwargs.get("maxiter", 10)
+        e_tol = kwargs.get("e_tol", 1e-12)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
+        description["problem_params"] = {}
 
     elif problem_name == "REACTION-DIFFUSION":
         if sweeper_type == "constrainedDAE":
@@ -321,6 +375,18 @@ def setup_problem(
         }
         if not QI.startswith("RadauIIA"):
             description["problem_params"]["spectral"] = kwargs.get("spectral", True)
+
+    elif problem_name == "WSCC9":
+        if sweeper_type == "fullyImplicitDAE":
+            from pySDC.projects.DAE.problems.wscc9BusSystem import WSCC9BusSystem as problem
+        else:
+            raise NotImplementedError("WSCC9 problem only implemented for fully implicit DAE sweeper.")
+
+        maxiter = kwargs.get("maxiter", 10)
+        e_tol = kwargs.get("e_tol", 1e-12)
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
+        description["problem_params"] = {}
 
     description["problem_class"] = problem
 
@@ -373,7 +439,7 @@ def get_sweeper_class_rk_method(QI: str) -> type[Sweeper]:
     return sweeper
 
 
-def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: bool = False) -> type[Sweeper]:
+def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: bool = False, **kwargs: Any) -> type[Sweeper]:
     """
     Import of the SDC sweeper class.
 
@@ -392,9 +458,12 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: boo
         Imported sweeper class.
     """
 
+    eps = kwargs.get("eps", 0.0)
     if use_mpi:
         if not use_mpi_grouped:
-            if sweeper_type == "constrainedDAE":
+            if eps > 0.0:
+                from pySDC.implementations.sweeper_classes.generic_implicit_MPI import generic_implicit_MPI as sweeper
+            elif sweeper_type == "constrainedDAE":
                 from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
             elif sweeper_type == "embeddedDAE":
                 from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
@@ -415,7 +484,9 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: boo
                 NotImplementedError(f"No grouped MPI sweeper implemented for {sweeper_type}!")
 
     else:
-        if sweeper_type == "constrainedDAE":
+        if eps > 0.0:
+            from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit as sweeper
+        elif sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained as sweeper
         elif sweeper_type == "embeddedDAE":
             from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded as sweeper
@@ -464,7 +535,7 @@ def setup_sweeper_sdc(
 
     skip_residual_computation_default = ("IT_DOWN", "IT_UP", "IT_COARSE", "IT_FINE", "IT_CHECK")
 
-    sdc_sweeper = get_sweeper_class_sdc(use_mpi, sweeper_type, use_mpi_grouped)
+    sdc_sweeper = get_sweeper_class_sdc(use_mpi, sweeper_type, use_mpi_grouped, **kwargs)
     description["sweeper_class"] = sdc_sweeper
 
     description["sweeper_params"] = {

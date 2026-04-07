@@ -1,4 +1,3 @@
-import numpy as np
 from mpi4py import MPI
 import os
 import dill
@@ -233,8 +232,6 @@ def plot_speedups(
         all nodes from the run are plotted.
     journal : str, optional
         Name of the journal to obtain specified scale and height for figsize.
-    format : str
-        Format of plot. Default is ``"png"``.
     """
 
     plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig7", "REACTION-DIFFUSION": "Fig10"}
@@ -323,7 +320,7 @@ def make_plots():
     config_linear = get_configs(problem_name="LINEAR-TEST", config_type="speedup_at_accuracy")
     filename = "results_speedup_at_acc_dt=0.05_linear_#3.pkl"
     plots_speedup_at_accuracy(
-        global_comm=global_comm, format="png", filename=filename, **config_linear
+        global_comm=global_comm, filename=filename, **config_linear
     )
 
     print("\nGenerating plots for REACTION-DIFFUSION...\n")
@@ -331,7 +328,7 @@ def make_plots():
     # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#2.pkl"
     filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#4_newton_tol=1.3e-11.pkl"
     plots_speedup_at_accuracy(
-        global_comm=global_comm, format="png", filename=filename, **config_reacdiff
+        global_comm=global_comm, filename=filename, **config_reacdiff
     )
 
 

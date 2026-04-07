@@ -41,6 +41,37 @@ def compute_constant_reference_order(dt_list, err_iter, k):
     return C
 
 
+def sync_xlim(axs, min_x_set=1e-15):
+    """Synchronize x-axis limits across all subplots by finding the global min/max."""
+    min_x, max_x = None, None
+
+    # Find global min/max y-limits across all axes
+    for ax in axs:
+        x_limits = ax.get_xlim()
+
+        # Ignore non-positive values for log scale
+        if ax.get_xscale() == "log":
+            x_limits = [x for x in x_limits if x > 0]  
+            if not x_limits:
+                continue
+
+        if min_x is None or x_limits[0] < min_x:
+            min_x = x_limits[0]
+        if max_x is None or x_limits[1] > max_x:
+            max_x = x_limits[1]
+
+    # Apply the same limits to all subplots
+    for ax in axs:
+        if ax.get_xscale() == "log":
+            if min_x is not None and min_x <= 0:
+                min_x = min_x_set
+            ax.set_xlim(min_x, max_x)
+        else:
+            ax.set_xlim(min_x, max_x)
+
+    return axs
+
+
 def sync_ylim(axs, min_y_set=1e-15):
     """Synchronize y-axis limits across all subplots by finding the global min/max."""
     min_y, max_y = None, None

@@ -12,13 +12,6 @@ from pySDC.projects.DAE.run.utils import set_correct_sweeper_type
 
 from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.run.speedup_at_accuracy_test import build_filename, run_speedup_at_accuracy_test
-from pySDC.projects.DAE.run.plots_scaling import (
-    plot_wallclocktime_vs_mpi_ranks,
-    plot_mean_iterations_vs_mpi_ranks,
-    plot_error_vs_mpi_ranks,
-    plot_embedded_error_vs_mpi_ranks,
-    plot_wallclocktime_over_time,
-)
 from pySDC.projects.DAE.run.plots_scaling_new import save_fig, set_nodes_for_plotting
 from pySDC.projects.DAE.run.plots_work_prec import get_method_label
 
@@ -73,6 +66,15 @@ def compute_speedups(
         num_processes_by_ref[key_ref] = sorted(available_parallel_nodes)
 
     return speedups, num_processes_by_ref
+
+
+def split_method_key(key: str) -> tuple[str, str]:
+    return key.rsplit("_", 1)
+
+
+def get_sweeper_type_from_key(key: str) -> str:
+    sweeper_type, _ = split_method_key(key)
+    return sweeper_type
 
 
 def plots_speedup_at_accuracy(
@@ -155,41 +157,6 @@ def plots_speedup_at_accuracy(
             **kwargs,
         )
 
-        plot_functions = [
-            plot_mean_iterations_vs_mpi_ranks,
-            plot_error_vs_mpi_ranks,
-            plot_embedded_error_vs_mpi_ranks,
-        ]
-        for plot_function in plot_functions:
-            plot_function(
-                all_stats,
-                problem_name,
-                sweepers,
-                QI_serial_methods,
-                QI_parallel_methods,
-                nodes_to_plot=nodes_to_plot,
-            )
-
-        plot_wallclocktime_vs_mpi_ranks(
-            all_stats,
-            problem_name,
-            sweepers,
-            QI_serial_methods,
-            QI_parallel_methods,
-            nodes_to_plot=nodes_to_plot,
-            y_of=lambda stats: stats.t_wall_stop_at_acc,
-        )
-
-        plot_wallclocktime_over_time(
-            all_stats=all_stats,
-            dt=dt,
-            problem_name=problem_name,
-            sweepers=sweepers,
-            QI_serial_methods=QI_serial_methods,
-            QI_parallel_methods=QI_parallel_methods,
-            nodes_to_plot=nodes_to_plot,
-        )
-
 
 def plot_speedups(
     problem_name: str,
@@ -245,6 +212,7 @@ def plot_speedups(
 
     my_setup_mpl(fontsize=fontsize)
     colors, markers, _ = my_plot_style_config()
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     for sweeper_type_ser in sweepers:
         sweeper_type_ser_eff = set_correct_sweeper_type(sweeper_type_ser, ref_QI)
@@ -253,7 +221,6 @@ def plot_speedups(
         if key_ref not in speedups:
             continue
 
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
         used_nodes_all = set()
 
         nodes = set_nodes_for_plotting(num_processes_by_ref[key_ref], nodes_to_plot)
@@ -265,8 +232,11 @@ def plot_speedups(
                 if key_par not in speedups[key_ref]:
                     continue
 
-                s_map = speedups[key_ref][key_par]
+                if get_sweeper_type_from_key(key_par) != get_sweeper_type_from_key(key_ref):
+                    continue
 
+                s_map = speedups[key_ref][key_par]
+                # print(f"Available speedup data for {key_par}: {s_map}\n")
                 xs = [n for n in nodes if n in s_map]
 
                 used_nodes_all.update(xs)
@@ -274,8 +244,9 @@ def plot_speedups(
 
                 s_min.append(min(ys_s))
                 s_max.append(max(ys_s))
-
+                # print(f"Plotting speedup until accuracy for {key_par} with nodes {xs} and speedups {ys_s}\n")
                 label = get_method_label(sweeper_type_par, QI_par)
+                print(key_ref, key_par, label)
                 ax.semilogx(
                     xs,
                     ys_s,
@@ -284,32 +255,32 @@ def plot_speedups(
                     label=label,
                 )
 
-        for spine in ax.spines.values():
-            spine.set_linewidth(0.5)
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.5)
 
-        ax.tick_params(axis="both", which="major", width=0.5)
+    ax.tick_params(axis="both", which="major", width=0.5)
 
-        used_nodes_sorted = sorted(used_nodes_all)
-        ax.tick_params(axis="both", which="minor", bottom=False, left=True)
-        ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks")
-        print(f"Used nodes for plotting: {used_nodes_sorted}")
-        # ax.set_xscale("log", base=2)
-        ax.set_xscale("linear")
-        ax.set_xticks(used_nodes_sorted)
-        ax.set_xticklabels(used_nodes_sorted)
-        ax.grid(linewidth=0.5, which="major", axis="both", alpha=0.35)
+    used_nodes_sorted = sorted(used_nodes_all)
+    ax.tick_params(axis="both", which="minor", bottom=False, left=True)
+    ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks")
+    print(f"Used nodes for plotting: {used_nodes_sorted}")
+    # ax.set_xscale("log", base=2)
+    ax.set_xscale("linear")
+    ax.set_xticks(used_nodes_sorted)
+    ax.set_xticklabels(used_nodes_sorted)
+    ax.grid(linewidth=0.5, which="major", axis="both", alpha=0.35)
 
-        # ax.set_yscale("log", base=10)
-        ax.set_yscale("linear")
-        ax.set_ylabel("speedup")
-        ymax = max(s_max)
-        ymin = min(s_min)
-        ax.set_ylim(max(1.0, ymin - 0.15), ymax + 0.15)
+    # ax.set_yscale("log", base=10)
+    ax.set_yscale("linear")
+    ax.set_ylabel("speedup")
+    ymax = max(s_max)
+    ymin = min(s_min)
+    ax.set_ylim(max(1.0, ymin - 0.15), ymax + 0.15)
 
-        fig.legend(loc="upper center", bbox_to_anchor=(0.58, 0.08), ncol=2)
+    fig.legend(loc="upper center", bbox_to_anchor=(0.58, 0.08), ncol=2)
 
-        plot_name = plot_names[problem_name]
-        save_fig(plt, plot_name, problem_name)
+    plot_name = plot_names[problem_name]
+    save_fig(plt, plot_name, problem_name)
 
 
 def make_plots():
@@ -323,14 +294,14 @@ def make_plots():
         global_comm=global_comm, filename=filename, **config_linear
     )
 
-    print("\nGenerating plots for REACTION-DIFFUSION...\n")
-    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
-    # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#2.pkl"
-    filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#4_newton_tol=1.3e-11.pkl"
-    plots_speedup_at_accuracy(
-        global_comm=global_comm, filename=filename, **config_reacdiff
-    )
+    # print("\nGenerating plots for REACTION-DIFFUSION...\n")
+    # config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
+    # # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#2.pkl"
+    # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#4_newton_tol=1.3e-11.pkl"
+    # plots_speedup_at_accuracy(
+    #     global_comm=global_comm, filename=filename, **config_reacdiff
+    # )
 
 
-if __name__ == "__main__":
-    make_plots()
+# if __name__ == "__main__":
+#     make_plots()

@@ -11,7 +11,7 @@ from pySDC.core.hooks import Hooks
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.projects.DAE.misc.configurations import get_configs
 from pySDC.helpers.plot_helper import figsize_by_journal
-from pySDC.projects.DAE.plotting.plot_svd import sync_xlim
+from pySDC.projects.DAE.run.plot_order_iteration import sync_xlim
 from pySDC.projects.DAE.misc.methods_config import RADAU_METHODS, RK_METHODS, SDC_METHODS
 
 from pySDC.projects.DAE.run.work_precision import run_all_simulations

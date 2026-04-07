@@ -14,8 +14,9 @@ from pySDC.core.hooks import Hooks
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 from pySDC.projects.DAE.misc.configurations import get_configs
 from pySDC.projects.DAE.run.utils import set_correct_sweeper_type
-from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes, sync_ylim
-from pySDC.projects.DAE.plotting.plot_svd import sync_xlim
+from pySDC.projects.DAE.run.plot_order_iteration import (
+    choose_time_step_sizes, sync_xlim, sync_ylim
+)
 
 from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.run.mpi_test import build_filename, run_mpi_test
@@ -288,8 +289,6 @@ def plot_wallclocktime_vs_accuracy(
         all nodes from the run are plotted.
     journal : str, optional
         Name of the journal to obtain specified scale and height for figsize.
-    format : str
-        Format of plot. Default is ``"png"``.
     """
 
     plot_names = {"LINEAR-TEST": "Fig2", "ANDREWS-SQUEEZER": "Fig5", "REACTION-DIFFUSION": "Fig8"}
@@ -665,7 +664,6 @@ def plot_wallclocktime_over_time(
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
     journal: str = "Springer_Scientific_Computing",
-    format: str = "png",
     ax: Optional[Axes] = None,
     return_ax: bool = False,
     **kwargs: Any,
@@ -720,7 +718,7 @@ def plot_wallclocktime_over_time(
     if created_fig:
         ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
 
-        out = Path("data") / problem_name / f"wallclocktimes_over_time_{num_nodes=}.{format}"
+        out = Path("data") / problem_name / f"wallclocktimes_over_time_{num_nodes=}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out, dpi=400, bbox_inches="tight")
 
@@ -741,7 +739,6 @@ def plot_impact_of_jumps_on_runtime_andrews(
     ref_QI: str = "LU",
     ref_num_nodes: int = 3,
     journal: str = "Springer_Scientific_Computing",
-    format: str = "png",
     return_ax: bool = False,
     **kwargs: Any,
 ) -> None:
@@ -769,7 +766,6 @@ def plot_impact_of_jumps_on_runtime_andrews(
         QI_parallel_methods=QI_parallel_methods,
         nodes_to_plot=[ref_num_nodes],
         journal=journal,
-        format=format,
         ax=ax[1],
         return_ax=return_ax,
     )
@@ -791,7 +787,7 @@ def plot_impact_of_jumps_on_runtime_andrews(
     ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=7)
     ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=2)
 
-    out = Path("data") / problem_name / f"impact_of_jumps_on_runtime.{format}"
+    out = Path("data") / problem_name / f"impact_of_jumps_on_runtime.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=400, bbox_inches="tight")
     plt.close(fig)
@@ -805,7 +801,7 @@ def make_plots():
     config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
     filename = "results_scaling_dt=0.05_linear_#3.pkl"
     plots_scaling(
-        global_comm=global_comm, format="png", filename=filename, **config_linear
+        global_comm=global_comm, filename=filename, **config_linear
     )
 
     # Plots for ANDREWS-SQUEEZER
@@ -814,7 +810,7 @@ def make_plots():
     filename = "results_scaling_dt=0.001_andrews_#3.pkl"
     nodes_to_plot = range(17)
     plots_scaling(
-        global_comm=global_comm, format="png", filename=filename, nodes_to_plot=nodes_to_plot, **config_andrews
+        global_comm=global_comm, filename=filename, nodes_to_plot=nodes_to_plot, **config_andrews
     )
 
     # Plots for REACTION-DIFFUSION
@@ -822,7 +818,7 @@ def make_plots():
     config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
     filename = "results_scaling_dt=0.05_reaction_diffusion_#2.pkl"
     plots_scaling(
-        global_comm=global_comm, format="png", filename=filename, **config_reacdiff
+        global_comm=global_comm, filename=filename, **config_reacdiff
     )
 
 

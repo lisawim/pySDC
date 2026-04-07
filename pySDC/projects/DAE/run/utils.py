@@ -224,6 +224,7 @@ def setup_problem(
     QI: str,
     description: dict[str, dict[str, Any]],
     sweeper_type: str,
+    num_nodes: int,
     **kwargs: Any,
 ) -> dict[str, dict[str, Any]]:
     """
@@ -291,7 +292,7 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
-        maxiter = kwargs.get("maxiter", 12)
+        maxiter = kwargs.get("maxiter", 2 * num_nodes)
         e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
@@ -650,7 +651,7 @@ def compute_solution(
 
     corrected_sweeper_type = set_correct_sweeper_type(sweeper_type, QI)
 
-    description = setup_problem(problem_name, QI, description, corrected_sweeper_type, **kwargs)
+    description = setup_problem(problem_name, QI, description, corrected_sweeper_type, num_nodes, **kwargs)
 
     if QI in QI_SERIAL + QI_PARALLEL:
         description = setup_sweeper_sdc(

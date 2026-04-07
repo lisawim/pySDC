@@ -66,7 +66,7 @@ def sync_ylim(axs, min_y_set=1e-15):
     return axs
 
 
-def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration."""
 
     from pySDC.projects.DAE.misc.hooksDAE import (
@@ -227,7 +227,7 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
 
         # plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
         plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -235,7 +235,7 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
         plt.close(fig)
 
 
-def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_andrews(sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration for Andrews' problem"""
 
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
@@ -478,7 +478,7 @@ def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Spr
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
         plot_name = "Fig6" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -691,14 +691,9 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
         ax_flatten[3].remove()
 
         plot_name = "Fig10" if QI == "IE" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
-
-        plot_name = f"abs_g_order_{num_nodes=}_{sweeper_type}_{QI}.png"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
-        file_path = Path(filename)
-        file_path.parent.mkdir(parents=True, exist_ok=True)

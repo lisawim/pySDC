@@ -25,6 +25,12 @@ from pySDC.projects.DAE.misc.methods_config import SDC_METHODS
 from pySDC.projects.DAE.run.plots_work_prec import (
     get_method_label, get_metric_key, get_ylabel_based_on_metric
 )
+from pySDC.projects.DAE.run.plots_scaling import (
+    plot_wallclocktime_vs_mpi_ranks,
+    plot_mean_iterations_vs_mpi_ranks,
+    plot_error_vs_mpi_ranks,
+    plot_embedded_error_vs_mpi_ranks,
+)
 
 
 def get_linestyles():
@@ -146,7 +152,7 @@ def plots_scaling(
     QI_parallel_methods: list[str],
     ref_QI: str = "LU",
     ref_num_nodes: int = 5,
-    nodes_to_plot: list[int] = range(9),
+    nodes_to_plot: list[int] = range(2, 9),
     num_nodes_per_figure: list[int] = [2, 3, 4, 5],
     filename: str = None,
     **kwargs: Any,
@@ -237,6 +243,35 @@ def plots_scaling(
             QI_parallel_methods=QI_parallel_methods,
             ref_num_nodes=ref_num_nodes,
         )
+
+        plot_functions = [
+            plot_mean_iterations_vs_mpi_ranks,
+            plot_error_vs_mpi_ranks,
+            plot_embedded_error_vs_mpi_ranks,
+        ]
+        for plot_function in plot_functions:
+            plot_function(
+                all_stats,
+                problem_name,
+                sweepers,
+                QI_serial_methods,
+                QI_parallel_methods,
+                nodes_to_plot=nodes_to_plot,
+            )
+
+        for num_nodes in nodes_to_plot:
+            for quantity in ["walltime", "error", "increment"]:
+                plot_quantity_over_time(
+                    all_stats=all_stats,
+                    dt=dt,
+                    quantity=quantity,
+                    problem_name=problem_name,
+                    sweepers=sweepers,
+                    num_nodes=num_nodes,
+                    QI_serial_methods=QI_serial_methods,
+                    QI_parallel_methods=QI_parallel_methods,
+                    **kwargs,
+                )
 
         if problem_name == "ANDREWS-SQUEEZER":
             plot_impact_of_jumps_on_runtime_andrews(
@@ -655,9 +690,10 @@ def print_speedup_for_one_step(
         f.write("\n".join(lines))
 
 
-def plot_wallclocktime_over_time(
+def plot_quantity_over_time(
     all_stats: dict[str, dict[int, dict[str, float]]],
     dt: float,
+    quantity: str,
     problem_name: str,
     sweepers: list[str],
     num_nodes: int,
@@ -669,6 +705,13 @@ def plot_wallclocktime_over_time(
     **kwargs: Any,
 ) -> None:
     
+    if quantity == "walltime":
+        y_of = lambda st: st.t_cpu_steps
+    elif quantity == "error":
+        y_of = lambda st: st.e_global_steps
+    elif quantity == "increment":
+        y_of = lambda st: st.e_embedded_steps
+
     _, Tend = choose_time_step_sizes(problem_name=problem_name)
     t = [i * dt for i in range(1, int(Tend / dt) + 1)]
 
@@ -699,7 +742,7 @@ def plot_wallclocktime_over_time(
             label = get_method_label(sweeper_type, QI)
             ax.plot(
                 t, 
-                stats.t_cpu_steps,
+                y_of(stats),
                 color=colors[key],
                 linewidth=1.0,
                 label=label,
@@ -707,7 +750,7 @@ def plot_wallclocktime_over_time(
 
     ax.set_xlabel(r"time $t$")
 
-    ax.set_ylabel("wallclock time in s")
+    ax.set_ylabel(f"{quantity}")
 
     ax.set_yscale("log", base=10)
 
@@ -718,7 +761,7 @@ def plot_wallclocktime_over_time(
     if created_fig:
         ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
 
-        out = Path("data") / problem_name / f"wallclocktimes_over_time_{num_nodes=}.png"
+        out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out, dpi=400, bbox_inches="tight")
 
@@ -756,9 +799,10 @@ def plot_impact_of_jumps_on_runtime_andrews(
 
     plot_solution_andrews(dt=dt, num_nodes=ref_num_nodes, QI=ref_QI, ax=ax[0], return_ax=return_ax)
 
-    plot_wallclocktime_over_time(
+    plot_quantity_over_time(
         all_stats=all_stats,
         dt=dt,
+        quantity="walltime",
         problem_name=problem_name,
         sweepers=sweepers,
         num_nodes=ref_num_nodes,
@@ -799,7 +843,7 @@ def make_plots():
     # Plots for LINEAR-TEST
     print("\nGenerating plots for LINEAR-TEST...\n")
     config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
-    filename = "results_scaling_dt=0.05_linear_#3.pkl"
+    filename = "results_scaling_dt=0.05_linear_#6.pkl"
     plots_scaling(
         global_comm=global_comm, filename=filename, **config_linear
     )

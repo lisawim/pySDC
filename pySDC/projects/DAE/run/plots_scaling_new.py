@@ -259,19 +259,19 @@ def plots_scaling(
                 nodes_to_plot=nodes_to_plot,
             )
 
-        for num_nodes in nodes_to_plot:
-            for quantity in ["walltime", "error", "increment"]:
-                plot_quantity_over_time(
-                    all_stats=all_stats,
-                    dt=dt,
-                    quantity=quantity,
-                    problem_name=problem_name,
-                    sweepers=sweepers,
-                    num_nodes=num_nodes,
-                    QI_serial_methods=QI_serial_methods,
-                    QI_parallel_methods=QI_parallel_methods,
-                    **kwargs,
-                )
+        # for num_nodes in nodes_to_plot:
+        #     for quantity in ["walltime", "error", "increment", "number_iterations"]:
+        #         plot_quantity_over_time(
+        #             all_stats=all_stats,
+        #             dt=dt,
+        #             quantity=quantity,
+        #             problem_name=problem_name,
+        #             sweepers=sweepers,
+        #             num_nodes=num_nodes,
+        #             QI_serial_methods=QI_serial_methods,
+        #             QI_parallel_methods=QI_parallel_methods,
+        #             **kwargs,
+        #         )
 
         if problem_name == "ANDREWS-SQUEEZER":
             plot_impact_of_jumps_on_runtime_andrews(
@@ -326,7 +326,7 @@ def plot_wallclocktime_vs_accuracy(
         Name of the journal to obtain specified scale and height for figsize.
     """
 
-    plot_names = {"LINEAR-TEST": "Fig2", "ANDREWS-SQUEEZER": "Fig5", "REACTION-DIFFUSION": "Fig8"}
+    plot_names = {"LINEAR-TEST": "Fig2", "ANDREWS-SQUEEZER": "Fig6", "REACTION-DIFFUSION": "Fig8"}
 
     x_of = lambda st: st.t_wall
     if problem_name == "ANDREWS-SQUEEZER":
@@ -462,7 +462,7 @@ def plot_time_to_accuracy(
     
     assert len(num_nodes_per_figure) == 4, "num_nodes_per_figure must have length 4."
 
-    plot_names = {"LINEAR-TEST": "Fig3", "ANDREWS-SQUEEZER": "Fig6", "REACTION-DIFFUSION": "Fig9"}
+    plot_names = {"LINEAR-TEST": "Fig3", "ANDREWS-SQUEEZER": "Fig7", "REACTION-DIFFUSION": "Fig9"}
 
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
     my_setup_mpl(fontsize=8)
@@ -496,7 +496,7 @@ def plot_time_to_accuracy(
                     continue
 
                 label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-                print(f"Plotting {label} for M={num_nodes} with {len(times)} points.")
+                # print(f"Plotting {label} for M={num_nodes} with {len(times)} points.")
                 axs_flatten[n].plot(
                     times,
                     e_vals,
@@ -510,7 +510,7 @@ def plot_time_to_accuracy(
                     label=label,
                 )
                 s += 2.2
-        print()
+
     for ax in axs_flatten:
         ax.set_xlabel("cumulative wall-clock time in s")
 
@@ -520,7 +520,10 @@ def plot_time_to_accuracy(
         ax.set_xscale("log", base=10)
         ax.set_yscale("log", base=10)
 
-        ax.grid(linewidth=0.5, alpha=0.35, which="major", axis="both")
+        # ax.grid(linewidth=0.5, alpha=0.35, which="major", axis="both")
+        ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+        ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+        ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
         ax.tick_params(axis="both", which="minor", bottom=True, left=False)
 
     axs_flatten = sync_xlim(axs_flatten)
@@ -711,6 +714,8 @@ def plot_quantity_over_time(
         y_of = lambda st: st.e_global_steps
     elif quantity == "increment":
         y_of = lambda st: st.e_embedded_steps
+    elif quantity == "number_iterations":
+        y_of = lambda st: st.niter_steps
 
     _, Tend = choose_time_step_sizes(problem_name=problem_name)
     t = [i * dt for i in range(1, int(Tend / dt) + 1)]
@@ -750,7 +755,8 @@ def plot_quantity_over_time(
 
     ax.set_xlabel(r"time $t$")
 
-    ax.set_ylabel(f"{quantity}")
+    ylabel = "wall-clock time in s" if quantity == "walltime" else f"{quantity}"
+    ax.set_ylabel(ylabel)
 
     ax.set_yscale("log", base=10)
 
@@ -821,17 +827,22 @@ def plot_impact_of_jumps_on_runtime_andrews(
         for spine in ax_obj.spines.values():
             spine.set_linewidth(1.5)
 
-    ax[0].set_xlim((dt, 0.03))
-    ax[1].set_xlim((dt, 0.03))
-
     ax[0].tick_params(axis="both", which="major", width=1.5, length=7.0)
     ax[1].tick_params(axis="both", which="major", width=1.5, length=7.0)
     ax[1].tick_params(axis="both", which="minor", width=1.5, length=3.5)
 
     ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=7)
-    ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=2)
+    ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=3)
 
-    out = Path("data") / problem_name / f"impact_of_jumps_on_runtime.png"
+    for ax_obj in ax:
+        ax_obj.set_xlim((dt, 0.03))
+
+        ax_obj.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+        ax_obj.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+        ax_obj.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+        ax_obj.grid(which="minor", axis="y", linewidth=0.25, alpha=0.10)
+
+    out = Path("data") / problem_name / "Fig5.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=400, bbox_inches="tight")
     plt.close(fig)
@@ -841,29 +852,29 @@ def make_plots():
     global_comm = MPI.COMM_WORLD
     
     # Plots for LINEAR-TEST
-    print("\nGenerating plots for LINEAR-TEST...\n")
-    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
-    filename = "results_scaling_dt=0.05_linear_#6.pkl"
-    plots_scaling(
-        global_comm=global_comm, filename=filename, **config_linear
-    )
+    # print("\nGenerating plots for LINEAR-TEST...\n")
+    # config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
+    # filename = "results_scaling_dt=0.05_linear_#6.pkl"
+    # plots_scaling(
+    #     global_comm=global_comm, filename=filename, **config_linear
+    # )
 
     # Plots for ANDREWS-SQUEEZER
     print("\nGenerating plots for ANDREWS-SQUEEZER...\n")
     config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="scaling")
-    filename = "results_scaling_dt=0.001_andrews_#3.pkl"
-    nodes_to_plot = range(17)
+    filename = "results_scaling_dt=0.001_andrews_#8.pkl"
+    nodes_to_plot = range(2, 17)
     plots_scaling(
         global_comm=global_comm, filename=filename, nodes_to_plot=nodes_to_plot, **config_andrews
     )
 
     # Plots for REACTION-DIFFUSION
-    print("\nGenerating plots for REACTION-DIFFUSION...\n")
-    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
-    filename = "results_scaling_dt=0.05_reaction_diffusion_#2.pkl"
-    plots_scaling(
-        global_comm=global_comm, filename=filename, **config_reacdiff
-    )
+    # print("\nGenerating plots for REACTION-DIFFUSION...\n")
+    # config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
+    # filename = "results_scaling_dt=0.05_reaction_diffusion_#2.pkl"
+    # plots_scaling(
+    #     global_comm=global_comm, filename=filename, **config_reacdiff
+    # )
 
 
 

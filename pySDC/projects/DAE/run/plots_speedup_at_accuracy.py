@@ -201,7 +201,7 @@ def plot_speedups(
         Name of the journal to obtain specified scale and height for figsize.
     """
 
-    plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig7", "REACTION-DIFFUSION": "Fig10"}
+    plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig7a", "REACTION-DIFFUSION": "Fig10"}
 
     if problem_name != "ANDREWS-SQUEEZER":
         figsize = figsize_by_journal(journal, scale=0.44, ratio=0.59)
@@ -236,7 +236,7 @@ def plot_speedups(
                     continue
 
                 s_map = speedups[key_ref][key_par]
-                # print(f"Available speedup data for {key_par}: {s_map}\n")
+
                 xs = [n for n in nodes if n in s_map]
 
                 used_nodes_all.update(xs)
@@ -244,9 +244,8 @@ def plot_speedups(
 
                 s_min.append(min(ys_s))
                 s_max.append(max(ys_s))
-                # print(f"Plotting speedup until accuracy for {key_par} with nodes {xs} and speedups {ys_s}\n")
+
                 label = get_method_label(sweeper_type_par, QI_par)
-                print(key_ref, key_par, label)
                 ax.semilogx(
                     xs,
                     ys_s,
@@ -275,7 +274,7 @@ def plot_speedups(
     ax.set_ylabel("speedup")
     ymax = max(s_max)
     ymin = min(s_min)
-    ax.set_ylim(max(1.0, ymin - 0.15), ymax + 0.15)
+    ax.set_ylim(max(1.0, ymin - 0.4), ymax + 0.4)
 
     fig.legend(loc="upper center", bbox_to_anchor=(0.58, 0.08), ncol=2)
 

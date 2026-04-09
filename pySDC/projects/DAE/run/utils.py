@@ -273,7 +273,7 @@ def setup_problem(
                 SemiImplicitAndrewsSqueezingMechanismDAE as problem,
             )
 
-        maxiter = kwargs.get("maxiter", 20)
+        maxiter = kwargs.get("maxiter", 50)
         e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-9)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
@@ -309,7 +309,7 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        maxiter = kwargs.get("maxiter", 25)
+        maxiter = kwargs.get("maxiter", 40)  # kwargs.get("maxiter", 25)
         e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-13)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}

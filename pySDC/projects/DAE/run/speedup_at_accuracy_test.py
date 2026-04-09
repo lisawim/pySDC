@@ -95,6 +95,7 @@ def run_test_and_split_communicator(
     t_wall_stop_at_acc = sub_comm.reduce(runtime, op=MPI.MAX, root=0)
 
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
+    niter_steps = [me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")] if sub_rank == 0 else None
 
     timing_step = [me[1] for me in get_sorted(solution_stats, type="timing_post_step", sortby="time")]
     gathered_timings_step = sub_comm.gather(timing_step, root=0)
@@ -122,6 +123,7 @@ def run_test_and_split_communicator(
             e_exact_steps=e_exact_steps,
             t_cpu_steps=t_cpu_steps,
             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
+            niter_steps=niter_steps,
             niter_mean=niter_mean,
         )
 
@@ -227,6 +229,7 @@ def run_speedup_at_accuracy_test(
                             e_exact_steps=None,
                             t_cpu_steps=t_cpu_steps,
                             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
+                            niter_steps=None,
                             niter_mean=None,
                         )
 
@@ -265,6 +268,8 @@ def run_speedup_at_accuracy_test(
                             me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")
                         ]
 
+                        niter_steps = [me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")]
+
                         if problem_name == "ANDREWS-SQUEEZER":
                             res = compute_qend_max_final_err(solution_stats, Tend)
                             qend_error = res.qend_error
@@ -276,6 +281,7 @@ def run_speedup_at_accuracy_test(
                             e_exact_steps=e_exact_steps,
                             t_cpu_steps=t_cpu_steps,
                             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
+                            niter_steps=niter_steps,
                             niter_mean=_mean_niter(solution_stats),
                         )
 

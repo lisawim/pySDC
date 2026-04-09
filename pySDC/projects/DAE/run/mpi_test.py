@@ -322,6 +322,7 @@ def run_test_and_split_communicator(
     t_wall = sub_comm.reduce(runtime, op=MPI.MAX, root=0)
 
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
+    niter_steps = [me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")] if sub_rank == 0 else None
 
     timing_iteration = get_sorted(solution_stats, type="timing_post_iteration", sortby="time")
     gathered_timings = sub_comm.gather(timing_iteration, root=0)
@@ -363,6 +364,7 @@ def run_test_and_split_communicator(
             e_global_steps=e_global_steps,
             t_cpu_steps=t_cpu_steps,
             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
+            niter_steps=niter_steps,
             niter_mean=niter_mean,
             t_cpu_one_step=t_cpu_one_step,
             e_global_one_step=e_global_post_iter_vals,
@@ -469,6 +471,7 @@ def run_mpi_test(
                             qend_error=(
                                 float(qend_error) if problem_name == "ANDREWS-SQUEEZER" else None
                             ),
+                            niter_steps=None,
                             niter_mean=None,
                             t_cpu_one_step=None,
                             e_global_one_step=None,
@@ -519,6 +522,8 @@ def run_mpi_test(
                             me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")
                         ]
 
+                        niter_steps = [me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")]
+
                         if problem_name == "ANDREWS-SQUEEZER":
                             res = compute_qend_max_final_err(solution_stats, Tend)
                             qend_error = res.qend_error
@@ -531,6 +536,7 @@ def run_mpi_test(
                             qend_error=(
                                 float(qend_error) if problem_name == "ANDREWS-SQUEEZER" else None
                             ),
+                            niter_steps=niter_steps,
                             niter_mean=_mean_niter(solution_stats),
                             t_cpu_one_step=t_cpu_one_step,
                             e_global_one_step=e_global_post_iter_vals,

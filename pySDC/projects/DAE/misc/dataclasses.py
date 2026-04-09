@@ -26,6 +26,7 @@ class ScalingRunStats:
     e_embedded_steps: Optional[float] = None
     t_cpu_steps: Optional[np.ndarray] = None
     qend_error: Optional[float] = None
+    niter_steps: Optional[float] = None
     niter_mean: Optional[float] = None
     t_cpu_one_step: Optional[np.ndarray] = None
     e_global_one_step: Optional[np.ndarray] = None

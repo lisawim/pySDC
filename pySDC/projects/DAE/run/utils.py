@@ -309,16 +309,16 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        maxiter = kwargs.get("maxiter", 40)  # kwargs.get("maxiter", 25)
-        e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-13)
+        maxiter = kwargs.get("maxiter", 25)  # kwargs.get("maxiter", 25)
+        e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
 
         tol = newton_tol(dt)
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),
-            "newton_tol": tol,
-            "newton_maxiter": 7,
+            "newton_tol": 1e-14,#tol,
+            "newton_maxiter": 10,#7,
         }
         if not QI.startswith("RadauIIA"):
             description["problem_params"]["spectral"] = kwargs.get("spectral", True)

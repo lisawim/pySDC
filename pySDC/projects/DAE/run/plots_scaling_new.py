@@ -259,19 +259,19 @@ def plots_scaling(
                 nodes_to_plot=nodes_to_plot,
             )
 
-        # for num_nodes in nodes_to_plot:
-        #     for quantity in ["walltime", "error", "increment", "number_iterations"]:
-        #         plot_quantity_over_time(
-        #             all_stats=all_stats,
-        #             dt=dt,
-        #             quantity=quantity,
-        #             problem_name=problem_name,
-        #             sweepers=sweepers,
-        #             num_nodes=num_nodes,
-        #             QI_serial_methods=QI_serial_methods,
-        #             QI_parallel_methods=QI_parallel_methods,
-        #             **kwargs,
-        #         )
+        for num_nodes in nodes_to_plot:
+            for quantity in ["walltime", "error", "increment", "number_iterations"]:
+                plot_quantity_over_time(
+                    all_stats=all_stats,
+                    dt=dt,
+                    quantity=quantity,
+                    problem_name=problem_name,
+                    sweepers=sweepers,
+                    num_nodes=num_nodes,
+                    QI_serial_methods=QI_serial_methods,
+                    QI_parallel_methods=QI_parallel_methods,
+                    **kwargs,
+                )
 
         if problem_name == "ANDREWS-SQUEEZER":
             plot_impact_of_jumps_on_runtime_andrews(
@@ -419,7 +419,7 @@ def plot_wallclocktime_vs_accuracy(
     handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.58, 0.04), ncol=2)
 
-    plot_name = plot_names[problem_name]
+    plot_name = plot_names[problem_name] + "_#8"
     save_fig(plt, plot_name, problem_name)
 
 
@@ -536,7 +536,7 @@ def plot_time_to_accuracy(
     handles, labels = axs_flatten[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=len(qi_all))
 
-    plot_name = plot_names[problem_name]
+    plot_name = plot_names[problem_name] + "_#8"
     save_fig(plt, plot_name, problem_name)
 
 
@@ -767,7 +767,7 @@ def plot_quantity_over_time(
     if created_fig:
         ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
 
-        out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}.png"
+        out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}_#8.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out, dpi=400, bbox_inches="tight")
 
@@ -860,21 +860,21 @@ def make_plots():
     # )
 
     # Plots for ANDREWS-SQUEEZER
-    print("\nGenerating plots for ANDREWS-SQUEEZER...\n")
-    config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="scaling")
-    filename = "results_scaling_dt=0.001_andrews_#8.pkl"
-    nodes_to_plot = range(2, 17)
-    plots_scaling(
-        global_comm=global_comm, filename=filename, nodes_to_plot=nodes_to_plot, **config_andrews
-    )
+    # print("\nGenerating plots for ANDREWS-SQUEEZER...\n")
+    # config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="scaling")
+    # filename = "results_scaling_dt=0.001_andrews_#8.pkl"
+    # nodes_to_plot = range(2, 17)
+    # plots_scaling(
+    #     global_comm=global_comm, filename=filename, nodes_to_plot=nodes_to_plot, **config_andrews
+    # )
 
     # Plots for REACTION-DIFFUSION
-    # print("\nGenerating plots for REACTION-DIFFUSION...\n")
-    # config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
-    # filename = "results_scaling_dt=0.05_reaction_diffusion_#2.pkl"
-    # plots_scaling(
-    #     global_comm=global_comm, filename=filename, **config_reacdiff
-    # )
+    print("\nGenerating plots for REACTION-DIFFUSION...\n")
+    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
+    filename = "results_scaling_dt=0.05_reaction_diffusion_#8.pkl"
+    plots_scaling(
+        global_comm=global_comm, filename=filename, **config_reacdiff
+    )
 
 
 

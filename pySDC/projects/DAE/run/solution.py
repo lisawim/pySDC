@@ -319,8 +319,8 @@ def plot_solution_discontinuous_test(
     y = np.array([me[1].diff[0] for me in u_val])
     z = np.array([me[1].alg[0] for me in u_val])
 
-    ax.plot(t, y, color="black", label=r"$y$ (differential variable)")
-    ax.plot(t, z, color="gray", linestyle="dashed", label=r"$z$ (algebraic variable)")
+    ax.plot(t, y, color="black", label=r"$y$")
+    ax.plot(t, z, color="gray", linestyle="dashed", label=r"$z$")
 
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $y,z$")
@@ -383,9 +383,9 @@ def plot_solution_wscc9(
     t = np.array([me[0] for me in u_val])
     PSV = np.array([me[1].diff[10 * m : 11 * m] for me in u_val])
 
-    ax.plot(t, PSV[:, 0], color="darkblue", label=r"$PSV_{gen_0}$")
-    ax.plot(t, PSV[:, 1], color="royalblue", label=r"$PSV_{gen_1}$")
-    ax.plot(t, PSV[:, 2], color="lightblue", label=r"$PSV_{gen_2}$")
+    ax.plot(t, PSV[:, 0], color="darkblue", label=r"$P_{SV,0}$")
+    ax.plot(t, PSV[:, 1], color="royalblue", label=r"$P_{SV,1}$")
+    ax.plot(t, PSV[:, 2], color="lightblue", label=r"$P_{SV,2}$")
 
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solution $PSV$")

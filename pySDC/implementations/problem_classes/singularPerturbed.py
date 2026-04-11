@@ -284,16 +284,6 @@ class LinearTestSPP(Problem):
         """
 
         me = self.dtype_u(self.init)
-        # if t > 0.0:
-        #     def eval_rhs(t, u):
-        #         return self.eval_f(u, t)
-
-        #     me[:] = self.generate_scipy_reference_solution(
-        #         eval_rhs, t, u_init, t_init, method='Radau'
-        #     )
-
-        # elif t == 0.0:
-        #     me[:] = (np.exp(2 * self.lamb_diff * t), (self.lamb_diff / self.lamb_alg) * np.exp(2 * self.lamb_diff * t))
 
         result_y = 0
         for i in range(len(self.eigenvalues)):

@@ -77,7 +77,18 @@ class PilineDAE(ProblemDAE):
     When default parameters will be changed, also initial conditions need to be adapted.
     """
 
-    def __init__(self, Vs=100.0, Rs=1.0, C1=1.0, Rp=0.2, Lp=1.0, C2=1.0, Rl=5.0, nvars=12, newton_tol=1e-12):
+    def __init__(
+        self,
+        Vs=100.0,
+        Rs=1.0,
+        C1=1.0,
+        Rp=0.2,
+        Lp=1.0,
+        C2=1.0,
+        Rl=5.0,
+        nvars=12,
+        newton_tol=1e-12,
+    ):
         """Initialization routine"""
 
         # invoke super init, passing number of dofs

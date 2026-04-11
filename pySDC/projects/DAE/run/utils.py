@@ -28,11 +28,20 @@ def my_setup_mpl(fontsize: int = 16) -> None:
     plt.rcParams["ytick.labelsize"] = fontsize
     plt.rcParams['legend.fontsize'] = fontsize
     plt.rcParams['axes.titlesize'] = fontsize
+    plt.rcParams['axes.linewidth'] = 0.6
 
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False
+    plt.rcParams["xtick.major.width"] = 0.6
+    plt.rcParams["ytick.major.width"] = 0.6
+    plt.rcParams["xtick.minor.width"] = 0.6
+    plt.rcParams["ytick.minor.width"] = 0.6
+    plt.rcParams["xtick.major.size"] = 2.5
+    plt.rcParams["ytick.major.size"] = 2.5
+    plt.rcParams["xtick.minor.size"] = 1
+    plt.rcParams["ytick.minor.size"] = 1
 
-    plt.rcParams['lines.linewidth'] = 1.0
+    plt.rcParams['lines.linewidth'] = 0.9
     plt.rcParams["lines.solid_capstyle"] = "round"
     plt.rcParams["lines.markeredgewidth"] = 0.5
     plt.rcParams["lines.markeredgecolor"] = "black"
@@ -300,7 +309,7 @@ def setup_problem(
         e_tol = kwargs.get("e_tol", 1e-12)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
-        description["problem_params"] = {}
+        description["problem_params"] = {"duty": kwargs.get("duty", 0.5)}
 
     elif problem_name == "DISC-TEST":
         if sweeper_type == "fullyImplicitDAE":

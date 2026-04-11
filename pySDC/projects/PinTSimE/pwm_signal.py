@@ -1,6 +1,4 @@
 import numpy as np
-import os
-import dill
 from pathlib import Path
 import matplotlib.pyplot as plt
 
@@ -23,8 +21,7 @@ def plot_pwm(filename="pwm_signal", journal="BUW_thesis"):
 
     t_eval = np.linspace(0, 1.0, num=200)
 
-    my_setup_mpl(fontsize=10)
-
+    my_setup_mpl(fontsize=8)
     figsize = figsize_by_journal(journal, scale=0.8, ratio=0.5)
     fig, axs = plt.subplots(1, 2, figsize=figsize)
 
@@ -45,6 +42,11 @@ def plot_pwm(filename="pwm_signal", journal="BUW_thesis"):
         ax.set_xlabel(r"$t$")
         ax.set_ylabel("voltage")
         ax.grid(linewidth=0.5)
+
+        ax.set_xlim((0.0, 1.0))
+
+        ax.set_xticks([0, 0.5, 1])
+        ax.set_xticklabels([0, 0.5, 1])
 
     fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=2)
 

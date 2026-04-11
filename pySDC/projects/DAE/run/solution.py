@@ -107,11 +107,22 @@ def plot_solution_linear_embedded(
         y = u[:, 0]
         z = u[:, 1] if eps > 0.0 else u[:, 2]
 
-        axs[0].plot(t, y, color=colors[e], label=rf"$\varepsilon$={eps}")
+        axs[0].plot(t, y, color=colors[e], label=rf"$\varepsilon$ = {eps}")
         axs[1].plot(t, z, color=colors[e])
 
     for ax in axs:
         ax.set_xlabel(r"time $t$")
+
+        ax.set_xticks([0.0, 0.25, 0.5, 0.75, 1.0])
+        ax.set_xticklabels([0.0, 0.25, 0.5, 0.75, 1.0])
+
+        ax.set_xlim((dt, Tend))
+
+    axs[0].set_yticks([-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1])
+    axs[0].set_yticklabels([-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1])
+
+    axs[1].set_yticks([-2, -1.5, -1, -0.5, 0])
+    axs[1].set_yticklabels([-2, -1.5, -1, -0.5, 0])
 
     axs[0].set_ylabel(r"solution $y$")
     axs[1].set_ylabel(r"solution $z$")
@@ -192,8 +203,11 @@ def plot_solution_andrews(
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solution $q$")
 
-    ax.set_xlim((dt, 0.03))
+    ax.set_xlim((dt, Tend))
     ax.set_ylim((-4.0, 4.0))
+
+    ax.set_xticks([0.0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03])
+    ax.set_xticklabels([0.0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03])
 
     if created_fig:
         ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=7)
@@ -219,8 +233,8 @@ def plot_solution_reaction_diffusion(
 ):
     problem_name = "REACTION-DIFFUSION"
 
-    my_setup_mpl(fontsize=8)
-    figsize = figsize_by_journal(journal, scale=0.8, ratio=1.0)
+    my_setup_mpl(fontsize=7)
+    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.9)
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
 
@@ -266,14 +280,18 @@ def plot_solution_reaction_diffusion(
         v_at_time_point = v[idx]
         w_at_time_point = w[idx]
 
-        ax_flatten[i].plot(xvalues, u_at_time_point, label=r"$u$")
-        ax_flatten[i].plot(xvalues, v_at_time_point, linestyle="dashed", label=r"$v$")
-        ax_flatten[i].plot(xvalues, w_at_time_point, label=r"$w$")
+        ax_flatten[i].plot(xvalues, u_at_time_point, linewidth=1.1, color="midnightblue", label=r"$u$")
+        ax_flatten[i].plot(xvalues, v_at_time_point, linewidth=1.1, color="darkorange", linestyle="dashed", label=r"$v$")
+        ax_flatten[i].plot(xvalues, w_at_time_point, linewidth=1.1, color="seagreen", label=r"$w$")
 
     for ax in ax_flatten:
         ax.set_xlabel(r"space $x$")
         ax.set_ylabel(r"solutions $u,v,w$")
 
+        ax.set_xticks([0.0, 0.25, 0.5, 0.75, 1.0])
+        ax.set_xticklabels([0.0, 0.25, 0.5, 0.75, 1.0])
+
+        ax.set_xlim((0.0, 1.0))
         ax.set_ylim((-3.0, 3.0))
 
     handles, labels = ax_flatten[0].get_legend_handles_labels()
@@ -309,8 +327,8 @@ def plot_solution_discontinuous_test(
         problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
     )
 
-    my_setup_mpl(fontsize=6)
-    figsize = figsize_by_journal(journal, scale=0.62, ratio=0.68)
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.48, ratio=0.65)
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
@@ -325,7 +343,9 @@ def plot_solution_discontinuous_test(
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $y,z$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    ax.set_xlim((t0+dt, Tend))
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=2)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)
@@ -374,8 +394,8 @@ def plot_solution_wscc9(
         problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
     )
 
-    my_setup_mpl(fontsize=6)
-    figsize = figsize_by_journal(journal, scale=0.62, ratio=0.68)
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.48, ratio=0.65)
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     m = 3
@@ -388,9 +408,11 @@ def plot_solution_wscc9(
     ax.plot(t, PSV[:, 2], color="lightblue", label=r"$P_{SV,2}$")
 
     ax.set_xlabel(r"time $t$")
-    ax.set_ylabel(r"solution $PSV$")
+    ax.set_ylabel(r"solutions $P_{SV, i}$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
+    ax.set_xlim((t0+dt, Tend))
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=3)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)
@@ -422,8 +444,8 @@ def plot_solution_battery(
         problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
     )
 
-    my_setup_mpl(fontsize=6)
-    figsize = figsize_by_journal(journal, scale=0.62, ratio=0.68)
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.48, ratio=0.65)
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
@@ -438,7 +460,9 @@ def plot_solution_battery(
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $i_L, V_C$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
+    ax.set_xlim((t0+dt, Tend))
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=2)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)
@@ -457,21 +481,26 @@ def plot_solution_buck_converter(
     QI: str = "LU",
     Tend: float = 0.02,
 ):
+    from pySDC.projects.DAE.problems.buckConverterDAE import LogPWMSignal
+
     problem_name = "BUCK-CONVERTER"
 
     t0 = 0.0
     Tend = Tend
 
-    hook_class = [LogSolution]
+    hook_class = [LogSolution, LogPWMSignal]
+
+    duty = 0.5
+    kwargs = {"duty": duty}
 
     print(f"\n ... Generating solution of {problem_name} ... \n")
 
     solution_stats = compute_solution(
-        problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
+        problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False, **kwargs
     )
 
-    my_setup_mpl(fontsize=6)
-    figsize = figsize_by_journal(journal, scale=0.62, ratio=0.68)
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.48, ratio=0.65)
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
@@ -481,20 +510,31 @@ def plot_solution_buck_converter(
     VC1 = np.array([me[1].diff[1] for me in u_val])
     VC2 = np.array([me[1].diff[2] for me in u_val])
 
+    pwm_signal = [me[1] for me in get_sorted(solution_stats, type="pwm_signal", sortby="time")]
+
     ax.plot(t, iLpi, color="royalblue", label=r"$i_{L_\pi}$")
     ax.plot(t, VC1, color="firebrick", label=r"$V_{C_1}$")
     ax.plot(t, VC2, color="red", label=r"$V_{C_2}$")
+    ax.plot(t, pwm_signal, color="darkgray", linewidth=0.5, linestyle="dashed", label=rf"PWM signal with $d$ = {duty}")
 
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $i_{L_\pi}, V_{C_1}, V_{C_2}$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
+    ax.set_xticks([0.0, 0.005, 0.01, 0.015, 0.02])
+    ax.set_xticklabels([0.0, 0.005, 0.01, 0.015, 0.02])
+
+    ax.set_yticks([0, 2.5, 5.0, 7.5, 10])
+    ax.set_yticklabels([0, 2.5, 5.0, 7.5, 10])
+
+    ax.set_xlim((t0+dt, Tend))
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=4)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches='tight')
+    fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -520,8 +560,8 @@ def plot_solution_piline(
         problem_name, t0, dt, Tend, num_nodes, QI, problem_type, hook_class=hook_class, measure=False
     )
 
-    my_setup_mpl(fontsize=6)
-    figsize = figsize_by_journal(journal, scale=0.62, ratio=0.68)
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.48, ratio=0.65)
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     u_val = get_sorted(solution_stats, type="u", sortby="time")
@@ -538,7 +578,9 @@ def plot_solution_piline(
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solutions $i_{L_\pi}, V_{C_1}, V_{C_2}$")
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
+    ax.set_xlim((t0+dt, Tend))
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=3)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
     file_path = Path(filename)

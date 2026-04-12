@@ -412,6 +412,9 @@ def plot_solution_wscc9(
 
     ax.set_xlim((t0+dt, Tend))
 
+    ax.set_yticks([0.5, 0.75, 1, 1.25, 1.5])
+    ax.set_yticklabels([0.5, 0.75, 1, 1.25, 1.5])
+
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=3)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"

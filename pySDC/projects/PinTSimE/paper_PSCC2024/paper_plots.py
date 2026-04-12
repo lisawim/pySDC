@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import dill
 import os
+import matplotlib.pyplot as plt
 
 from pySDC.core.errors import ParameterError
 
@@ -12,14 +13,15 @@ from pySDC.projects.DAE.problems.wscc9BusSystem import WSCC9BusSystem
 from pySDC.projects.PinTSimE.battery_model import generateDescription
 from pySDC.projects.PinTSimE.battery_model import controllerRun
 from pySDC.helpers.stats_helper import get_sorted
-import pySDC.helpers.plot_helper as plt_helper
+from pySDC.projects.DAE import my_setup_mpl
+from pySDC.helpers.plot_helper import figsize_by_journal
 
 from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE, LogEventWSCC9
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep
 from pySDC.implementations.hooks.log_restarts import LogRestarts
 
 
-def make_plots_for_test_DAE():  # pragma: no cover
+def make_plots_for_test_DAE(journal="BUW_thesis"):  # pragma: no cover
     """
     Makes the plot for the discontinuous test DAE, i.e.,
 
@@ -38,18 +40,18 @@ def make_plots_for_test_DAE():  # pragma: no cover
 
     Thus, this function contains all the parameters used in the paper for this numerical example.
     """
+    problem_name = "DISC-TEST"
 
-    output_dir = Path("data") / "DISC-TEST" / "results"
+    output_dir = Path("data") / problem_name / "results"
     output_dir.mkdir(parents=True, exist_ok=True)
     results_file = "results_data.pkl"
     base_path = output_dir
 
     results_path = os.path.join(base_path, results_file)
     if not os.path.exists(results_path):
-        print(f"Results file {path} does not exist. Running the simulations to generate the results.")
+        print(f"Results file {results_path} does not exist. Running the simulations to generate the results.")
 
         problem_class = DiscontinuousTestDAE
-        prob_class_name = DiscontinuousTestDAE.__name__
 
         sweeper = FullyImplicitDAE
         nnodes = [2, 3, 4, 5]
@@ -154,7 +156,6 @@ def make_plots_for_test_DAE():  # pragma: no cover
             "results_event_error": results_event_error,
             "results_event_error_restarts": results_event_error_restarts,
             "metadata": {
-                "prob_class_name": prob_class_name,
                 "dt_fix": dt_fix,
                 "nnodes": nnodes,
                 "dt_list": dt_list,
@@ -178,21 +179,20 @@ def make_plots_for_test_DAE():  # pragma: no cover
         results_event_error = loaded_results["results_event_error"]
         results_event_error_restarts = loaded_results["results_event_error_restarts"]
 
-        prob_class_name = loaded_results["metadata"]["prob_class_name"]
         dt_fix = loaded_results["metadata"]["dt_fix"]
 
     plot_functions_over_time(
-        results_error_over_time, prob_class_name, r'Global error $|y(t) - y_{ex}(t)|$', 'upper left', dt_fix
+        results_error_over_time, problem_name, r"global error $|y(t) - y_{ex}(t)|$", dt_fix, journal
     )
-    plot_error_norm(results_error_norm, prob_class_name)
+    plot_error_norm(results_error_norm, problem_name, journal)
     plot_state_function_detection(
-        results_state_function, prob_class_name, r'Absolute value of $h$ $|h(y(T))|$', 'upper left'
+        results_state_function, problem_name, r"absolute value of state function $|h(y(T))|$", journal
     )
-    plot_event_time_error(results_event_error, prob_class_name)
-    plot_event_time_error_before_restarts(results_event_error_restarts, prob_class_name, dt_fix)
+    plot_event_time_error(results_event_error, problem_name, journal)
+    plot_event_time_error_before_restarts(results_event_error_restarts, problem_name, dt_fix, journal)
 
 
-def make_plots_for_WSCC9_test_case(cwd='./'):  # pragma: no cover
+def make_plots_for_WSCC9_test_case(cwd='./', journal="BUW_thesis"):  # pragma: no cover
     """
     Generates the plots for the WSCC 9-bus test case, i.e.,
 
@@ -209,7 +209,12 @@ def make_plots_for_WSCC9_test_case(cwd='./'):  # pragma: no cover
         Current working directory.
     """
 
-    Path("data").mkdir(parents=True, exist_ok=True)
+    problem_name = "WSCC9"
+
+    output_dir = Path("data") / problem_name / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results_file = "results_data.pkl"
+    results_path = output_dir / results_file
 
     problem_class = WSCC9BusSystem
     prob_class_name = WSCC9BusSystem.__name__
@@ -240,76 +245,114 @@ def make_plots_for_WSCC9_test_case(cwd='./'):  # pragma: no cover
 
     recomputed = False
 
-    results_state_function_over_time = {}
-    results_state_function_detection = {}
-    for M in nnodes:
-        results_state_function_over_time[M], results_state_function_detection[M] = {}, {}
+    if not results_path.exists():
+        print(f"Results file {results_path} does not exist. Collecting/generating results.")
+        results_state_function_over_time = {}
+        results_state_function_detection = {}
+        for M in nnodes:
+            results_state_function_over_time[M], results_state_function_detection[M] = {}, {}
 
-        for dt in dt_list:
-            results_state_function_over_time[M][dt], results_state_function_detection[M][dt] = {}, {}
+            for dt in dt_list:
+                results_state_function_over_time[M][dt], results_state_function_detection[M][dt] = {}, {}
 
-            for use_SE in use_detection:
-                results_state_function_over_time[M][dt][use_SE], results_state_function_detection[M][dt][use_SE] = (
-                    {},
-                    {},
-                )
+                for use_SE in use_detection:
+                    results_state_function_over_time[M][dt][use_SE], results_state_function_detection[M][dt][use_SE] = (
+                        {},
+                        {},
+                    )
 
-                description, controller_params = generateDescription(
-                    dt,
-                    problem_class,
-                    sweeper,
-                    M,
-                    quad_type,
-                    QI,
-                    hook_class,
-                    False,
-                    use_SE,
-                    problem_params,
-                    restol,
-                    maxiter,
-                    max_restarts,
-                    epsilon_SE,
-                    alpha,
-                )
+                    description, controller_params, controller = generateDescription(
+                        dt,
+                        problem_class,
+                        sweeper,
+                        M,
+                        quad_type,
+                        QI,
+                        hook_class,
+                        False,
+                        use_SE,
+                        problem_params,
+                        restol,
+                        maxiter,
+                        max_restarts,
+                        epsilon_SE,
+                        alpha,
+                    )
 
-                # ---- either solution is computed or it is loaded from .dat file already created ----
-                path = Path('data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE))
-                if path.is_file():
-                    f = open(cwd + 'data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE), 'rb')
-                    stats = dill.load(f)
-                    f.close()
-                else:
-                    stats, _ = controllerRun(description, controller_params, t0, Tend)
+                    # Einheitlicher Dateiname für alte Einzeldateien
+                    stats_file = output_dir / f"WSCC9BusSystem_{M=}_{dt=}_{use_SE=}.dat"
+                    print(stats_file)
+                    if stats_file.is_file():
+                        print("Load file")
+                        with stats_file.open("rb") as f:
+                            stats = dill.load(f)
+                    else:
+                        print("Compute results")
+                        stats, _ = controllerRun(description, controller_params, controller, t0, Tend)
 
-                    fname = 'data/{}_M={}_dt={}_useSE={}.dat'.format(prob_class_name, M, dt, use_SE)
-                    f = open(fname, 'wb')
-                    dill.dump(stats, f)
-                    f.close()
+                        # optional weiter Einzeldatei speichern, falls du das behalten willst
+                        with stats_file.open("wb") as f:
+                            dill.dump(stats, f)
 
-                h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
-                results_state_function_over_time[M][dt][use_SE] = h_val
+                    h_val = get_sorted(stats, type="state_function", sortby="time", recomputed=recomputed)
+                    results_state_function_over_time[M][dt][use_SE] = h_val
 
-                h_abs_end = abs([me[1] for me in h_val][-1])
-                results_state_function_detection[M][dt][use_SE]['h_abs'] = h_abs_end
+                    h_abs_end = abs(h_val[-1][1])
+                    results_state_function_detection[M][dt][use_SE]["h_abs"] = h_abs_end
 
-                if use_SE:
-                    restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
-                    sum_restarts = sum([me[1] for me in restarts])
-                    results_state_function_detection[M][dt][use_SE]['restarts'] = sum_restarts
+                    if use_SE:
+                        restarts = get_sorted(stats, type="restart", sortby="time", recomputed=None)
+                        sum_restarts = sum(item[1] for item in restarts)
+                        results_state_function_detection[M][dt][use_SE]["restarts"] = sum_restarts
+
+        results = {
+            "results_state_function_over_time": results_state_function_over_time,
+            "results_state_function_detection": results_state_function_detection,
+            "metadata": {
+                "problem_name": problem_name,
+                "prob_class_name": prob_class_name,
+                "dt_fix": dt_fix,
+                "nnodes": nnodes,
+                "dt_list": dt_list,
+                "use_detection": use_detection,
+                "QI": QI,
+                "quad_type": quad_type,
+                "maxiter": maxiter,
+                "restol": restol,
+                "max_restarts": max_restarts,
+                "epsilon_SE": epsilon_SE,
+                "alpha": alpha,
+                "t0": t0,
+                "Tend": Tend,
+            },
+        }
+
+        with results_path.open("wb") as f:
+            dill.dump(results, f)
+
+    else:
+        print("Load results from file")
+        with results_path.open("rb") as f:
+            loaded_results = dill.load(f)
+
+        results_state_function_over_time = loaded_results["results_state_function_over_time"]
+        results_state_function_detection = loaded_results["results_state_function_detection"]
+        dt_fix = loaded_results["metadata"]["dt_fix"]
+        prob_class_name = loaded_results["metadata"]["prob_class_name"]
 
     plot_functions_over_time(
         results_state_function_over_time,
         prob_class_name,
         r'Absolute value of $h$ $|h(P_{SV,0}(t))|$',
-        'lower left',
         dt_fix,
+        journal,
     )
     plot_state_function_detection(
-        results_state_function_detection, prob_class_name, r'Absolute value of $h$ $|h(P_{SV,0}(T))|$', 'upper right'
+        results_state_function_detection, prob_class_name, r'Absolute value of $h$ $|h(P_{SV,0}(T))|$', journal
     )
 
 
-def plot_styling_stuff(prob_class):  # pragma: no cover
+def plot_styling_stuff(problem_name):  # pragma: no cover
     """
     Implements all the stuff needed for making the plots more pretty.
     """
@@ -328,14 +371,14 @@ def plot_styling_stuff(prob_class):  # pragma: no cover
         5: 'd',
     }
 
-    if prob_class == 'DiscontinuousTestDAE':
+    if problem_name == "DISC-TEST":
         xytext = {
-            2: (-15.0, 16.5),
+            2: (-8.0, 9.5),
             3: (-2.0, 55),
             4: (-13.0, -27),
             5: (-1.0, -40),
         }
-    elif prob_class == 'WSCC9BusSystem':
+    elif problem_name == 'WSCC9BusSystem':
         xytext = {
             2: (-13.0, 16),
             3: (-13.0, 30),
@@ -343,13 +386,13 @@ def plot_styling_stuff(prob_class):  # pragma: no cover
             5: (-1.0, -38),
         }
     else:
-        raise ParameterError(f"For {prob_class} no dictionary for position of data points is set up!")
+        raise ParameterError(f"For {problem_name} no dictionary for position of data points is set up!")
 
     return colors, markers, xytext
 
 
 def plot_functions_over_time(
-    results_function_over_time, prob_class, y_label, loc_legend, dt_fix=None
+    results_function_over_time, problem_name, y_label, dt_fix=None, journal="BUW_thesis"
 ):  # pragma: no cover
     """
     Plots the functions over time for different numbers of collocation nodes in comparison with detection
@@ -369,48 +412,57 @@ def plot_functions_over_time(
         If it is set to a considered step size, only one plot will generated.
     """
 
-    colors, _, _ = plot_styling_stuff(prob_class)
-    x0 = 3.5 if prob_class == 'DiscontinuousTestDAE' else 0.5
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.55, ratio=0.73)
+
+    colors, _, _ = plot_styling_stuff(problem_name)
+    x0 = 3.5 if problem_name == "DISC-TEST" else 0.5
 
     M_key = list(results_function_over_time.keys())[0]
     dt_list = [dt_fix] if dt_fix is not None else results_function_over_time[M_key].keys()
     for dt in dt_list:
-        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
         for M in results_function_over_time.keys():
             for use_SE in results_function_over_time[M][dt].keys():
                 err_val = results_function_over_time[M][dt][use_SE]
                 t, err = [item[0] for item in err_val], [abs(item[1]) for item in err_val]
 
-                linestyle_detection = 'solid' if not use_SE else 'dashdot'
+                linestyle_detection = "solid" if not use_SE else "dashdot"
                 (line,) = ax.plot(t, err, color=colors[M], linestyle=linestyle_detection)
 
                 if not use_SE:
-                    line.set_label(r'$M={}$'.format(M))
+                    line.set_label(rf"$M$ = {M}")
 
                 if M == 5:  # dummy plot for more pretty legend
-                    ax.plot(x0, 0, color='black', linestyle=linestyle_detection, label='Detection: {}'.format(use_SE))
+                    ax.plot(x0, 0, color="black", linestyle=linestyle_detection, label=f"Detection: {use_SE}")
 
-        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.set_xlabel(r"time $t$")
+        ax.set_ylabel(y_label)
+
+        ax.set_xlim((t[0], t[-1]))
         ax.set_ylim(1e-15, 1e1)
-        ax.set_yscale('log', base=10)
-        ax.set_xlabel(r'Time $t$', fontsize=16)
-        ax.set_ylabel(y_label, fontsize=16)
-        ax.grid(visible=True)
-        ax.legend(frameon=True, fontsize=12, loc=loc_legend)
-        ax.minorticks_off()
+        ax.set_yscale("log", base=10)
 
-        if prob_class == 'DiscontinuousTestDAE':
-            file_name = 'data/test_DAE_error_over_time_dt{}.png'.format(dt)
-        elif prob_class == 'WSCC9BusSystem':
-            file_name = 'data/wscc9_state_function_over_time_dt{}.png'.format(dt)
-        else:
-            raise ParameterError(f"For {prob_class} no file name is implemented!")
+        ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+        ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+        ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
 
-        fig.savefig(file_name, dpi=300, bbox_inches='tight')
-        plt_helper.plt.close(fig)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
+
+        if problem_name == "DISC-TEST":
+            filename = f"test_DAE_error_over_time_{dt=}"
+        elif problem_name == "WSCC9BusSystem":
+            filename = f"wscc9_state_function_over_time_{dt=}"
+        
+        filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
+        file_path = Path(filename)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        fig.savefig(filename, dpi=400, bbox_inches="tight")
+        plt.close(fig)
 
 
-def plot_error_norm(results_error_norm, prob_class):  # pragma: no cover
+def plot_error_norm(results_error_norm, problem_name, journal="BUW_thesis"):  # pragma: no cover
     """
     Plots the error norm for different step sizes and different number of collocation nodes in comparison
     with detection and not.
@@ -423,15 +475,17 @@ def plot_error_norm(results_error_norm, prob_class):  # pragma: no cover
         Indicates of which problem class results are plotted (used to define the file name).
     """
 
-    colors, markers, xytext = plot_styling_stuff(prob_class)
+    colors, markers, xytext = plot_styling_stuff(problem_name)
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.55, ratio=0.73)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     for M in results_error_norm.keys():
         dt = list(results_error_norm[M].keys())
         for use_SE in results_error_norm[M][dt[0]].keys():
             err_norm_dt = [results_error_norm[M][k][use_SE] for k in dt]
 
-            linestyle_detection = 'solid' if not use_SE else 'dashdot'
+            linestyle_detection = "solid" if not use_SE else "dashdot"
             (line,) = ax.loglog(
                 dt,
                 err_norm_dt,
@@ -441,26 +495,36 @@ def plot_error_norm(results_error_norm, prob_class):  # pragma: no cover
             )
 
             if not use_SE:
-                line.set_label(r'$M={}$'.format(M))
+                line.set_label(rf"$M$ = {M}")
 
             if M == 5:  # dummy plot for more pretty legend
-                ax.plot(0, 0, color='black', linestyle=linestyle_detection, label='Detection: {}'.format(use_SE))
+                ax.plot(0, 0, color="black", linestyle=linestyle_detection, label=f"Detection: {use_SE}")
 
-    ax.tick_params(axis='both', which='major', labelsize=16)
+    ax.tick_params(axis="both", which="major")
+
     ax.set_ylim(1e-15, 1e3)
-    ax.set_xscale('log', base=10)
-    ax.set_yscale('log', base=10)
-    ax.set_xlabel(r'Step size $\Delta t$', fontsize=16)
-    ax.set_ylabel(r'Error norm $||y(t) - \tilde{y}(t)||_\infty$', fontsize=16)
-    ax.grid(visible=True)
-    ax.minorticks_off()
-    ax.legend(frameon=True, fontsize=12, loc='lower right')
 
-    fig.savefig('data/test_DAE_error_norms.png', dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig)
+    ax.set_xscale("log", base=10)
+    ax.set_yscale("log", base=10)
+
+    ax.set_xlabel(r"time step size $\Delta t$")
+    ax.set_ylabel(r"error norm $||y(t) - \tilde{y}(t)||_\infty$")
+
+    ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+    ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+    ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
+
+    filename = "data" + "/" + f"{problem_name}" + "/" + "test_DAE_error_norms.png"
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    plt.close(fig)
 
 
-def plot_state_function_detection(results_state_function, prob_class, y_label, loc_legend):  # pragma: no cover
+def plot_state_function_detection(results_state_function, problem_name, y_label, journal="BUW_thesis"):  # pragma: no cover
     """
     Plots the absolute value of the state function after the event which denotes how close it is to the zero.
 
@@ -477,16 +541,18 @@ def plot_state_function_detection(results_state_function, prob_class, y_label, l
         Location of the legend in the plot.
     """
 
-    colors, markers, xytext = plot_styling_stuff(prob_class)
+    colors, markers, _ = plot_styling_stuff(problem_name)
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.75, ratio=0.5)
+    fig, axs = plt.subplots(1, 2, figsize=figsize)
     for M in results_state_function.keys():
         dt = list(results_state_function[M].keys())
         for use_SE in results_state_function[M][dt[0]].keys():
             h_abs = [results_state_function[M][k][use_SE]['h_abs'] for k in dt]
 
-            linestyle_detection = 'solid' if not use_SE else 'dashdot'
-            (line,) = ax.loglog(
+            linestyle_detection = "solid" if not use_SE else "dashdot"
+            (line0,) = axs[0].loglog(
                 dt,
                 h_abs,
                 color=colors[M],
@@ -495,45 +561,51 @@ def plot_state_function_detection(results_state_function, prob_class, y_label, l
             )
 
             if not use_SE:
-                line.set_label(r'$M={}$'.format(M))
+                line0.set_label(rf"$M$ = {M}")
 
             if use_SE:
-                sum_restarts = [results_state_function[M][k][use_SE]['restarts'] for k in dt]
-                for m in range(len(dt)):
-                    ax.annotate(
-                        sum_restarts[m],
-                        (dt[m], h_abs[m]),
-                        xytext=xytext[M],
-                        textcoords="offset points",
-                        color=colors[M],
-                        fontsize=16,
-                    )
+                sum_restarts = [results_state_function[M][k][use_SE]["restarts"] for k in dt]
+                axs[1].semilogx(
+                    dt,
+                    sum_restarts,
+                    color=colors[M],
+                    linestyle=linestyle_detection,
+                    marker=markers[M],
+                )
 
             if M == 5:  # dummy plot for more pretty legend
-                ax.plot(0, 0, color='black', linestyle=linestyle_detection, label='Detection: {}'.format(use_SE))
+                axs[0].plot(0, 0, color="black", linestyle=linestyle_detection, label=f"Detection: {use_SE}")
 
-    ax.tick_params(axis='both', which='major', labelsize=16)
-    ax.set_ylim(1e-17, 1e3)
-    ax.set_xscale('log', base=10)
-    ax.set_yscale('log', base=10)
-    ax.set_xlabel(r'Step size $\Delta t$', fontsize=16)
-    ax.set_ylabel(y_label, fontsize=16)
-    ax.grid(visible=True)
-    ax.minorticks_off()
-    ax.legend(frameon=True, fontsize=12, loc=loc_legend)
+    for ax in axs:
+        ax.set_xlabel(r"time step size $\Delta t$")
 
-    if prob_class == 'DiscontinuousTestDAE':
-        file_name = 'data/test_DAE_state_function.png'
-    elif prob_class == 'WSCC9BusSystem':
-        file_name = 'data/wscc9_state_function_detection.png'
-    else:
-        raise ParameterError(f"For {prob_class} no file name is set up!")
+        ax.tick_params(axis="both", which="major")
 
-    fig.savefig(file_name, dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig)
+        ax.set_xscale("log", base=10)
+
+        ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+        ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+        ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+
+    axs[0].set_ylim(1e-17, 1e3)
+
+    axs[0].set_yscale("log", base=10)
+
+    axs[0].set_ylabel(y_label)
+    axs[1].set_ylabel("Number of restarts")
+
+    handles, labels = axs[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
+
+    filename = "data" + "/" + f"{problem_name}" + "/" + "state_function_detection.png"
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    plt.close(fig)
 
 
-def plot_event_time_error(results_event_error, prob_class):  # pragma: no cover
+def plot_event_time_error(results_event_error, problem_name, journal="BUW_thesis"):  # pragma: no cover
     """
     Plots the error between event time founded by detection and exact event time.
 
@@ -546,39 +618,52 @@ def plot_event_time_error(results_event_error, prob_class):  # pragma: no cover
         Indicates of which problem class results are plotted (used to define the file name).
     """
 
-    colors, markers, _ = plot_styling_stuff(prob_class)
+    colors, markers, _ = plot_styling_stuff(problem_name)
 
-    fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+    my_setup_mpl(fontsize=5)
+    figsize = figsize_by_journal(journal, scale=0.45, ratio=1.0)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     for M in results_event_error.keys():
         dt = list(results_event_error[M].keys())
         for use_SE in [True]:
             event_error = [results_event_error[M][k][use_SE] for k in dt]
 
-            linestyle_detection = 'solid' if not use_SE else 'dashdot'
+            linestyle_detection = "solid" if not use_SE else "dashdot"
             ax.loglog(
                 dt,
                 event_error,
                 color=colors[M],
                 linestyle=linestyle_detection,
                 marker=markers[M],
-                label=r'$M={}$'.format(M),
+                label=rf"$M$ = {M}",
             )
 
-    ax.tick_params(axis='both', which='major', labelsize=16)
+    ax.tick_params(axis="both", which="major")
+
+    ax.set_xscale("log", base=10)
+    ax.set_yscale("log", base=10)
+
     ax.set_ylim(1e-15, 1e1)
-    ax.set_xscale('log', base=10)
-    ax.set_yscale('log', base=10)
-    ax.set_xlabel(r'Step size $\Delta t$', fontsize=16)
-    ax.set_ylabel(r'Event time error $|t^*_{ex} - t^*_{SE}|$', fontsize=16)
-    ax.grid(visible=True)
-    ax.minorticks_off()
-    ax.legend(frameon=True, fontsize=12, loc='lower right')
 
-    fig.savefig('data/test_DAE_event_time_error.png', dpi=300, bbox_inches='tight')
-    plt_helper.plt.close(fig)
+    ax.set_xlabel(r"time step size $\Delta t$")
+    ax.set_ylabel(r"event time error $|t^*_{ex} - t^*_{SE}|$")
+
+    ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+    ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+    ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+    ax.grid(which="minor", axis="y", linewidth=0.25, alpha=0.10)
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=3)
+
+    filename = "data" + "/" + f"{problem_name}" + "/" + "test_DAE_event_time_error.png"
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    plt.close(fig)
 
 
-def plot_event_time_error_before_restarts(results_event_error_restarts, prob_class, dt_fix=None):  # pragma: no cover
+def plot_event_time_error_before_restarts(results_event_error_restarts, prob_class, dt_fix=None, journal="BUW_thesis"):  # pragma: no cover
     """
     Plots all events founded by switch estimation, not necessarily satisfying the conditions.
 
@@ -593,12 +678,15 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, prob_cla
         Step size considered.
     """
 
+    my_setup_mpl(fontsize=6)
+    figsize = figsize_by_journal(journal, scale=0.62, ratio=0.68)
+
     colors, markers, _ = plot_styling_stuff(prob_class)
 
     M_key = list(results_event_error_restarts.keys())[0]
     dt_list = [dt_fix] if dt_fix is not None else results_event_error_restarts[M_key].keys()
     for dt in dt_list:
-        fig, ax = plt_helper.plt.subplots(1, 1, figsize=(7.5, 5))
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
         h_ax = ax.twinx()
         for M in results_event_error_restarts.keys():
             for use_SE in results_event_error_restarts[M][dt].keys():
@@ -641,25 +729,26 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, prob_cla
                             label=r'$||h(t)||_\infty$',
                         )
 
-        h_ax.tick_params(labelsize=16)
+        # h_ax.tick_params(labelsize=16)
         h_ax.set_ylim(1e-11, 1e0)
         h_ax.set_yscale('log', base=10)
-        h_ax.set_ylabel(r'Maximum value of h $||h(t)||_\infty$', fontsize=16)
+        h_ax.set_ylabel(r'Maximum value of h $||h(t)||_\infty$')
         h_ax.minorticks_off()
 
-        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.tick_params(axis='both', which='major')
         ax.set_ylim(1e-11, 1e-1)
         ax.set_yscale('log', base=10)
-        ax.set_xlabel(r'Restarted steps $n_{restart}$', fontsize=16)
-        ax.set_ylabel(r'Event time error $|t^*_{ex} - t^*_{SE}|$', fontsize=16)
-        ax.grid(visible=True)
-        ax.minorticks_off()
-        ax.legend(frameon=True, fontsize=12, loc='upper right')
+        ax.set_xlabel(r'Restarted steps $n_{restart}$')
+        ax.set_ylabel(r'Event time error $|t^*_{ex} - t^*_{SE}|$')
+        ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+        ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+        ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=3)
 
         fig.savefig('data/test_DAE_event_time_error_restarts_dt{}.png'.format(dt), dpi=300, bbox_inches='tight')
-        plt_helper.plt.close(fig)
+        plt.close(fig)
 
 
 if __name__ == "__main__":
-    make_plots_for_test_DAE()
-    # make_plots_for_WSCC9_test_case()
+    # make_plots_for_test_DAE()
+    make_plots_for_WSCC9_test_case()

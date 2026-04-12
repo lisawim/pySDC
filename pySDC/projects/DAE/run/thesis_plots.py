@@ -29,6 +29,13 @@ def make_plots_for_chapter_test_problems(journal="BUW_thesis"):
     plot_solution_wscc9(filename="wscc9_solution", journal=journal)
 
 
+def make_plots_for_chapter_num_results_SE(journal="BUW_thesis"):
+    from pySDC.projects.PinTSimE.paper_PSCC2024.paper_plots import make_plots_for_test_DAE, make_plots_for_WSCC9_test_case
+
+    make_plots_for_test_DAE(journal=journal)
+
+
 if __name__ == "__main__":
     make_plots_for_chapter_application()
     # make_plots_for_chapter_test_problems()
+    # make_plots_for_chapter_num_results_SE()

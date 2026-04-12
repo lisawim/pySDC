@@ -279,9 +279,7 @@ def make_plots_for_WSCC9_test_case(cwd='./', journal="BUW_thesis"):  # pragma: n
                         alpha,
                     )
 
-                    # Einheitlicher Dateiname für alte Einzeldateien
                     stats_file = output_dir / f"WSCC9BusSystem_{M=}_{dt=}_{use_SE=}.dat"
-                    print(stats_file)
                     if stats_file.is_file():
                         print("Load file")
                         with stats_file.open("rb") as f:
@@ -290,7 +288,6 @@ def make_plots_for_WSCC9_test_case(cwd='./', journal="BUW_thesis"):  # pragma: n
                         print("Compute results")
                         stats, _ = controllerRun(description, controller_params, controller, t0, Tend)
 
-                        # optional weiter Einzeldatei speichern, falls du das behalten willst
                         with stats_file.open("wb") as f:
                             dill.dump(stats, f)
 

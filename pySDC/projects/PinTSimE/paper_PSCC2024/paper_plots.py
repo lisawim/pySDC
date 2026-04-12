@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
 import dill
+import os
 
 from pySDC.core.errors import ParameterError
 
@@ -38,106 +39,147 @@ def make_plots_for_test_DAE():  # pragma: no cover
     Thus, this function contains all the parameters used in the paper for this numerical example.
     """
 
-    Path("data").mkdir(parents=True, exist_ok=True)
+    output_dir = Path("data") / "DISC-TEST" / "results"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results_file = "results_data.pkl"
+    base_path = output_dir
 
-    problem_class = DiscontinuousTestDAE
-    prob_class_name = DiscontinuousTestDAE.__name__
+    results_path = os.path.join(base_path, results_file)
+    if not os.path.exists(results_path):
+        print(f"Results file {path} does not exist. Running the simulations to generate the results.")
 
-    sweeper = FullyImplicitDAE
-    nnodes = [2, 3, 4, 5]
-    quad_type = 'RADAU-RIGHT'
-    QI = 'LU'
-    maxiter = 45
-    tol_hybr = 1e-6
-    restol = 1e-13
+        problem_class = DiscontinuousTestDAE
+        prob_class_name = DiscontinuousTestDAE.__name__
 
-    hook_class = [LogGlobalErrorPostStep, LogEventDiscontinuousTestDAE, LogRestarts]
+        sweeper = FullyImplicitDAE
+        nnodes = [2, 3, 4, 5]
+        quad_type = 'RADAU-RIGHT'
+        QI = 'LU'
+        maxiter = 45
+        tol_hybr = 1e-6
+        restol = 1e-13
 
-    problem_params = dict()
-    problem_params['newton_tol'] = tol_hybr
+        hook_class = [LogGlobalErrorPostStep, LogEventDiscontinuousTestDAE, LogRestarts]
 
-    use_detection = [False, True]
-    max_restarts = 200
-    epsilon_SE = 1e-10
-    alpha = 0.95
+        problem_params = dict()
+        problem_params['newton_tol'] = tol_hybr
 
-    t0 = 3.0
-    Tend = 5.4
+        use_detection = [False, True]
+        max_restarts = 200
+        epsilon_SE = 1e-10
+        alpha = 0.95
 
-    dt_list = [1 / (2**m) for m in range(2, 9)]
-    dt_fix = 1 / (2**7)
+        t0 = 3.0
+        Tend = 5.4
 
-    recomputed = False
+        dt_list = [1 / (2**m) for m in range(2, 9)]
+        dt_fix = 1 / (2**7)
 
-    results_error_over_time = {}
-    results_error_norm = {}
-    results_state_function = {}
-    results_event_error = {}
-    results_event_error_restarts = {}
+        recomputed = False
 
-    for M in nnodes:
-        results_error_over_time[M], results_error_norm[M] = {}, {}
-        results_state_function[M], results_event_error[M] = {}, {}
-        results_event_error_restarts[M] = {}
+        results_error_over_time = {}
+        results_error_norm = {}
+        results_state_function = {}
+        results_event_error = {}
+        results_event_error_restarts = {}
 
-        for dt in dt_list:
-            results_error_over_time[M][dt], results_error_norm[M][dt] = {}, {}
-            results_state_function[M][dt], results_event_error[M][dt] = {}, {}
-            results_event_error_restarts[M][dt] = {}
+        for M in nnodes:
+            results_error_over_time[M], results_error_norm[M] = {}, {}
+            results_state_function[M], results_event_error[M] = {}, {}
+            results_event_error_restarts[M] = {}
 
-            for use_SE in use_detection:
-                results_error_over_time[M][dt][use_SE], results_error_norm[M][dt][use_SE] = {}, {}
-                results_state_function[M][dt][use_SE], results_event_error[M][dt][use_SE] = {}, {}
-                results_event_error_restarts[M][dt][use_SE] = {}
+            for dt in dt_list:
+                results_error_over_time[M][dt], results_error_norm[M][dt] = {}, {}
+                results_state_function[M][dt], results_event_error[M][dt] = {}, {}
+                results_event_error_restarts[M][dt] = {}
 
-                description, controller_params = generateDescription(
-                    dt,
-                    problem_class,
-                    sweeper,
-                    M,
-                    quad_type,
-                    QI,
-                    hook_class,
-                    False,
-                    use_SE,
-                    problem_params,
-                    restol,
-                    maxiter,
-                    max_restarts,
-                    epsilon_SE,
-                    alpha,
-                )
+                for use_SE in use_detection:
+                    results_error_over_time[M][dt][use_SE], results_error_norm[M][dt][use_SE] = {}, {}
+                    results_state_function[M][dt][use_SE], results_event_error[M][dt][use_SE] = {}, {}
+                    results_event_error_restarts[M][dt][use_SE] = {}
 
-                stats, t_switch_exact = controllerRun(
-                    description, controller_params, t0, Tend, exact_event_time_avail=True
-                )
+                    description, controller_params, controller = generateDescription(
+                        dt,
+                        problem_class,
+                        sweeper,
+                        M,
+                        quad_type,
+                        QI,
+                        hook_class,
+                        False,
+                        use_SE,
+                        problem_params,
+                        restol,
+                        maxiter,
+                        max_restarts,
+                        epsilon_SE,
+                        alpha,
+                    )
 
-                err_val = get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed)
-                results_error_over_time[M][dt][use_SE] = err_val
+                    stats, t_switch_exact = controllerRun(
+                        description, controller_params, controller, t0, Tend, exact_event_time_avail=True
+                    )
 
-                err_norm = max([item[1] for item in err_val])
-                results_error_norm[M][dt][use_SE] = err_norm
+                    err_val = get_sorted(stats, type='e_global_post_step', sortby='time', recomputed=recomputed)
+                    results_error_over_time[M][dt][use_SE] = err_val
 
-                h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
-                h_abs = abs([item[1] for item in h_val][-1])
-                results_state_function[M][dt][use_SE]['h_abs'] = h_abs
+                    err_norm = max([item[1] for item in err_val])
+                    results_error_norm[M][dt][use_SE] = err_norm
 
-                if use_SE:
-                    switches = get_sorted(stats, type='switch', sortby='time', recomputed=recomputed)
+                    h_val = get_sorted(stats, type='state_function', sortby='time', recomputed=recomputed)
+                    h_abs = abs([item[1] for item in h_val][-1])
+                    results_state_function[M][dt][use_SE]['h_abs'] = h_abs
 
-                    t_switch = [item[1] for item in switches][-1]
-                    results_event_error[M][dt][use_SE] = abs(t_switch_exact - t_switch)
+                    if use_SE:
+                        switches = get_sorted(stats, type='switch', sortby='time', recomputed=recomputed)
 
-                    restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
-                    sum_restarts = sum([item[1] for item in restarts])
-                    results_state_function[M][dt][use_SE]['restarts'] = sum_restarts
+                        t_switch = [item[1] for item in switches][-1]
+                        results_event_error[M][dt][use_SE] = abs(t_switch_exact - t_switch)
 
-                    switches_all = get_sorted(stats, type='switch_all', sortby='time', recomputed=None)
-                    t_switches_all = [item[1] for item in switches_all]
-                    event_error_all = [abs(t_switch_exact - t_switch) for t_switch in t_switches_all]
-                    results_event_error_restarts[M][dt][use_SE]['event_error_all'] = event_error_all
-                    h_val_all = get_sorted(stats, type='h_all', sortby='time', recomputed=None)
-                    results_event_error_restarts[M][dt][use_SE]['h_max_event'] = [item[1] for item in h_val_all]
+                        restarts = get_sorted(stats, type='restart', sortby='time', recomputed=None)
+                        sum_restarts = sum([item[1] for item in restarts])
+                        results_state_function[M][dt][use_SE]['restarts'] = sum_restarts
+
+                        switches_all = get_sorted(stats, type='switch_all', sortby='time', recomputed=None)
+                        t_switches_all = [item[1] for item in switches_all]
+                        event_error_all = [abs(t_switch_exact - t_switch) for t_switch in t_switches_all]
+                        results_event_error_restarts[M][dt][use_SE]['event_error_all'] = event_error_all
+                        h_val_all = get_sorted(stats, type='h_all', sortby='time', recomputed=None)
+                        results_event_error_restarts[M][dt][use_SE]['h_max_event'] = [item[1] for item in h_val_all]
+
+        results = {
+            "results_error_over_time": results_error_over_time,
+            "results_error_norm": results_error_norm,
+            "results_state_function": results_state_function,
+            "results_event_error": results_event_error,
+            "results_event_error_restarts": results_event_error_restarts,
+            "metadata": {
+                "prob_class_name": prob_class_name,
+                "dt_fix": dt_fix,
+                "nnodes": nnodes,
+                "dt_list": dt_list,
+                "use_detection": use_detection,
+                "QI": QI,
+                "quad_type": quad_type,
+            },
+        }
+
+        with results_path.open("wb") as f:
+            dill.dump(results, f)
+
+    else:
+        results_path = os.path.join(base_path, results_file)
+        with open(results_path, "rb") as f:
+            loaded_results = dill.load(f)
+
+        results_error_over_time = loaded_results["results_error_over_time"]
+        results_error_norm = loaded_results["results_error_norm"]
+        results_state_function = loaded_results["results_state_function"]
+        results_event_error = loaded_results["results_event_error"]
+        results_event_error_restarts = loaded_results["results_event_error_restarts"]
+
+        prob_class_name = loaded_results["metadata"]["prob_class_name"]
+        dt_fix = loaded_results["metadata"]["dt_fix"]
 
     plot_functions_over_time(
         results_error_over_time, prob_class_name, r'Global error $|y(t) - y_{ex}(t)|$', 'upper left', dt_fix

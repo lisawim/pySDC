@@ -589,7 +589,7 @@ def plot_state_function_detection(results_state_function, problem_name, y_label,
     axs[0].set_yscale("log", base=10)
 
     axs[0].set_ylabel(y_label)
-    axs[1].set_ylabel("Number of restarts")
+    axs[1].set_ylabel("number of restarts")
 
     handles, labels = axs[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)

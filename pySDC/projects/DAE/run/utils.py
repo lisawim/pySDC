@@ -61,7 +61,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_IE": "gold",
         "constrainedDAE_LU": "orange",
         "constrainedDAE_MIN-SR-NS": "firebrick",
-        "constrainedDAE_MIN-SR-S": "purple",
+        "constrainedDAE_MIN-SR-S": "mediumorchid",
         "constrainedDAE_MIN-SR-FLEX": "darkgrey",
         "constrainedDAE_Picard": "dodgerblue",
         "constrainedDAE_DOPRI5": "darkmagenta",
@@ -82,7 +82,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "semiImplicitDAE_IE": "yellow",
         "semiImplicitDAE_LU": "royalblue",
         "semiImplicitDAE_MIN-SR-NS": "mediumseagreen",
-        "semiImplicitDAE_MIN-SR-S": "gold",
+        "semiImplicitDAE_MIN-SR-S": "saddlebrown",
         "semiImplicitDAE_MIN-SR-FLEX": "lightskyblue",
         "semiImplicitDAE_Picard": "darkmagenta",
     }
@@ -90,10 +90,10 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     markers = {
         "constrainedDAE_EE": "D",
         "constrainedDAE_IE": "o",
-        "constrainedDAE_LU": "s",
+        "constrainedDAE_LU": "X",
         "constrainedDAE_MIN-SR-NS": "^",
-        "constrainedDAE_MIN-SR-S": "d",
-        "constrainedDAE_MIN-SR-FLEX": "*",
+        "constrainedDAE_MIN-SR-S": "X",
+        "constrainedDAE_MIN-SR-FLEX": "0",
         "constrainedDAE_Picard": "H",
         "constrainedDAE_DOPRI5": "p",
         "embeddedDAE_IE": "D",
@@ -113,7 +113,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "semiImplicitDAE_IE": "d",
         "semiImplicitDAE_LU": "8",
         "semiImplicitDAE_MIN-SR-NS": "s",
-        "semiImplicitDAE_MIN-SR-S": "*",
+        "semiImplicitDAE_MIN-SR-S": "o",
         "semiImplicitDAE_MIN-SR-FLEX": "H",
         "semiImplicitDAE_Picard": "D",
     }
@@ -128,7 +128,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     return colors, markers, sweeper_labels
 
 
-def newton_tol(dt: float, dt_ref: float = 2.6e-3, tol_ref: float = 8e-13) -> float:
+def newton_tol(dt: float, dt_ref: float = 2.6e-3, tol_ref: float = 1.3e-12) -> float:
     r"""
     Newton tolerance is coupled to time step size ``dt`` with reference step size ``dt_ref``
     and ``tol_ref``. The Newton tolerance is then defined by
@@ -293,7 +293,7 @@ def setup_problem(
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
         maxiter = kwargs.get("maxiter", 2 * num_nodes)
-        e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
+        e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-13)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
         description["problem_params"] = {"solver_type": "direct"}
@@ -309,7 +309,7 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        maxiter = kwargs.get("maxiter", 25)  # kwargs.get("maxiter", 25)
+        maxiter = kwargs.get("maxiter", 25)
         e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
         description["level_params"]["e_tol"] = e_tol
         description["step_params"] = {"maxiter": maxiter}
@@ -317,8 +317,8 @@ def setup_problem(
         tol = newton_tol(dt)
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),
-            "newton_tol": 1e-14,#tol,
-            "newton_maxiter": 10,#7,
+            "newton_tol": 1e-14,
+            "newton_maxiter": 10,
         }
         if not QI.startswith("RadauIIA"):
             description["problem_params"]["spectral"] = kwargs.get("spectral", True)

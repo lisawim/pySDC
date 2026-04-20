@@ -41,6 +41,31 @@ def compute_constant_reference_order(dt_list, err_iter, k):
     return C
 
 
+def get_error_values(solution_stats, variable, mode):
+    sort_key = "sweep" if mode == "sweep" else "iter"
+    pre_suffix = f"pre_{mode}"
+    post_suffix = f"post_{mode}"
+
+    err_pre = [
+        me[1]
+        for me in get_sorted(
+            solution_stats,
+            type=f"e_global_{variable}_{pre_suffix}",
+            sortby=sort_key,
+        )
+    ][0]
+
+    err_post = [
+        me[1]
+        for me in get_sorted(
+            solution_stats,
+            type=f"e_global_{variable}_{post_suffix}",
+            sortby=sort_key,
+        )
+    ]
+    return [err_pre] + err_post
+
+
 def sync_xlim(axs, min_x_set=1e-15):
     """Synchronize x-axis limits across all subplots by finding the global min/max."""
     min_x, max_x = None, None
@@ -103,14 +128,11 @@ def sync_ylim(axs, min_y_set=1e-15):
     return axs
 
 
-def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration."""
 
     from pySDC.projects.DAE.misc.hooksDAE import (
-        LogGlobalErrorPreIterDifferentialVariable,
-        LogGlobalErrorPreIterationAlgebraicVariable,
-        LogGlobalErrorPostIterDiff,
-        LogGlobalErrorPostIterAlg,
+        LogGlobalErrorDiffVar, LogGlobalErrorAlgVar
     )
 
     problem_name = "LINEAR-TEST"
@@ -122,68 +144,51 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
 
     sweeper_type = "constrainedDAE"
     QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
-    num_nodes = 3
     maxiter = 2 * num_nodes - 1
+    nsweeps = maxiter
     e_tol = -1
 
-    kwargs = {"e_tol": e_tol, "maxiter": maxiter}
+    kwargs = {"e_tol": e_tol}
 
     t0 = 0.0
     dt_list, _ = choose_time_step_sizes(problem_name)
     dt_list_short = dt_list[3:7]
 
-    hook_class = [
-        LogGlobalErrorPreIterDifferentialVariable,
-        LogGlobalErrorPreIterationAlgebraicVariable,
-        LogGlobalErrorPostIterDiff,
-        LogGlobalErrorPostIterAlg,
-    ]
+    hook_class = [LogGlobalErrorDiffVar, LogGlobalErrorAlgVar]
 
     my_setup_mpl(fontsize=7)
 
     offsets = [0.7, 0.45, 0.6, 0.55, 0.55, 0.5, 0.45]
 
     for q, QI in enumerate(QI_list):
+        print(f"Running for {QI}..")
         errors_y, errors_z = [], []
+
+        mode = "sweep" if QI == "MIN-SR-FLEX" else "iteration"
 
         fig, axs = plt.subplots(1, 2, figsize=figsize)
 
         for dt in dt_list:
             solution_stats = compute_solution(
-                problem_name,
-                t0,
-                dt,
-                t0 + dt,
-                num_nodes,
-                QI,
-                sweeper_type,
-                False,
+                problem_name=problem_name,
+                t0=t0,
+                dt=dt,
+                Tend=t0 + dt,
+                num_nodes=num_nodes,
+                QI=QI,
+                sweeper_type=sweeper_type,
+                use_mpi=False,
                 hook_class=hook_class,
                 measure=False,
+                maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
+                nsweeps=1 if QI != "MIN-SR-FLEX" else nsweeps,
                 **kwargs,
             )
 
-            err_diff_values_spread = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_pre_iteration", sortby="iter")
-            ][0]
-            err_alg_values_spread = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_pre_iteration", sortby="iter")
-            ][0]
+            errors_y.append(get_error_values(solution_stats, "differential", mode))
+            errors_z.append(get_error_values(solution_stats, "algebraic", mode))
 
-            err_diff_values = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_differential_post_iteration", sortby="iter")
-            ]
-            err_alg_values = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")
-            ]
-
-            err_diff_values.insert(0, err_diff_values_spread)
-            err_alg_values.insert(0, err_alg_values_spread)
-
-            errors_y.append(err_diff_values)
-            errors_z.append(err_alg_values)
-
-        for k in range(maxiter + 1):
+        for k in range(len(errors_y[0])):
             err_y_iter = [res[k] for res in errors_y]
             err_z_iter = [res[k] for res in errors_z]
 
@@ -262,9 +267,9 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
-        # plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
-        plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+        plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
+        # plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -272,37 +277,32 @@ def plot_order_linear(format="eps", sweeper_type="constrainedDAE", journal="Spri
         plt.close(fig)
 
 
-def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration for Andrews' problem"""
 
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
-        LogGlobalErrorPreIterMechanicalVars,
-        LogGlobalErrorPostIterMechanicalVars,
+        LogGlobalErrorMechanicalVars,
     )
 
     problem_name = "ANDREWS-SQUEEZER"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
-    figsize_g = figsize_by_journal(journal, scale=0.5, ratio=0.9)
 
     colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
     linestyles = ["solid", "dotted"]
 
-    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
-    num_nodes = 3
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
     maxiter = 2 * num_nodes - 1
+    nsweeps = maxiter
     e_tol = -1
 
-    kwargs = {"e_tol": e_tol, "maxiter": maxiter}
+    kwargs = {"e_tol": e_tol}
 
     t0 = 0.0
-    dt_list, Tend = choose_time_step_sizes(problem_name)
+    dt_list, _ = choose_time_step_sizes(problem_name)
     dt_list_short = dt_list[3:7]
 
-    hook_class = [
-        LogGlobalErrorPreIterMechanicalVars,
-        LogGlobalErrorPostIterMechanicalVars,
-    ]
+    hook_class = [LogGlobalErrorMechanicalVars]
 
     my_setup_mpl(fontsize=7)
 
@@ -313,67 +313,37 @@ def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Spr
 
     for q, QI in enumerate(QI_list):
         print(f"Running for {QI}..")
-        abs_g_vals = []
         errors_pos, errors_vel = [], []
         errors_acc, errors_lag = [], []
+
+        mode = "sweep" if QI == "MIN-SR-FLEX" else "iteration"
 
         fig, axs = plt.subplots(2, 2, figsize=figsize)
         ax_flatten = axs.flatten()
 
-        fig_g, axs_g = plt.subplots(1, 1, figsize=figsize_g)
-
         for dt in dt_list:
             solution_stats = compute_solution(
-                problem_name,
-                t0,
-                dt,
-                t0 + dt,
-                num_nodes,
-                QI,
-                sweeper_type,
-                False,
+                problem_name=problem_name,
+                t0=t0,
+                dt=dt,
+                Tend=t0 + dt,
+                num_nodes=num_nodes,
+                QI=QI,
+                sweeper_type=sweeper_type,
+                use_mpi=False,
                 hook_class=hook_class,
                 measure=False,
+                maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
+                nsweeps=1 if QI != "MIN-SR-FLEX" else nsweeps,
                 **kwargs,
             )
 
-            err_pos_values_spread = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_position_pre_iteration", sortby="iter")
-            ][0]
-            err_vel_values_spread = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_velocity_pre_iteration", sortby="iter")
-            ][0]
-            err_acc_values_spread = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_acceleration_pre_iteration", sortby="iter")
-            ][0]
-            err_lag_values_spread = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_lagrange_pre_iteration", sortby="iter")
-            ][0]
+            errors_pos.append(get_error_values(solution_stats, "position", mode))
+            errors_vel.append(get_error_values(solution_stats, "velocity", mode))
+            errors_acc.append(get_error_values(solution_stats, "acceleration", mode))
+            errors_lag.append(get_error_values(solution_stats, "lagrange", mode))
 
-            err_pos_values = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_position_post_iteration", sortby="iter")
-            ]
-            err_vel_values = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_velocity_post_iteration", sortby="iter")
-            ]
-            err_acc_values = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_acceleration_post_iteration", sortby="iter")
-            ]
-            err_lag_values = [
-                me[1] for me in get_sorted(solution_stats, type=f"e_global_lagrange_post_iteration", sortby="iter")
-            ]
-
-            err_pos_values.insert(0, err_pos_values_spread)
-            err_vel_values.insert(0, err_vel_values_spread)
-            err_acc_values.insert(0, err_acc_values_spread)
-            err_lag_values.insert(0, err_lag_values_spread)
-
-            errors_pos.append(err_pos_values)
-            errors_vel.append(err_vel_values)
-            errors_acc.append(err_acc_values)
-            errors_lag.append(err_lag_values)
-
-        for k in range(maxiter + 1):
+        for k in range(len(errors_pos[0])):
             err_pos_iter = [res[k] for res in errors_pos]
             err_vel_iter = [res[k] for res in errors_vel]
             err_acc_iter = [res[k] for res in errors_acc]
@@ -507,15 +477,14 @@ def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Spr
         ax_flatten[3].set_ylabel(r"LTE $||\lambda(t_1) - \lambda^k_{M,t_1}||_{\infty}$")
 
         ax_flatten = sync_ylim(ax_flatten, min_y_set=1e-15)
-        y_limits = ax_flatten[0].get_ylim()
-        axs_g.set_ylim(y_limits)
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
         plot_name = "Fig6" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+        # plot_name = f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -523,12 +492,11 @@ def plot_order_andrews(format="eps", sweeper_type="constrainedDAE", journal="Spr
         plt.close(fig)
 
 
-def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration for reaction-diffusion problem"""
 
     from pySDC.projects.DAE.problems.reactionDiffusionPDAE import (
-        LogGlobalErrorPreIterConcentrations,
-        LogGlobalErrorPostIterConcentrations,
+        LogGlobalErrorConcentrations,
     )
 
     problem_name = "REACTION-DIFFUSION"
@@ -538,24 +506,19 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D", "<", ">", "o", "^"]
     linestyles = ["solid", "dotted"]
 
-    QI_list = ["IE", "LU", "MIN-SR-S"]
-    num_nodes = 3
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-FLEX"]
     maxiter = 2 * num_nodes - 1
+    nsweeps = maxiter
     e_tol = -1
 
-    kwargs = {"e_tol": e_tol, "maxiter": maxiter}
+    kwargs = {"e_tol": e_tol}
 
     t0 = 0.0
     dt_list, _ = choose_time_step_sizes(problem_name)
     dt_list_pov = dt_list[3:]
     dt_list_short = dt_list_pov[:4]
 
-    hook_class = [
-        LogGlobalErrorPreIterConcentrations,
-        LogGlobalErrorPostIterConcentrations,
-        LogAbsValuePreIterAlgebraicConstraints,
-        LogAbsValuePostIterAlgebraicConstraints,
-    ]
+    hook_class = [LogGlobalErrorConcentrations]
 
     my_setup_mpl(fontsize=8)
 
@@ -566,59 +529,33 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
         errors_u, errors_v = [], []
         errors_w = []
 
+        mode = "sweep" if QI == "MIN-SR-FLEX" else "iteration"
+
         fig, axs = plt.subplots(2, 2, figsize=figsize)
         ax_flatten = axs.flatten()
 
         for dt in dt_list_pov:
             solution_stats = compute_solution(
-                problem_name,
-                t0,
-                dt,
-                t0 + dt,
-                num_nodes,
-                QI,
-                sweeper_type,
-                False,
+                problem_name=problem_name,
+                t0=t0,
+                dt=dt,
+                Tend=t0 + dt,
+                num_nodes=num_nodes,
+                QI=QI,
+                sweeper_type=sweeper_type,
+                use_mpi=False,
                 hook_class=hook_class,
                 measure=False,
+                maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
+                nsweeps=1 if QI != "MIN-SR-FLEX" else nsweeps,
                 **kwargs,
             )
 
-            err_u_values_spread = [
-                me[1]
-                for me in get_sorted(solution_stats, type=f"e_global_concentration_u_pre_iteration", sortby="iter")
-            ][0]
-            err_v_values_spread = [
-                me[1]
-                for me in get_sorted(solution_stats, type=f"e_global_concentration_v_pre_iteration", sortby="iter")
-            ][0]
-            err_w_values_spread = [
-                me[1]
-                for me in get_sorted(solution_stats, type=f"e_global_concentration_w_pre_iteration", sortby="iter")
-            ][0]
+            errors_u.append(get_error_values(solution_stats, "concentration_u", mode))
+            errors_v.append(get_error_values(solution_stats, "concentration_v", mode))
+            errors_w.append(get_error_values(solution_stats, "concentration_w", mode))
 
-            err_u_values = [
-                me[1]
-                for me in get_sorted(solution_stats, type=f"e_global_concentration_u_post_iteration", sortby="iter")
-            ]
-            err_v_values = [
-                me[1]
-                for me in get_sorted(solution_stats, type=f"e_global_concentration_v_post_iteration", sortby="iter")
-            ]
-            err_w_values = [
-                me[1]
-                for me in get_sorted(solution_stats, type=f"e_global_concentration_w_post_iteration", sortby="iter")
-            ]
-
-            err_u_values.insert(0, err_u_values_spread)
-            err_v_values.insert(0, err_v_values_spread)
-            err_w_values.insert(0, err_w_values_spread)
-
-            errors_u.append(err_u_values)
-            errors_v.append(err_v_values)
-            errors_w.append(err_w_values)
-
-        for k in range(maxiter + 1):
+        for k in range(len(errors_u[0])):
             err_u_iter = [res[k] for res in errors_u]
             err_v_iter = [res[k] for res in errors_v]
             err_w_iter = [res[k] for res in errors_w]
@@ -730,7 +667,8 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
         ax_flatten[3].remove()
 
         plot_name = "Fig10" if QI == "IE" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+        # plot_name = f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}"
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1337,7 +1275,7 @@ def plot_order_integration_error_reaction_diffusion(
 
 
 if __name__ == "__main__":
-    format = "png"
-    plot_order_linear(format=format)
-    # plot_order_andrews(format=format)
-    # plot_order_reaction_diffusion(format=format)
+    num_nodes = 5
+    # plot_order_linear(num_nodes=num_nodes)
+    # plot_order_andrews(num_nodes=num_nodes)
+    plot_order_reaction_diffusion(num_nodes=num_nodes)

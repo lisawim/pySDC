@@ -1,8 +1,10 @@
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostIter, LogGlobalErrorPostStep
 from pySDC.implementations.hooks.log_embedded_error_estimate import LogEmbeddedErrorEstimate
 from pySDC.implementations.hooks.log_solution import LogSolution
+from pySDC.implementations.hooks.log_work import LogWork
 from pySDC.projects.DAE.misc.hooksDAE import LogExactError, MyCPUTimings, MyLogSolutionAfterIteration
 from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import LogPositionErrorEndPostIteration
+from pySDC.projects.DAE.problems.reactionDiffusionPDAE import LogAchievedNewtonTolerancePostStep
 from pySDC.projects.DAE.run.plot_order_iteration import choose_time_step_sizes
 
 
@@ -11,7 +13,7 @@ def _ensure_known_problem(problem_name: str) -> None:
         raise NotImplementedError(f"Unknown/unsupported problem_name={problem_name!r}")
 
 
-def get_configs(problem_name: str, config_type: str, nsweeps: int = None) -> dict:
+def get_configs(problem_name: str, config_type: str, nsweeps: int = 1) -> dict:
     _ensure_known_problem(problem_name)
 
     if config_type == "work_precision":
@@ -19,7 +21,7 @@ def get_configs(problem_name: str, config_type: str, nsweeps: int = None) -> dic
         config = {
             "hook_class": [LogGlobalErrorPostStep],
             "num_nodes": 6,
-            "nsweeps": nsweeps if nsweeps is not None else num_nodes,
+            "nsweeps": nsweeps,
             "problem_name": problem_name,
             "sweepers": ["constrainedDAE", "semiImplicitDAE"],
             "test_methods": [
@@ -52,6 +54,7 @@ def get_configs(problem_name: str, config_type: str, nsweeps: int = None) -> dic
                 LogGlobalErrorPostStep,
                 LogSolution,
                 MyLogSolutionAfterIteration,
+                LogWork,
             ],
             "problem_name": problem_name,
             "sweepers": ["constrainedDAE", "semiImplicitDAE"],
@@ -63,6 +66,9 @@ def get_configs(problem_name: str, config_type: str, nsweeps: int = None) -> dic
         # problem-specific overrides
         if problem_name == "ANDREWS-SQUEEZER":
             config["hook_class"] += [LogPositionErrorEndPostIteration]
+
+        if problem_name == "REACTION-DIFFUSION":
+            config["hook_class"] += [LogAchievedNewtonTolerancePostStep]
 
         if problem_name == "REACTION-DIFFUSION":
             config["QI_serial_methods"] = ["LU", "RadauIIA5", "RadauIIA7"]
@@ -80,6 +86,9 @@ def get_configs(problem_name: str, config_type: str, nsweeps: int = None) -> dic
         config["hook_class"] = [
             MyCPUTimings, LogEmbeddedErrorEstimate, LogExactError, LogGlobalErrorPostStep
         ]
+        if problem_name == "REACTION-DIFFUSION":
+            config["hook_class"] += [LogAchievedNewtonTolerancePostStep]
+
         config["stop_at_accuracy_for_speedup"] = True
 
     elif config_type == "breakeven":

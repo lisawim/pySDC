@@ -11,6 +11,42 @@ from pySDC.helpers import problem_helper
 
 
 # Problem specific hooks
+class LogAchievedNewtonTolerancePostStep(Hooks):
+    """
+    Store the achieved Newton tolerance at the end of each step as "newton_tol_achieved".
+    """
+
+    def post_step(self, step, level_number):
+        """
+        Record achieved Newton tolerance at the end of the step
+
+        Args:
+            step (pySDC.Step.step): the current step
+            level_number (int): the current level number
+
+        Returns:
+            None
+        """
+        super().post_step(step, level_number)
+
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type="newton_tol_achieved",
+            value=P.newton_tol_achieved,
+        )
+
+        P.newton_tol_achieved = -np.inf
+
+
 class LogSolutionPreIter(Hooks):
     """
     Store the solution before each iteration as "u".
@@ -43,29 +79,80 @@ class LogSolutionPreIter(Hooks):
         )
 
 
-class LogGlobalErrorPreIter(Hooks):
-    """Logs global error of concentrations in reaction-diffusion after prediction."""
+class LogGlobalErrorConcentrations(Hooks):
+    def log_component_errors(self, step, L, exact, numeric, components, base_name, suffix):
+        for name, idx in components.items():
+            e_global = np.linalg.norm(exact[idx] - numeric[idx], np.inf)
 
-    def pre_iteration(self, step, level_number):
-        r"""
-        Default routine called before each iteration.
+            self.add_to_stats(
+                process=step.status.slot,
+                time=L.time + L.dt,
+                level=L.level_index,
+                iter=step.status.iter,
+                sweep=L.status.sweep,
+                type=f"{base_name}_{name}_{suffix}",
+                value=e_global,
+            )
 
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
+    def log_global_error(self, step, level_number, suffix=''):
         """
+        Function to add the global error to the stats
 
-        super().pre_iteration(step, level_number)
+        Args:
+            step (pySDC.Step.step): The current step
+            level_number (int): The index of the level
+            suffix (str): Suffix for naming the variable in stats
 
-        # some abbreviations
+        Returns:
+            None
+        """
         L = step.levels[level_number]
+        P = L.prob
 
-        # Compute end point to use L.uend instead of L.u[-1]
         L.sweep.compute_end_point()
 
+        u_ex = P.u_exact(step.time + step.dt)
+
+        problem_class_name = type(P).__name__
+        if problem_class_name.endswith("FFT_Radau"):
+            uend_ex = P.dtype_u(P.physical_init)
+            uend = P.dtype_u(P.physical_init)
+
+            for i in range(3):
+                i0_hat = i * P.Nr
+                i1_hat = (i + 1) * P.Nr
+                i0 = i * P.N
+                i1 = (i + 1) * P.N
+
+                uend_ex[i0:i1] = np.fft.self.itransform(u_ex[i0_hat:i1_hat], n=P.N)
+                uend[i0:i1] = np.fft.self.itransform(L.uend[i0_hat:i1_hat], n=P.N)
+
+            uend_ex = uend_ex.flatten()
+            uend = uend.flatten()
+            n = P.N
+
+        else:
+            uend_ex = u_ex.flatten()
+            uend = L.uend.flatten()
+            n = len(uend_ex) // 3
+
+        components = {
+            "u": slice(0, n),
+            "v": slice(n, 2 * n),
+            "w": slice(2 * n, 3 * n),
+        }
+
+        self.log_component_errors(
+            step, L, uend_ex, uend, components,
+            base_name="e_global_concentration",
+            suffix=suffix,
+        )
+
+    def pre_iteration(self, step, level_number):
+        super().pre_iteration(step, level_number)
+        self.log_global_error(step, level_number, suffix="pre_iteration")
+
+        L = step.levels[level_number]
         u_ref = L.prob.u_exact(t=L.time + L.dt)
 
         self.add_to_stats(
@@ -75,246 +162,21 @@ class LogGlobalErrorPreIter(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type=f'e_global_pre_iteration',
+            type="e_global_pre_iteration",
             value=abs(u_ref - L.uend),
         )
 
-
-class LogGlobalErrorPreIterConcentrations(Hooks):
-    """Logs global error of concentrations in reaction-diffusion after prediction."""
-
-    def pre_iteration(self, step, level_number):
-        r"""
-        Default routine called before each iteration.
-
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
-        """
-
-        super().pre_iteration(step, level_number)
-
-        # some abbreviations
-        L = step.levels[level_number]
-        P = L.prob
-
-        n = P.nvars
-
-        # Compute end point to use L.uend instead of L.u[-1]
-        L.sweep.compute_end_point()
-
-        upde = P.u_exact(step.time + step.dt)
-        du_ex = P.du_exact(step.time + step.dt)
-
-        if type(P).__name__ == "ReactionDiffusionPDAE_FFT_Radau":
-            uend_ex = P.dtype_u(P.physical_init)
-            uend_ex[: P.N] = np.fft.self.itransform(upde[: P.Nr], n=P.N)
-            uend_ex[P.N : 2 * P.N] = np.fft.self.itransform(upde[P.Nr : 2 * P.Nr], n=P.N)
-            uend_ex[2 * P.N : 3 * P.N] = np.fft.self.itransform(upde[2 * P.Nr : 3 * P.Nr], n=P.N)
-
-            uend = P.dtype_u(P.physical_init)
-            uend[: P.N] = np.fft.self.itransform(L.uend[: P.Nr], n=P.N)
-            uend[P.N : 2 * P.N] = np.fft.self.itransform(L.uend[P.Nr : 2 * P.Nr], n=P.N)
-            uend[2 * P.N : 3 * P.N] = np.fft.self.itransform(L.uend[2 * P.Nr : 3 * P.Nr], n=P.N)
-
-            uend_ex = uend_ex.flatten()
-            uend = uend.flatten()
-
-        else:
-            uend_ex = upde.flatten()
-            uend = L.uend.flatten()
-
-            duend_ex = du_ex.flatten()
-            duend = L.f[-1].flatten()  # Note that L.f[-1] corresponds to L.u[-1] AND L.uend!
-
-        e_global_concentration_u = abs(uend_ex[:n] - uend[:n])
-        e_global_concentration_v = abs(uend_ex[n : 2 * n] - uend[n : 2 * n])
-        e_global_concentration_w = abs(uend_ex[2 * n : 3 * n] - uend[2 * n : 3 * n])
-
-        e_global_concentration_gradient_u = abs(duend_ex[:n] - duend[:n])
-        e_global_concentration_gradient_v = abs(duend_ex[n : 2 * n] - duend[n : 2 * n])
-        e_global_concentration_gradient_w = abs(duend_ex[2 * n : 3 * n] - duend[2 * n : 3 * n])
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_u_pre_iteration",
-            value=e_global_concentration_u,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_v_pre_iteration",
-            value=e_global_concentration_v,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_w_pre_iteration",
-            value=e_global_concentration_w,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_du_pre_iteration",
-            value=e_global_concentration_gradient_u,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_dv_pre_iteration",
-            value=e_global_concentration_gradient_v,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_dw_pre_iteration",
-            value=e_global_concentration_gradient_w,
-        )
-
-
-class LogGlobalErrorPostIterConcentrations(Hooks):
-    """Logs global error of concentrations in reaction-diffusion after each iteration."""
-
     def post_iteration(self, step, level_number):
-        r"""
-        Default routine called after each iteration.
-
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
-        """
-
         super().post_iteration(step, level_number)
+        self.log_global_error(step, level_number, suffix="post_iteration")
 
-        # some abbreviations
-        L = step.levels[level_number]
-        P = L.prob
+    def pre_sweep(self, step, level_number):
+        super().pre_sweep(step, level_number)
+        self.log_global_error(step, level_number, suffix="pre_sweep")
 
-        n = P.nvars
-
-        L.sweep.compute_end_point()
-
-        upde = P.u_exact(step.time + step.dt)
-        du_ex = P.du_exact(step.time + step.dt)
-
-        if type(P).__name__ == "ReactionDiffusionPDAE_FFT_Radau":
-            uend_ex = P.dtype_u(P.physical_init)
-            uend_ex[: P.N] = P.itransform(upde[: P.Nr], n=P.N)
-            uend_ex[P.N : 2 * P.N] = P.itransform(upde[P.Nr : 2 * P.Nr], n=P.N)
-            uend_ex[2 * P.N : 3 * P.N] = P.itransform(upde[2 * P.Nr : 3 * P.Nr], n=P.N)
-
-            uend = P.dtype_u(P.physical_init)
-            uend[: P.N] = P.itransform(L.uend[: P.Nr], n=P.N)
-            uend[P.N : 2 * P.N] = P.itransform(L.uend[P.Nr : 2 * P.Nr], n=P.N)
-            uend[2 * P.N : 3 * P.N] = P.itransform(L.uend[2 * P.Nr : 3 * P.Nr], n=P.N)
-
-            uend_ex = uend_ex.flatten()
-            uend = uend.flatten()
-
-        else:
-            uend_ex = upde.flatten()
-            uend = L.uend.flatten()
-
-            duend_ex = du_ex.flatten()
-            duend = L.f[-1].flatten()  # Note that L.f[-1] corresponds to L.u[-1] AND L.uend!
-
-        e_global_concentration_u = abs(uend_ex[:n] - uend[:n])
-        e_global_concentration_v = abs(uend_ex[n : 2 * n] - uend[n : 2 * n])
-        e_global_concentration_w = abs(uend_ex[2 * n : 3 * n] - uend[2 * n : 3 * n])
-
-        e_global_concentration_gradient_u = abs(duend_ex[:n] - duend[:n])
-        e_global_concentration_gradient_v = abs(duend_ex[n : 2 * n] - duend[n : 2 * n])
-        e_global_concentration_gradient_w = abs(duend_ex[2 * n : 3 * n] - duend[2 * n : 3 * n])
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_u_post_iteration",
-            value=e_global_concentration_u,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_v_post_iteration",
-            value=e_global_concentration_v,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_w_post_iteration",
-            value=e_global_concentration_w,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_du_post_iteration",
-            value=e_global_concentration_gradient_u,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_dv_post_iteration",
-            value=e_global_concentration_gradient_v,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_concentration_dw_post_iteration",
-            value=e_global_concentration_gradient_w,
-        )
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.log_global_error(step, level_number, suffix="post_sweep")
 
 
 class LogGlobalErrorNodesPostIterConcentrations(Hooks):
@@ -437,6 +299,8 @@ class ReactionDiffusionPDAE(SpectralTester):
 
         self.work_counters["rhs"] = WorkCounter()
         self.work_counters["newton"] = WorkCounter()
+
+        self.newton_tol_achieved = -np.inf
 
         self.A = -1.0
         self.B = self.A
@@ -903,6 +767,7 @@ class ReactionDiffusionPDAE(SpectralTester):
             res = np.linalg.norm(g, np.inf)
             if res < self.newton_tol:
                 g_val = g[2 * self.N : 3 * self.N]
+                self.newton_tol_achieved = max(self.newton_tol_achieved, res)
                 break
 
             # Apply mask to g_hat
@@ -968,6 +833,10 @@ class ReactionDiffusionPDAE(SpectralTester):
                 self.itransform(g_hat[2 * self.Nr : 3 * self.Nr]),
             ),
         )
+
+        res = np.linalg.norm(g, np.inf)
+        self.newton_tol_achieved = max(self.newton_tol_achieved, res)
+
         g_val = g[2 * self.N : 3 * self.N]
         self.store_g_after_newton(g_val)
 
@@ -1103,6 +972,8 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
         self.N = nvars
         self.Nr = self.N // 2 + 1
         self.Nr_all = 3 * self.Nr
+
+        self.newton_tol_achieved = -np.inf
 
         # Initialize problem with number of unknowns in spectral space
         ProblemDAE.__init__(self, nvars=3 * self.Nr, newton_tol=newton_tol)
@@ -1338,6 +1209,7 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
             # If g is close to 0, then we are done
             res = self._get_residual_in_physical_space(g_hat, M)
             if res < self.newton_tol:
+                self.newton_tol_achieved = max(self.newton_tol_achieved, res)
                 break
 
             g_red = self._apply_mask_to_g(g_hat, M)
@@ -1369,6 +1241,11 @@ class ReactionDiffusionPDAE_Radau(ReactionDiffusionPDAE, ProblemDAE):
                 raise ProblemError(msg)
             else:
                 self.logger.warning(msg)
+
+        g_hat = g_hat_fun(du)
+
+        res = self._get_residual_in_physical_space(g_hat, M)
+        self.newton_tol_achieved = max(self.newton_tol_achieved, res)
 
         return du
 

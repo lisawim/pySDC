@@ -41,138 +41,63 @@ class LogPositionErrorEndPostIteration(Hooks):
         )
 
 
-class LogGlobalErrorPreIterMechanicalVars(Hooks):
-    """Logs global error of Andrews' squeezer components after prediction."""
-
-    def pre_iteration(self, step, level_number):
-        r"""
-        Default routine called before each iteration.
-
-        Parameters
-        ----------
-        step : pySDC.core.step.Step
-            Current step.
-        level_number : pySDC.core.level.Level
-            Current level number.
+class LogGlobalErrorMechanicalVars(Hooks):
+    def log_global_error(self, step, level_number, suffix=''):
         """
+        Function to add the global error to the stats
 
-        super().pre_iteration(step, level_number)
+        Args:
+            step (pySDC.Step.step): The current step
+            level_number (int): The index of the level
+            suffix (str): Suffix for naming the variable in stats
 
-        # some abbreviations
+        Returns:
+            None
+        """
         L = step.levels[level_number]
-        P = L.prob
-
-        upde = P.u_exact(step.time + step.dt)
-
-        uend_ex = upde.flatten()
-        uend = L.u[-1].flatten()
-
-        e_global_position = abs(uend_ex[:7] - uend[:7])
-        e_global_velocity = abs(uend_ex[7:14] - uend[7:14])
-        e_global_acceleration = abs(uend_ex[14:21] - uend[14:21])
-        e_global_lagrange = abs(uend_ex[21:] - uend[21:])
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_position_pre_iteration",
-            value=e_global_position,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_velocity_pre_iteration",
-            value=e_global_velocity,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_acceleration_pre_iteration",
-            value=e_global_acceleration,
-        )
-
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_lagrange_pre_iteration",
-            value=e_global_lagrange,
-        )
-
-
-class LogGlobalErrorPostIterMechanicalVars(Hooks):
-    """Logs global error of position variables after iterations."""
-
-    def post_iteration(self, step, level_number):
-        super().post_iteration(step, level_number)
-
-        L = step.levels[level_number]
-        P = L.prob
 
         L.sweep.compute_end_point()
 
-        upde = P.u_exact(step.time + step.dt)
+        u_ex = L.prob.u_exact(t=L.time + L.dt)
 
-        uend_ex = upde.flatten()
-        uend = L.u[-1].flatten()
+        u_ex_flat = u_ex.flatten()
+        uend_flat = L.uend.flatten()
 
-        e_global_position = abs(uend_ex[:7] - uend[:7])
-        e_global_velocity = abs(uend_ex[7:14] - uend[7:14])
-        e_global_acceleration = abs(uend_ex[14:21] - uend[14:21])
-        e_global_lagrange = abs(uend_ex[21:] - uend[21:])
+        components = {
+            "position": slice(0, 7),
+            "velocity": slice(7, 14),
+            "acceleration": slice(14, 21),
+            "lagrange": slice(21, None),
+        }
 
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_position_post_iteration",
-            value=e_global_position,
-        )
+        for name, idx in components.items():
+            e_global = abs(u_ex_flat[idx] - uend_flat[idx])
 
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_velocity_post_iteration",
-            value=e_global_velocity,
-        )
+            self.add_to_stats(
+                process=step.status.slot,
+                time=L.time + L.dt,
+                level=L.level_index,
+                iter=step.status.iter,
+                sweep=L.status.sweep,
+                type=f"e_global_{name}{suffix}",
+                value=e_global,
+            )
 
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_acceleration_post_iteration",
-            value=e_global_acceleration,
-        )
+    def pre_iteration(self, step, level_number):
+        super().pre_iteration(step, level_number)
+        self.log_global_error(step, level_number, suffix="_pre_iteration")
 
-        self.add_to_stats(
-            process=step.status.slot,
-            time=L.time + L.dt,
-            level=L.level_index,
-            iter=step.status.iter,
-            sweep=L.status.sweep,
-            type="e_global_lagrange_post_iteration",
-            value=e_global_lagrange,
-        )
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+        self.log_global_error(step, level_number, suffix="_post_iteration")
+
+    def pre_sweep(self, step, level_number):
+        super().pre_sweep(step, level_number)
+        self.log_global_error(step, level_number, suffix="_pre_sweep")
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.log_global_error(step, level_number, suffix="_post_sweep")
 
 
 def qend_ref_testset(t):

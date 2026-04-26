@@ -93,7 +93,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_LU": "X",
         "constrainedDAE_MIN-SR-NS": "^",
         "constrainedDAE_MIN-SR-S": "X",
-        "constrainedDAE_MIN-SR-FLEX": "0",
+        "constrainedDAE_MIN-SR-FLEX": "s",
         "constrainedDAE_Picard": "H",
         "constrainedDAE_DOPRI5": "p",
         "embeddedDAE_IE": "D",
@@ -126,6 +126,62 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     }
 
     return colors, markers, sweeper_labels
+
+
+def set_specific_setup(description, dt, num_nodes, problem_name, QI, **kwargs):
+    setup = kwargs.get("setup", "convergence")
+    if setup == "fixed_sweeps":
+        maxiter = 1
+        e_tol = -1
+        description["level_params"]["e_tol"] = e_tol
+        description["step_params"] = {"maxiter": maxiter}
+
+        if problem_name == "ANDREWS-SQUEEZER":
+            description["problem_params"] = {"index": 1, "solver_type": "newton"}
+        elif problem_name == "LINEAR-TEST":
+            description["problem_params"] = {"solver_type": "direct"}
+        elif problem_name == "REACTION-DIFFUSION":
+            tol = newton_tol(dt)
+            description["problem_params"] = {
+                "nvars": kwargs.get("nvars", 256),
+                "newton_tol": tol,
+                "newton_maxiter": 10,
+            }
+            if not kwargs.get("QI", "").startswith("RadauIIA"):
+                description["problem_params"]["spectral"] = kwargs.get("spectral", True)
+        
+    elif setup == "convergence":
+        stop_at_accuracy_for_speedup = kwargs.get("stop_at_accuracy_for_speedup", False)
+
+        if problem_name == "ANDREWS-SQUEEZER":
+            maxiter = kwargs.get("maxiter", 50)
+            e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-9)
+            description["level_params"]["e_tol"] = e_tol
+            description["step_params"] = {"maxiter": maxiter}
+            description["problem_params"] = {"index": 1, "solver_type": "newton"}
+
+        elif problem_name == "LINEAR-TEST":
+            maxiter = kwargs.get("maxiter", 2 * num_nodes)
+            e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-13)
+            description["level_params"]["e_tol"] = e_tol
+            description["step_params"] = {"maxiter": maxiter}
+            description["problem_params"] = {"solver_type": "direct"}
+
+        elif problem_name == "REACTION-DIFFUSION":
+            maxiter = kwargs.get("maxiter", 25)
+            e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
+            description["level_params"]["e_tol"] = e_tol
+            description["step_params"] = {"maxiter": maxiter}
+
+            description["problem_params"] = {
+                "nvars": kwargs.get("nvars", 256),
+                "newton_tol": 1e-14,
+                "newton_maxiter": 10,
+            }
+            if not QI.startswith("RadauIIA"):
+                description["problem_params"]["spectral"] = kwargs.get("spectral", True)
+
+    return description
 
 
 def newton_tol(dt: float, dt_ref: float = 2.6e-3, tol_ref: float = 1.3e-12) -> float:
@@ -248,7 +304,6 @@ def setup_problem(
     """
 
     dt = description["level_params"]["dt"]
-    stop_at_accuracy_for_speedup = kwargs.get("stop_at_accuracy_for_speedup", False)
 
     if problem_name == "ANDREWS-SQUEEZER":
         if sweeper_type == "constrainedDAE":
@@ -273,12 +328,6 @@ def setup_problem(
                 SemiImplicitAndrewsSqueezingMechanismDAE as problem,
             )
 
-        maxiter = kwargs.get("maxiter", 50)
-        e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-9)
-        description["level_params"]["e_tol"] = e_tol
-        description["step_params"] = {"maxiter": maxiter}
-        description["problem_params"] = {"index": 1, "solver_type": "newton"}
-
     elif problem_name == "LINEAR-TEST":
         if sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEConstrained as problem
@@ -292,12 +341,6 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import SemiImplicitLinearTestDAE as problem
 
-        maxiter = kwargs.get("maxiter", 2 * num_nodes)
-        e_tol = kwargs.get("e_tol", 1e-4) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-13)
-        description["level_params"]["e_tol"] = e_tol
-        description["step_params"] = {"maxiter": maxiter}
-        description["problem_params"] = {"solver_type": "direct"}
-
     elif problem_name == "REACTION-DIFFUSION":
         if sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAEConstrained as problem
@@ -309,19 +352,7 @@ def setup_problem(
         elif sweeper_type == "semiImplicitDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import SemiImplicitReactionDiffusionPDAE as problem
 
-        maxiter = kwargs.get("maxiter", 25)
-        e_tol = kwargs.get("e_tol", 1e-5) if stop_at_accuracy_for_speedup else kwargs.get("e_tol", 1e-12)
-        description["level_params"]["e_tol"] = e_tol
-        description["step_params"] = {"maxiter": maxiter}
-
-        tol = newton_tol(dt)
-        description["problem_params"] = {
-            "nvars": kwargs.get("nvars", 256),
-            "newton_tol": 1e-14,
-            "newton_maxiter": 10,
-        }
-        if not QI.startswith("RadauIIA"):
-            description["problem_params"]["spectral"] = kwargs.get("spectral", True)
+    description = set_specific_setup(description, dt, num_nodes, problem_name, QI, **kwargs)
 
     description["problem_class"] = problem
 
@@ -476,7 +507,8 @@ def setup_sweeper_sdc(
         "skip_residual_computation": kwargs.get("skip_residual_computation", skip_residual_computation_default),
     }
 
-    nsweeps = kwargs.get("nsweeps", 1)
+    setup = kwargs.get("setup", "convergence")
+    nsweeps = kwargs.get("nsweeps", num_nodes) if setup == "fixed_sweeps" else 1
     description["level_params"].update({"nsweeps": nsweeps, "restol": -1})
 
     # MPI-related checks

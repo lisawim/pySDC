@@ -145,7 +145,6 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
     sweeper_type = "constrainedDAE"
     QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
     maxiter = 2 * num_nodes - 1
-    nsweeps = maxiter
     e_tol = -1
 
     kwargs = {"e_tol": e_tol}
@@ -181,7 +180,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
                 hook_class=hook_class,
                 measure=False,
                 maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
-                nsweeps=1 if QI != "MIN-SR-FLEX" else nsweeps,
+                nsweeps=1 if QI != "MIN-SR-FLEX" else num_nodes,
                 **kwargs,
             )
 
@@ -1275,7 +1274,7 @@ def plot_order_integration_error_reaction_diffusion(
 
 
 if __name__ == "__main__":
-    num_nodes = 5
-    # plot_order_linear(num_nodes=num_nodes)
+    num_nodes = 3
+    plot_order_linear(num_nodes=num_nodes)
     # plot_order_andrews(num_nodes=num_nodes)
-    plot_order_reaction_diffusion(num_nodes=num_nodes)
+    # plot_order_reaction_diffusion(num_nodes=num_nodes)

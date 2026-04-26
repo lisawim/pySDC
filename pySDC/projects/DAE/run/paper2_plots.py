@@ -17,7 +17,7 @@ def make_scaling_plots(global_comm, journal="SIAM_Scientific_Computing"):
     # Plots for ANDREWS-SQUEEZER
     print("\nGenerating scaling plots for ANDREWS-SQUEEZER...\n")
     config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="scaling")
-    filename = "results_scaling_dt=0.001_andrews_#8.pkl"  # e_tol = 1e-9, maxiter=50
+    filename = "results_scaling_dt=0.001_andrews_#8.pkl"
     nodes_to_plot = range(2, 17)
     plots_scaling(
         global_comm=global_comm,
@@ -31,7 +31,7 @@ def make_scaling_plots(global_comm, journal="SIAM_Scientific_Computing"):
     # Plots for REACTION-DIFFUSION
     print("\nGenerating scaling plots for REACTION-DIFFUSION...\n")
     config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
-    filename = "results_scaling_dt=0.05_reaction_diffusion_#2.pkl"
+    filename = "results_scaling_dt=0.05_reaction_diffusion_#13.pkl"
     plots_scaling(
         global_comm=global_comm, format="png", filename=filename, journal=journal, **config_reacdiff
     )
@@ -51,7 +51,7 @@ def make_speedup_at_accuracy_plots(global_comm, journal="SIAM_Scientific_Computi
     print("\nGenerating speedup plots for REACTION-DIFFUSION...\n")
     config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
     # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#2.pkl"
-    filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#4_newton_tol=1.3e-11.pkl"
+    filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#7.pkl"
     plots_speedup_at_accuracy(
         global_comm=global_comm, filename=filename, journal=journal, **config_reacdiff
     )
@@ -65,6 +65,6 @@ if __name__ == "__main__":
 
     global_comm = MPI.COMM_WORLD
 
-    make_scaling_plots(global_comm=global_comm)  # Figures 2, 3, 5, 6, 8, 9
+    make_scaling_plots(global_comm=global_comm)  # Figures 2, 3, 5, 6, 7, 8, 9
 
-    make_speedup_at_accuracy_plots(global_comm=global_comm)  # Figures 4, 7, 10
+    make_speedup_at_accuracy_plots(global_comm=global_comm)  # Figures 4, 10

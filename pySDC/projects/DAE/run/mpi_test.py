@@ -173,7 +173,7 @@ def build_accuracy_vs_time_post_iter(
     e_keys, e_vals = _filter_pairs_to_one_step(e_global_post_iteration_steps, t_step=t_step, round_t=round_t)
 
     e_map = {k: val for k, val in zip(e_keys, e_vals)}
-    
+
     # Align: keep only keys that exist in both (in timing order)
     keep_tau = []
     keep_e = []
@@ -324,7 +324,8 @@ def run_test_and_split_communicator(
     niter_mean = _mean_niter(solution_stats) if sub_rank == 0 else None
     niter_steps = [me[1] for me in get_sorted(solution_stats, type="niter", sortby="time")] if sub_rank == 0 else None
 
-    timing_iteration = get_sorted(solution_stats, type="timing_post_iteration", sortby="time")
+    type = "timing_post_sweep" if QI == "MIN-SR-FLEX" else "timing_post_iteration"
+    timing_iteration = get_sorted(solution_stats, type=type, sortby="time")
     gathered_timings = sub_comm.gather(timing_iteration, root=0)
 
     timing_step = [me[1] for me in get_sorted(solution_stats, type="timing_post_step", sortby="time")]
@@ -335,8 +336,13 @@ def run_test_and_split_communicator(
 
         e_global_steps = [me[1] for me in get_sorted(solution_stats, type="e_global_post_step", sortby="time")]
 
-        type = "e_position_end_post_iteration" if problem_name == "ANDREWS-SQUEEZER" else "e_global_post_iteration"
+        if QI == "MIN-SR-FLEX":
+            type = "e_position_end_post_sweep" if problem_name == "ANDREWS-SQUEEZER" else "e_global_post_sweep"
+        else:
+            type = "e_position_end_post_iteration" if problem_name == "ANDREWS-SQUEEZER" else "e_global_post_iteration"
         e_global_post_iteration_steps = get_sorted(solution_stats, type=type, sortby="time")
+
+        newton_tol_achieved_steps = [me[1] for me in get_sorted(solution_stats, type="newton_tol_achieved", sortby="time")]
 
         # Build (cumulative time, error) pairs on post-iteration level.
         t_step, idx_step = get_time_and_index_of_step(t0=t0, dt=dt, Tend=Tend, problem_name=problem_name)
@@ -358,6 +364,16 @@ def run_test_and_split_communicator(
             res = compute_qend_max_final_err(solution_stats, Tend)
             qend_error = res.qend_error
 
+        if problem_name == "REACTION-DIFFUSION":
+            newton_tol_achieved_steps = [me[1] for me in get_sorted(solution_stats, type="newton_tol_achieved", sortby="time")]
+        else:
+            newton_tol_achieved_steps = None
+
+        if problem_name in ["ANDREWS-SQUEEZER", "REACTION-DIFFUSION"]:
+            work_newton_steps = [me[1] for me in get_sorted(solution_stats, type="work_newton", sortby="time")]
+        else:
+            work_newton_steps = None
+
         result = ScalingRunStats(
             t_wall=t_wall,
             e_embedded_steps=e_embedded_steps,
@@ -368,6 +384,8 @@ def run_test_and_split_communicator(
             niter_mean=niter_mean,
             t_cpu_one_step=t_cpu_one_step,
             e_global_one_step=e_global_post_iter_vals,
+            work_newton_steps=work_newton_steps,
+            newton_tol_achieved_steps=newton_tol_achieved_steps,
         )
 
     else:
@@ -499,9 +517,14 @@ def run_mpi_test(
                         # --- new: accuracy vs. time (post-iteration level) ---
                         t_step, idx_step = get_time_and_index_of_step(t0, dt, Tend, problem_name)
 
-                        timing_post_iteration_steps = get_sorted(solution_stats, type="timing_post_iteration", sortby="time")
+                        type = "timing_post_sweep" if QI_ser == "MIN-SR-FLEX" else "timing_post_iteration"
+                        timing_post_iteration_steps = get_sorted(solution_stats, type=type, sortby="time")
 
-                        type = "e_position_end_post_iteration" if problem_name == "ANDREWS-SQUEEZER" else "e_global_post_iteration"
+                        if QI_ser == "MIN-SR-FLEX":
+                            type = "e_position_end_post_sweep" if problem_name == "ANDREWS-SQUEEZER" else "e_global_post_sweep"
+                        else:
+                            type = "e_position_end_post_iteration" if problem_name == "ANDREWS-SQUEEZER" else "e_global_post_iteration"
+
                         e_global_post_iteration_steps = get_sorted(solution_stats, type=type, sortby="time")
 
                         t_cpu_one_step, e_global_post_iter_vals = build_accuracy_vs_time_post_iter_serial(
@@ -527,19 +550,31 @@ def run_mpi_test(
                         if problem_name == "ANDREWS-SQUEEZER":
                             res = compute_qend_max_final_err(solution_stats, Tend)
                             qend_error = res.qend_error
+                        else:
+                            qend_error = None
+
+                        if problem_name == "REACTION-DIFFUSION":
+                            newton_tol_achieved_steps = [me[1] for me in get_sorted(solution_stats, type="newton_tol_achieved", sortby="time")]
+                        else:
+                            newton_tol_achieved_steps = None
+
+                        if problem_name in ["ANDREWS-SQUEEZER", "REACTION-DIFFUSION"]:
+                            work_newton_steps = [me[1] for me in get_sorted(solution_stats, type="work_newton", sortby="time")]
+                        else:
+                            work_newton_steps = None
 
                         results[key_ser][num_nodes] = ScalingRunStats(
                             t_wall=runtime,
                             e_embedded_steps=e_embedded_steps,
                             e_global_steps=e_global_steps,
                             t_cpu_steps=t_cpu_steps,
-                            qend_error=(
-                                float(qend_error) if problem_name == "ANDREWS-SQUEEZER" else None
-                            ),
+                            qend_error=qend_error,
                             niter_steps=niter_steps,
                             niter_mean=_mean_niter(solution_stats),
                             t_cpu_one_step=t_cpu_one_step,
                             e_global_one_step=e_global_post_iter_vals,
+                            work_newton_steps=work_newton_steps,
+                            newton_tol_achieved_steps=newton_tol_achieved_steps,
                         )
 
                 # Persist after each serial block for robustness.

@@ -10,15 +10,14 @@ from pySDC.implementations.datatype_classes.mesh import mesh
 
 
 # Problem specific hooks
-class LogPositionErrorEndPostIteration(Hooks):
+class LogPositionErrorEnd(Hooks):
     """
     Logs the error in q after each iteration. The exact solution of q is
     only known at the end of the interval, i.e., at time 0.03. Thus, it
     only makes sense to use the data from this hook in the last step.
     """
 
-    def post_iteration(self, step, level_number):
-        super().post_iteration(step, level_number)
+    def log_position_error(self, step, level_number, suffix=""):
         L = step.levels[level_number]
         P = L.prob
 
@@ -36,9 +35,17 @@ class LogPositionErrorEndPostIteration(Hooks):
             level=L.level_index,
             iter=step.status.iter,
             sweep=L.status.sweep,
-            type="e_position_end_post_iteration",
+            type=f"e_position_end{suffix}",
             value=e_position,
         )
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+        self.log_position_error(step, level_number, suffix="_post_iteration")
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.log_position_error(step, level_number, suffix="_post_sweep")
 
 
 class LogGlobalErrorMechanicalVars(Hooks):

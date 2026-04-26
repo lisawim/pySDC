@@ -30,6 +30,8 @@ class ScalingRunStats:
     niter_mean: Optional[float] = None
     t_cpu_one_step: Optional[np.ndarray] = None
     e_global_one_step: Optional[np.ndarray] = None
+    work_newton_steps: Optional[np.ndarray] = None
+    newton_tol_achieved_steps: Optional[np.ndarray] = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,9 @@ class SpeedupAccuracyRunStats:
     t_cpu_steps: Optional[np.ndarray] = None
     qend_error: Optional[float] = None
     niter_mean: Optional[float] = None
+    niter_steps: Optional[float] = None
+    work_newton_steps: Optional[np.ndarray] = None
+    newton_tol_achieved_steps: Optional[np.ndarray] = None
 
 
 @dataclass(frozen=True)

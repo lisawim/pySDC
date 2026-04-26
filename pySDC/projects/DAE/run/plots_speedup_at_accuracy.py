@@ -12,7 +12,7 @@ from pySDC.projects.DAE.run.utils import set_correct_sweeper_type
 
 from pySDC.helpers.plot_helper import figsize_by_journal
 from pySDC.projects.DAE.run.speedup_at_accuracy_test import build_filename, run_speedup_at_accuracy_test
-from pySDC.projects.DAE.run.plots_scaling_new import save_fig, set_nodes_for_plotting
+from pySDC.projects.DAE.run.plots_scaling_new import save_fig, set_nodes_for_plotting, plot_quantity_over_time, plot_error_vs_mpi_ranks
 from pySDC.projects.DAE.run.plots_work_prec import get_method_label
 
 
@@ -86,7 +86,7 @@ def plots_speedup_at_accuracy(
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
     stop_at_accuracy_for_speedup: bool,
-    nodes_to_plot: list[int] = range(9),
+    nodes_to_plot: list[int] = range(2, 9),
     filename: str = None,
     **kwargs: Any,
 ) -> None:
@@ -157,6 +157,29 @@ def plots_speedup_at_accuracy(
             **kwargs,
         )
 
+        # for num_nodes in nodes_to_plot:
+        #     for quantity in ["walltime", "error", "number_iterations"]:
+        #         plot_quantity_over_time(
+        #             all_stats=all_stats,
+        #             dt=dt,
+        #             quantity=quantity,
+        #             problem_name=problem_name,
+        #             sweepers=sweepers,
+        #             num_nodes=num_nodes,
+        #             QI_serial_methods=QI_serial_methods,
+        #             QI_parallel_methods=QI_parallel_methods,
+        #             **kwargs,
+        #         )
+
+        # plot_error_vs_mpi_ranks(
+        #     all_stats,
+        #     problem_name,
+        #     sweepers,
+        #     QI_serial_methods,
+        #     QI_parallel_methods,
+        #     nodes_to_plot=nodes_to_plot,
+        # )
+
 
 def plot_speedups(
     problem_name: str,
@@ -167,7 +190,7 @@ def plot_speedups(
     QI_parallel_methods: list[str],
     ref_QI: str = "LU",
     nodes_to_plot: list[int] = None,
-    journal: str = "Springer_Scientific_Computing",
+    journal: str = "SIAM_Scientific_Computing",
     **kwargs: Any,
 ) -> None:
     r"""
@@ -205,7 +228,7 @@ def plot_speedups(
 
     if problem_name != "ANDREWS-SQUEEZER":
         figsize = figsize_by_journal(journal, scale=0.44, ratio=0.59)
-        fontsize = 5
+        fontsize = 4
     else:
         figsize = figsize_by_journal(journal, scale=0.49, ratio=0.55)
         fontsize = 6
@@ -214,6 +237,7 @@ def plot_speedups(
     colors, markers, _ = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
+    s_min, s_max = [], []
     for sweeper_type_ser in sweepers:
         sweeper_type_ser_eff = set_correct_sweeper_type(sweeper_type_ser, ref_QI)
         key_ref = f"{sweeper_type_ser_eff}_{ref_QI}"
@@ -225,7 +249,6 @@ def plot_speedups(
 
         nodes = set_nodes_for_plotting(num_processes_by_ref[key_ref], nodes_to_plot)
 
-        s_min, s_max = [], []
         for sweeper_type_par in sweepers:
             for QI_par in QI_parallel_methods:
                 key_par = f"{sweeper_type_par}_{QI_par}"
@@ -252,15 +275,18 @@ def plot_speedups(
                     color=colors[key_par],
                     marker=markers[key_par],
                     label=label,
+                    linewidth=0.8,
+                    linestyle="solid" if sweeper_type_par == "constrainedDAE" else "dashdot",
+                    markersize=2.2,
+                    markeredgewidth=0.4,
                 )
 
     for spine in ax.spines.values():
         spine.set_linewidth(0.5)
 
-    ax.tick_params(axis="both", which="major", width=0.5)
+    ax.tick_params(axis="both", which="major", width=0.5, length=2.0)
 
     used_nodes_sorted = sorted(used_nodes_all)
-    ax.tick_params(axis="both", which="minor", bottom=False, left=True)
     ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks")
     print(f"Used nodes for plotting: {used_nodes_sorted}")
     # ax.set_xscale("log", base=2)
@@ -269,12 +295,12 @@ def plot_speedups(
     ax.set_xticklabels(used_nodes_sorted)
     ax.grid(linewidth=0.5, which="major", axis="both", alpha=0.35)
 
-    # ax.set_yscale("log", base=10)
     ax.set_yscale("linear")
     ax.set_ylabel("speedup")
     ymax = max(s_max)
     ymin = min(s_min)
     ax.set_ylim(max(1.0, ymin - 0.4), ymax + 0.4)
+    ax.tick_params(axis="both", which="minor", bottom=True, left=False)
 
     fig.legend(loc="upper center", bbox_to_anchor=(0.58, 0.08), ncol=2)
 
@@ -286,21 +312,21 @@ def make_plots():
     global_comm = MPI.COMM_WORLD
     
     # Plots for LINEAR-TEST
-    print("\nGenerating plots for LINEAR-TEST...\n")
-    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="speedup_at_accuracy")
-    filename = "results_speedup_at_acc_dt=0.05_linear_#3.pkl"
-    plots_speedup_at_accuracy(
-        global_comm=global_comm, filename=filename, **config_linear
-    )
-
-    # print("\nGenerating plots for REACTION-DIFFUSION...\n")
-    # config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
-    # # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#2.pkl"
-    # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#4_newton_tol=1.3e-11.pkl"
+    # print("\nGenerating plots for LINEAR-TEST...\n")
+    # config_linear = get_configs(problem_name="LINEAR-TEST", config_type="speedup_at_accuracy")
+    # filename = "results_speedup_at_acc_dt=0.05_linear_#1.pkl"
     # plots_speedup_at_accuracy(
-    #     global_comm=global_comm, filename=filename, **config_reacdiff
+    #     global_comm=global_comm, filename=filename, **config_linear
     # )
 
+    print("\nGenerating plots for REACTION-DIFFUSION...\n")
+    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
+    # filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#2.pkl"
+    filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_#8.pkl"
+    plots_speedup_at_accuracy(
+        global_comm=global_comm, filename=filename, **config_reacdiff
+    )
 
-# if __name__ == "__main__":
-#     make_plots()
+
+if __name__ == "__main__":
+    make_plots()

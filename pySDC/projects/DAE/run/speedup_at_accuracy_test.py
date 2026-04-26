@@ -115,6 +115,16 @@ def run_test_and_split_communicator(
         if problem_name == "ANDREWS-SQUEEZER":
             res = compute_qend_max_final_err(solution_stats, Tend)
             qend_error = res.qend_error
+        
+        if problem_name == "REACTION-DIFFUSION":
+            newton_tol_achieved_steps = [me[1] for me in get_sorted(solution_stats, type="newton_tol_achieved", sortby="time")]
+        else:
+            newton_tol_achieved_steps = None
+
+        if problem_name in ["REACTION-DIFFUSION"]:
+            work_newton_steps = [me[1] for me in get_sorted(solution_stats, type="work_newton", sortby="time")]
+        else:
+            work_newton_steps = None
 
         result = SpeedupAccuracyRunStats(
             t_wall_stop_at_acc=t_wall_stop_at_acc,
@@ -123,8 +133,10 @@ def run_test_and_split_communicator(
             e_exact_steps=e_exact_steps,
             t_cpu_steps=t_cpu_steps,
             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
-            niter_steps=niter_steps,
             niter_mean=niter_mean,
+            niter_steps=niter_steps,
+            work_newton_steps=work_newton_steps,
+            newton_tol_achieved_steps=newton_tol_achieved_steps,
         )
 
     else:
@@ -229,8 +241,8 @@ def run_speedup_at_accuracy_test(
                             e_exact_steps=None,
                             t_cpu_steps=t_cpu_steps,
                             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
-                            niter_steps=None,
                             niter_mean=None,
+                            niter_steps=None,
                         )
 
                 else:
@@ -274,6 +286,16 @@ def run_speedup_at_accuracy_test(
                             res = compute_qend_max_final_err(solution_stats, Tend)
                             qend_error = res.qend_error
 
+                        if problem_name == "REACTION-DIFFUSION":
+                            newton_tol_achieved_steps = [me[1] for me in get_sorted(solution_stats, type="newton_tol_achieved", sortby="time")]
+                        else:
+                            newton_tol_achieved_steps = None
+
+                        if problem_name in ["ANDREWS-SQUEEZER", "REACTION-DIFFUSION"]:
+                            work_newton_steps = [me[1] for me in get_sorted(solution_stats, type="work_newton", sortby="time")]
+                        else:
+                            work_newton_steps = None
+
                         results[key_ser][num_nodes] = SpeedupAccuracyRunStats(
                             t_wall_stop_at_acc=runtime,
                             e_embedded_steps=e_embedded_steps,
@@ -281,8 +303,10 @@ def run_speedup_at_accuracy_test(
                             e_exact_steps=e_exact_steps,
                             t_cpu_steps=t_cpu_steps,
                             qend_error=(qend_error if problem_name == "ANDREWS-SQUEEZER" else None),
-                            niter_steps=niter_steps,
                             niter_mean=_mean_niter(solution_stats),
+                            niter_steps=niter_steps,
+                            work_newton_steps=work_newton_steps,
+                            newton_tol_achieved_steps=newton_tol_achieved_steps,
                         )
 
                 # Persist after each serial block for robustness.

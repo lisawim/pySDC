@@ -107,11 +107,12 @@ def get_sorted_handles_and_labels(
 def plots_work_vs_error(
     hook_class: list[Hooks],
     num_nodes: int,
-    nsweeps: int,
     problem_name: str,
     sweepers: list[str],
+    setup: str,
+    nsweeps: int,
     test_methods: list[str],
-    qDelta_best: list[str] = ["LU", "MIN-SR-NS"],
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS", "MIN-SR-S", "MIN-SR-FLEX"],
     include_dopri: bool = True,
     filename: str = None,
     **kwargs: Any,
@@ -156,10 +157,10 @@ def plots_work_vs_error(
             results_file = precomputed_files[problem_name]
             path = os.path.join(base_path, results_file)
             if not os.path.exists(path):
-                run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, test_methods, **kwargs)
+                run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, setup, test_methods, **kwargs)
                 results_file = f"results_experiment_{num_nodes}_{nsweeps}.pkl"
         else:
-            run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, test_methods, **kwargs)
+            run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, setup, test_methods, **kwargs)
             results_file = f"results_experiment_{num_nodes}_{nsweeps}.pkl"
 
     path = os.path.join(base_path, results_file)
@@ -253,7 +254,7 @@ def plot_work_vs_error_single(
     fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
 
     plot_name = plot_names[problem_name]
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "_5_5.png"
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -266,7 +267,7 @@ def plot_work_vs_error_sdc_radau(
     metric_key: str,
     problem_name: str,
     sweepers: list[str],
-    qDelta_best: list[str] = ["LU", "MIN-SR-NS"],
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS", "MIN-SR-S", "MIN-SR-FLEX"],
     sweeper_type_best: list[str] = ["constrainedDAE", "semiImplicitDAE"],
     radau_methods_plot: list[str] = ["RadauIIA5", "RadauIIA7"],
     journal: str = "Springer_Scientific_Computing",
@@ -355,7 +356,7 @@ def plot_work_vs_error_sdc_radau(
     fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
 
     plot_name = plot_names[problem_name]
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "_5_5.png"
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -676,3 +677,15 @@ def print_speedup_factors(base, errs, problem_name, speedups, label):
         line = f"[Baseline method: {base}] {label}: No points, where SDC ist faster."
 
     print(line)
+
+
+if __name__ == "__main__":
+    """
+    Generates plots for paper 'On the analysis of spectral deferred corrections for differential-algebraic
+    equations of index one'.
+    """
+
+    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="work_precision")
+    filename = "results_experiment_5_5.pkl"
+
+    plots_work_vs_error(filename=filename, **config_linear)

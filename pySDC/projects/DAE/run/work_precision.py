@@ -29,7 +29,7 @@ def build_args_list(args, hook_class):
     return args_list
 
 
-def run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, test_methods, **kwargs):
+def run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, setup, test_methods, **kwargs):
     python_exec = sys.executable
 
     output_dir = "data" + "/" + f"{problem_name}" + "/" + "results"
@@ -77,6 +77,7 @@ def run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, 
                     "use_mpi": use_mpi,
                     "QI": QI,
                     "sweeper_type": sweeper_type,
+                    "setup": setup,
                     "problem_name": problem_name,
                     "num_nodes": str(num_nodes),
                     "nsweeps": str(nsweeps),
@@ -86,14 +87,24 @@ def run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, 
 
             args_list = build_args_list(args, hook_class)
 
+            env = os.environ.copy()
+
+            for key in list(env):
+                if key.startswith(("PMI", "PMIX", "OMPI")):
+                    env.pop(key, None)
+
+            for key in [
+                "SLURM_SRUN_COMM_HOST",
+                "SLURM_SRUN_COMM_PORT",
+            ]:
+                env.pop(key, None)
+
             cmd = (
-                ["mpiexec", "-n", str(num_nodes), python_exec, "run_single_experiment.py"] + args_list
+                ["mpirun", "-np", str(num_nodes), python_exec, "run_single_experiment.py"] + args_list
                 if use_mpi
                 else [python_exec, "run_single_experiment.py"] + args_list
             )
 
-            env = os.environ.copy()
-            # env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "")
             subprocess.run(cmd, check=True, env=env, close_fds=True)
 
 

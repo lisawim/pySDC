@@ -117,9 +117,9 @@ def parse_args():
     parser.add_argument("--problem_name", type=str, default="DPR")
     parser.add_argument("--num_nodes", type=int, default=3)
     parser.add_argument("--nsweeps", type=int, default=3)
+    parser.add_argument("--setup", type=str, default="convergence")
     parser.add_argument("--use_mpi", action="store_true")
     parser.add_argument("--hook_class", nargs='+', type=parse_hook, default=[])
-    # parser.add_argument("--skip_residual_computation", type=str, )
     parser.add_argument("--output_dir", type=str, required=True)
 
     return parser.parse_args()
@@ -151,12 +151,13 @@ def main():
             dt=dt_dummy,
             Tend=args.t0 + dt_dummy,
             num_nodes=args.num_nodes,
-            nsweeps=args.nsweeps,
             QI="MIN-SR-NS",
             sweeper_type="constrainedDAE",
             use_mpi=args.use_mpi,
             hook_class=hook_class,
             measure=False,
+            setup=args.setup,
+            nsweeps=args.nsweeps,
         )
 
     if args.use_mpi:
@@ -182,12 +183,13 @@ def main():
                 dt=dt,
                 Tend=args.Tend,
                 num_nodes=args.num_nodes,
-                nsweeps=args.nsweeps,
                 QI=args.QI,
                 sweeper_type=args.sweeper_type,
                 use_mpi=args.use_mpi,
                 hook_class=hook_class,
                 measure=True,
+                setup=args.setup,
+                nsweeps=args.nsweeps,
             )
 
             comm.Barrier()
@@ -208,12 +210,13 @@ def main():
                     dt=dt,
                     Tend=args.Tend,
                     num_nodes=args.num_nodes,
-                    nsweeps=args.nsweeps,
                     QI=args.QI,
                     sweeper_type=args.sweeper_type,
                     use_mpi=args.use_mpi,
                     hook_class=hook_class,
                     measure=True,
+                    setup=args.setup,
+                    nsweeps=args.nsweeps,
                 )
 
                 timing_run_full = runtime

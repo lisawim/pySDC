@@ -40,8 +40,10 @@ class MyCPUTimings(Hooks):
     def __init__(self):
         super().__init__()
 
+        self.__t0_sweep = None
         self.__t0_iteration = None
         self.__t0_step = None
+        self.__t1_sweep = None
         self.__t1_iteration = None
         self.__t1_step = None
 
@@ -72,6 +74,27 @@ class MyCPUTimings(Hooks):
         """
         super().pre_iteration(step, level_number)
         self.__t0_iteration = self._get_event()
+
+    def pre_sweep(self, step, level_number):
+        super().pre_sweep(step, level_number)
+        self.__t0_sweep = self._get_event()
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.__t1_sweep = self._get_event()
+
+        L = step.levels[level_number]
+
+        self.add_to_stats(
+            process=step.status.slot,
+            process_sweeper=L.sweep.rank,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type=f"timing_post_sweep",
+            value=self._compute_time_elapsed(self.__t1_sweep, self.__t0_sweep),
+        )
 
     def post_iteration(self, step, level_number):
         super().post_iteration(step, level_number)

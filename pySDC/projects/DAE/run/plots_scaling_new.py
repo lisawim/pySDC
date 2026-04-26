@@ -155,6 +155,7 @@ def plots_scaling(
     nodes_to_plot: list[int] = range(2, 9),
     num_nodes_per_figure: list[int] = [2, 3, 4, 5],
     filename: str = None,
+    verbose: bool = False,
     **kwargs: Any,
 ) -> None:
     """Generates scaling plots."""
@@ -242,25 +243,26 @@ def plots_scaling(
             ref_QI=ref_QI,
             QI_parallel_methods=QI_parallel_methods,
             ref_num_nodes=ref_num_nodes,
+            verbose=verbose,
         )
 
-        plot_functions = [
-            plot_mean_iterations_vs_mpi_ranks,
-            plot_error_vs_mpi_ranks,
-            plot_embedded_error_vs_mpi_ranks,
-        ]
-        for plot_function in plot_functions:
-            plot_function(
-                all_stats,
-                problem_name,
-                sweepers,
-                QI_serial_methods,
-                QI_parallel_methods,
-                nodes_to_plot=nodes_to_plot,
-            )
+        # plot_functions = [
+        #     plot_mean_iterations_vs_mpi_ranks,
+        #     plot_error_vs_mpi_ranks,
+        #     plot_embedded_error_vs_mpi_ranks,
+        # ]
+        # for plot_function in plot_functions:
+        #     plot_function(
+        #         all_stats,
+        #         problem_name,
+        #         sweepers,
+        #         QI_serial_methods,
+        #         QI_parallel_methods,
+        #         nodes_to_plot=nodes_to_plot,
+        #     )
 
         for num_nodes in nodes_to_plot:
-            for quantity in ["walltime", "error", "increment", "number_iterations"]:
+            for quantity in ["walltime", "error", "increment"]:
                 plot_quantity_over_time(
                     all_stats=all_stats,
                     dt=dt,
@@ -285,6 +287,20 @@ def plots_scaling(
                 nodes_to_plot=nodes_to_plot,
             )
 
+        if problem_name == "REACTION-DIFFUSION":
+            for num_nodes in nodes_to_plot:
+                plot_achieved_newton_tolerance_and_iterations(
+                    all_stats=all_stats,
+                    dt=dt,
+                    problem_name=problem_name,
+                    sweepers=sweepers,
+                    QI_serial_methods=QI_serial_methods,
+                    QI_parallel_methods=QI_parallel_methods,
+                    ref_num_nodes=num_nodes,
+                    metric_key=metric_key,
+                    nodes_to_plot=nodes_to_plot,
+                )
+
 
 def plot_wallclocktime_vs_accuracy(
     all_stats: dict[str, dict[int, dict[str, float]]],
@@ -294,7 +310,7 @@ def plot_wallclocktime_vs_accuracy(
     QI_parallel_methods: list[str],
     metric_key: str,
     nodes_to_plot: list[int] = None,
-    journal: str = "Springer_Scientific_Computing",
+    journal: str = "SIAM_Scientific_Computing",
     **kwargs: Any,
 ) -> None:
     r"""
@@ -336,7 +352,7 @@ def plot_wallclocktime_vs_accuracy(
         metric_key = "all_max_global_error"
         y_of = lambda st: max(st.e_global_steps)
 
-    figsize = figsize_by_journal(journal, scale=0.45, ratio=0.7)
+    figsize = figsize_by_journal(journal, scale=0.6, ratio=0.65)
 
     my_setup_mpl(fontsize=6)
     colors, markers, _ = my_plot_style_config()
@@ -382,12 +398,13 @@ def plot_wallclocktime_vs_accuracy(
                     ys,
                     color=colors[key],
                     marker=markers[key],
+                    linestyle="solid" if sweeper_type == "constrainedDAE" else "dashdot",
                     label=label,
                 )
 
     used_nodes_sorted = sorted(used_nodes_all)
-    # ax.tick_params(axis="both", which="minor", bottom=True, left=False)
-    ax.tick_params(axis="x", which="minor", bottom=True, length=3, width=0.8)
+    ax.tick_params(axis="both", which="minor", bottom=True, left=False)
+    ax.tick_params(axis="x", which="minor", bottom=True, length=2.0, width=0.6)
     ax.tick_params(axis="y", which="minor", left=False)
     ax.set_xlabel(r"wall-clock time in s (one run per $M$)")
 
@@ -406,20 +423,20 @@ def plot_wallclocktime_vs_accuracy(
     ax.yaxis.set_major_locator(LogLocator(base=10))
     ax.yaxis.set_major_formatter(LogFormatterMathtext(base=10))
 
-    ax.tick_params(axis="x", which="minor", bottom=True, length=2)
-    ax.tick_params(axis="y", which="minor", left=False)
+    # ax.tick_params(axis="x", which="minor", bottom=True, length=2)
+    # ax.tick_params(axis="y", which="minor", left=False)
 
-    ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
-    ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
-    ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+    ax.grid(which="major", axis="x", linewidth=0.35, alpha=0.3)
+    ax.grid(which="minor", axis="x", linewidth=0.15, alpha=0.10)
+    ax.grid(which="major", axis="y", linewidth=0.35, alpha=0.35)
 
     ylabel = get_ylabel_based_on_metric(metric_key=metric_key)
     ax.set_ylabel(ylabel)
 
     handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.58, 0.04), ncol=2)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.58, 0.05), ncol=3)  # ncol=2
 
-    plot_name = plot_names[problem_name] + "_#8"
+    plot_name = plot_names[problem_name]
     save_fig(plt, plot_name, problem_name)
 
 
@@ -456,7 +473,7 @@ def plot_time_to_accuracy(
     QI_parallel_methods: list[str],
     metric_key: str,
     num_nodes_per_figure: list[int] = [2, 3, 4, 5],
-    journal: str = "Springer_Scientific_Computing",
+    journal: str = "SIAM_Scientific_Computing",
     **kwargs: Any,
 ):
     
@@ -464,8 +481,8 @@ def plot_time_to_accuracy(
 
     plot_names = {"LINEAR-TEST": "Fig3", "ANDREWS-SQUEEZER": "Fig7", "REACTION-DIFFUSION": "Fig9"}
 
-    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
-    my_setup_mpl(fontsize=8)
+    figsize = figsize_by_journal(journal, scale=0.9, ratio=0.9)
+    my_setup_mpl(fontsize=9)
     colors, markers, sweeper_labels = my_plot_style_config()
     linestyles = get_linestyles()
 
@@ -502,7 +519,8 @@ def plot_time_to_accuracy(
                     e_vals,
                     color=colors[key],
                     marker=markers[key],
-                    markersize=s,
+                    markersize=3.8 if sweeper_type == "constrainedDAE" else 2.5,
+                    markeredgewidth=0.8 if sweeper_type == "constrainedDAE" else 0.5,
                     markeredgecolor=colors[key],
                     markerfacecolor="none",
                     linestyle=linestyles[sweeper_type],
@@ -534,9 +552,9 @@ def plot_time_to_accuracy(
             ax.set_ylim(top=1.5e0)
 
     handles, labels = axs_flatten[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=len(qi_all))
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)  # ncol=len(qi_all)
 
-    plot_name = plot_names[problem_name] + "_#8"
+    plot_name = plot_names[problem_name]
     save_fig(plt, plot_name, problem_name)
 
 
@@ -555,6 +573,7 @@ def print_speedup_for_one_step(
     ref_QI: str = "LU",
     ref_num_nodes: int = 5,
     filename_stem: str = "speedup_one_step",
+    verbose: bool = False,
 ):
 
     lines = [
@@ -585,7 +604,8 @@ def print_speedup_for_one_step(
     # Section 1: parallel vs. fixed serial reference
     # --------------------------------------------------
     section = "=== Parallel vs. fixed serial reference ==="
-    print(f"\n{section}")
+    if verbose:
+        print(f"\n{section}")
     lines.append(section)
     lines.append("")
 
@@ -598,12 +618,16 @@ def print_speedup_for_one_step(
 
         label_ref = get_method_label(sweeper_type_ser_eff, ref_QI)
         header = f"Reference serial method: {label_ref} with M={ref_num_nodes}"
-        print(header)
+        if verbose:
+            print(header)
         lines.append(header)
         lines.append("")
 
         for sweeper_type_par in sweepers:
             for QI_par in QI_parallel_methods:
+                if sweeper_type_ser_eff != sweeper_type_par:
+                    continue
+
                 key_par = f"{sweeper_type_par}_{QI_par}"
 
                 if key_par not in factors[key_ref]:
@@ -615,7 +639,8 @@ def print_speedup_for_one_step(
 
                 label_par = get_method_label(sweeper_type_par, QI_par)
                 subheader = f"Comparison with parallel method: {label_par}"
-                print(subheader)
+                if verbose:
+                    print(subheader)
                 lines.append(subheader)
                 lines.append("")
 
@@ -634,17 +659,20 @@ def print_speedup_for_one_step(
                             f"than {label_ref} with M={ref_num_nodes}."
                         )
 
-                    print(line)
+                    if verbose:
+                        print(line)
                     lines.append(line)
 
-                print("")
+                if verbose:
+                    print("")
                 lines.append("")
 
     # --------------------------------------------------
     # Section 2: parallel vs. parallel
     # --------------------------------------------------
     section = "=== Parallel vs. parallel ==="
-    print(f"\n{section}")
+    if verbose:
+        print(f"\n{section}")
     lines.append(section)
     lines.append("")
 
@@ -658,7 +686,8 @@ def print_speedup_for_one_step(
             label_2 = get_method_label_from_key(key_par_2)
 
             subheader = f"Comparison: {label_1} vs. {label_2}"
-            print(subheader)
+            if verbose:
+                print(subheader)
             lines.append(subheader)
             lines.append("")
 
@@ -677,10 +706,12 @@ def print_speedup_for_one_step(
                         f"than {label_2}."
                     )
 
-                print(line)
+                if verbose:
+                    print(line)
                 lines.append(line)
 
-            print("")
+            if verbose:
+                print("")
             lines.append("")
 
     # --------------------------------------------------
@@ -702,7 +733,7 @@ def plot_quantity_over_time(
     num_nodes: int,
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
-    journal: str = "Springer_Scientific_Computing",
+    journal: str = "SIAM_Scientific_Computing",
     ax: Optional[Axes] = None,
     return_ax: bool = False,
     **kwargs: Any,
@@ -716,6 +747,10 @@ def plot_quantity_over_time(
         y_of = lambda st: st.e_embedded_steps
     elif quantity == "number_iterations":
         y_of = lambda st: st.niter_steps
+    elif quantity == "newton_iterations":
+        y_of = lambda st: st.work_newton_steps
+    elif quantity == "achieved_newton_tolerance":
+        y_of = lambda st: st.newton_tol_achieved_steps
 
     _, Tend = choose_time_step_sizes(problem_name=problem_name)
     t = [i * dt for i in range(1, int(Tend / dt) + 1)]
@@ -729,7 +764,7 @@ def plot_quantity_over_time(
 
     if created_fig:
         my_setup_mpl(fontsize=7)
-        figsize = figsize_by_journal(journal, scale=0.72, ratio=0.55)
+        figsize = figsize_by_journal(journal, scale=0.72, ratio=0.8)
         fig, ax = plt.subplots(1, 1, figsize=figsize)
     else:
         fig = ax.figure
@@ -751,6 +786,7 @@ def plot_quantity_over_time(
                 color=colors[key],
                 linewidth=1.0,
                 label=label,
+                linestyle="solid" if sweeper_type == "constrainedDAE" else "dashdot",
             )
 
     ax.set_xlabel(r"time $t$")
@@ -760,14 +796,28 @@ def plot_quantity_over_time(
 
     ax.set_yscale("log", base=10)
 
+    if problem_name == "ANDREWS-SQUEEZER":
+        if quantity == "walltime":
+            ax.set_ylim((1e-2, 1e0))
+    elif problem_name == "REACTION-DIFFUSION":
+        if quantity == "number_iterations":
+            # ax.set_ylim((10, 26))
+            ax.set_ylim((1, 10))
+        elif quantity == "error":
+            ax.set_ylim((1e-15, 1e-4))
+        elif quantity == "increment":
+            ax.set_ylim((1e-14, 1e-11))
+        elif quantity == "walltime":
+            ax.set_ylim((1e-2, 1e2))
+
     ax.grid(linewidth=0.5)
 
     ax.tick_params(axis="both", which="minor", bottom=False, left=True)
 
     if created_fig:
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=2)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2)
 
-        out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}_#8.png"
+        out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out, dpi=400, bbox_inches="tight")
 
@@ -787,7 +837,7 @@ def plot_impact_of_jumps_on_runtime_andrews(
     QI_parallel_methods: list[str],
     ref_QI: str = "LU",
     ref_num_nodes: int = 3,
-    journal: str = "Springer_Scientific_Computing",
+    journal: str = "SIAM_Scientific_Computing",
     return_ax: bool = False,
     **kwargs: Any,
 ) -> None:
@@ -796,7 +846,7 @@ def plot_impact_of_jumps_on_runtime_andrews(
     t = [i * dt for i in range(1, int(Tend / dt) + 1)]
     
     figsize = figsize_by_journal(journal, scale=1.3, ratio=1.0)
-    my_setup_mpl(fontsize=16)
+    my_setup_mpl(fontsize=13)
 
     qi_all = QI_parallel_methods + QI_serial_methods
     qi_all = [qi for qi in qi_all if qi in SDC_METHODS]
@@ -822,17 +872,17 @@ def plot_impact_of_jumps_on_runtime_andrews(
 
     for ax_obj in ax:
         for line in ax_obj.lines:
-            line.set_linewidth(2.5)
+            line.set_linewidth(2.0)
 
         for spine in ax_obj.spines.values():
-            spine.set_linewidth(1.5)
+            spine.set_linewidth(1.0)
 
-    ax[0].tick_params(axis="both", which="major", width=1.5, length=7.0)
-    ax[1].tick_params(axis="both", which="major", width=1.5, length=7.0)
-    ax[1].tick_params(axis="both", which="minor", width=1.5, length=3.5)
+    ax[0].tick_params(axis="both", which="major", width=1.0, length=6.0)
+    ax[1].tick_params(axis="both", which="major", width=1.0, length=6.0)
+    ax[1].tick_params(axis="both", which="minor", width=1.0, length=3.5)
 
-    ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=7)
-    ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=3)
+    ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=7)
+    ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=3)
 
     for ax_obj in ax:
         ax_obj.set_xlim((dt, 0.03))
@@ -848,18 +898,108 @@ def plot_impact_of_jumps_on_runtime_andrews(
     plt.close(fig)
 
 
+def plot_achieved_newton_tolerance_and_iterations(
+    all_stats: dict[str, dict[int, dict[str, float]]],
+    dt: float,
+    problem_name: str,
+    sweepers: list[str],
+    QI_serial_methods: list[str],
+    QI_parallel_methods: list[str],
+    ref_QI: str = "LU",
+    ref_num_nodes: int = 3,
+    journal: str = "SIAM_Scientific_Computing",
+    return_ax: bool = False,
+    **kwargs: Any,
+):
+    _, Tend = choose_time_step_sizes(problem_name=problem_name)
+    t = [i * dt for i in range(1, int(Tend / dt) + 1)]
+    
+    figsize = figsize_by_journal(journal, scale=1.3, ratio=1.0)
+    my_setup_mpl(fontsize=13)
+
+    qi_all = QI_parallel_methods + QI_serial_methods
+    qi_all = [qi for qi in qi_all if qi in SDC_METHODS]
+
+    fig, ax = plt.subplots(2, 1, figsize=figsize)
+
+    plot_quantity_over_time(
+        all_stats=all_stats,
+        dt=dt,
+        quantity="achieved_newton_tolerance",
+        problem_name=problem_name,
+        sweepers=sweepers,
+        num_nodes=ref_num_nodes,
+        QI_serial_methods=QI_serial_methods,
+        QI_parallel_methods=QI_parallel_methods,
+        nodes_to_plot=[ref_num_nodes],
+        journal=journal,
+        ax=ax[0],
+        return_ax=return_ax,
+    )
+
+    plot_quantity_over_time(
+        all_stats=all_stats,
+        dt=dt,
+        quantity="newton_iterations",
+        problem_name=problem_name,
+        sweepers=sweepers,
+        num_nodes=ref_num_nodes,
+        QI_serial_methods=QI_serial_methods,
+        QI_parallel_methods=QI_parallel_methods,
+        nodes_to_plot=[ref_num_nodes],
+        journal=journal,
+        ax=ax[1],
+        return_ax=return_ax,
+    )
+
+    for ax_obj in ax:
+        for line in ax_obj.lines:
+            line.set_linewidth(2.0)
+
+        for spine in ax_obj.spines.values():
+            spine.set_linewidth(1.0)
+
+    ax[0].tick_params(axis="both", which="major", width=1.0, length=6.0)
+    ax[1].tick_params(axis="both", which="major", width=1.0, length=6.0)
+    ax[1].tick_params(axis="both", which="minor", width=1.0, length=3.5)
+
+    ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=2)
+    ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=2)
+
+    for ax_obj in ax:
+        ax_obj.set_xlim((dt, Tend))
+
+        ax_obj.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
+        ax_obj.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
+        ax_obj.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
+        ax_obj.grid(which="minor", axis="y", linewidth=0.25, alpha=0.10)
+
+        ax_obj.set_xticks([0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25])
+        ax_obj.set_xticklabels([0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25])
+
+    ax[0].set_ylim((1e-15, 1e-10))
+    ax[1].set_ylim((1e1, 2e3))
+
+    out = Path("data") / problem_name / f"achieved_newton_tolerance_and_iterations_{ref_num_nodes=}.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=400, bbox_inches="tight")
+    plt.close(fig)
+
+
+
+
 def make_plots():
     global_comm = MPI.COMM_WORLD
     
     # Plots for LINEAR-TEST
-    # print("\nGenerating plots for LINEAR-TEST...\n")
-    # config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
-    # filename = "results_scaling_dt=0.05_linear_#6.pkl"
-    # plots_scaling(
-    #     global_comm=global_comm, filename=filename, **config_linear
-    # )
+    print("\nGenerating plots for LINEAR-TEST...\n")
+    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
+    filename = None#"results_scaling_dt=0.05_linear_#6.pkl"
+    plots_scaling(
+        global_comm=global_comm, filename=filename, **config_linear
+    )
 
-    # Plots for ANDREWS-SQUEEZER
+    # # Plots for ANDREWS-SQUEEZER
     # print("\nGenerating plots for ANDREWS-SQUEEZER...\n")
     # config_andrews = get_configs(problem_name="ANDREWS-SQUEEZER", config_type="scaling")
     # filename = "results_scaling_dt=0.001_andrews_#8.pkl"
@@ -869,12 +1009,12 @@ def make_plots():
     # )
 
     # Plots for REACTION-DIFFUSION
-    print("\nGenerating plots for REACTION-DIFFUSION...\n")
-    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
-    filename = "results_scaling_dt=0.05_reaction_diffusion_#8.pkl"
-    plots_scaling(
-        global_comm=global_comm, filename=filename, **config_reacdiff
-    )
+    # print("\nGenerating plots for REACTION-DIFFUSION...\n")
+    # config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
+    # filename = "results_scaling_dt=0.05_reaction_diffusion_#9.pkl"
+    # plots_scaling(
+    #     global_comm=global_comm, filename=filename, **config_reacdiff
+    # )
 
 
 

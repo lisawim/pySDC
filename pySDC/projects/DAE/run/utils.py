@@ -147,7 +147,7 @@ def set_specific_setup(description, dt, num_nodes, problem_name, QI, **kwargs):
                 "newton_tol": tol,
                 "newton_maxiter": 10,
             }
-            if not kwargs.get("QI", "").startswith("RadauIIA"):
+            if not QI.startswith("RadauIIA"):
                 description["problem_params"]["spectral"] = kwargs.get("spectral", True)
         
     elif setup == "convergence":

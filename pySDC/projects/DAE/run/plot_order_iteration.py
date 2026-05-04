@@ -70,20 +70,17 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
     """Plots the order in each iteration."""
 
     from pySDC.projects.DAE.misc.hooksDAE import (
-        LogGlobalErrorPreIterDifferentialVariable,
-        LogGlobalErrorPreIterationAlgebraicVariable,
-        LogGlobalErrorPostIterDiff,
-        LogGlobalErrorPostIterAlg,
+        LogGlobalErrorDiffVar,
+        LogGlobalErrorAlgVar,
     )
 
     problem_name = "LINEAR-TEST"
-    figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
+    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.5)
 
     colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
     linestyles = ["solid", "dotted"]
 
-    sweeper_type = "constrainedDAE"
     QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
     num_nodes = 3
     maxiter = 2 * num_nodes - 1
@@ -95,14 +92,9 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
     dt_list, _ = choose_time_step_sizes(problem_name)
     dt_list_short = dt_list[3:7]
 
-    hook_class = [
-        LogGlobalErrorPreIterDifferentialVariable,
-        LogGlobalErrorPreIterationAlgebraicVariable,
-        LogGlobalErrorPostIterDiff,
-        LogGlobalErrorPostIterAlg,
-    ]
+    hook_class = [LogGlobalErrorDiffVar, LogGlobalErrorAlgVar]
 
-    my_setup_mpl(fontsize=7)
+    my_setup_mpl(fontsize=6)
 
     offsets = [0.7, 0.45, 0.6, 0.55, 0.55, 0.5, 0.45]
 
@@ -153,6 +145,7 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
             axs[0].loglog(
                 dt_list,
                 err_y_iter,
+                linewidth=0.7,
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
@@ -162,6 +155,7 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
             axs[1].loglog(
                 dt_list,
                 err_z_iter,
+                linewidth=0.7,
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
@@ -175,8 +169,8 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
             axs[0].loglog(
                 dt_list_short,
                 ref_y,
+                linewidth=0.7,
                 color="black",
-                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -194,8 +188,8 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
             axs[1].loglog(
                 dt_list_short,
                 ref_z,
+                linewidth=0.7,
                 color="black",
-                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -697,3 +691,8 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
 
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
+
+
+if __name__ == "__main__":
+    plot_order_linear(journal="BUW_thesis")
+    plot_order_linear(sweeper_type="semiImplicitDAE", journal="BUW_thesis")

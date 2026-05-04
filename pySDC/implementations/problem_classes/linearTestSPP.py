@@ -2,9 +2,86 @@ import numpy as np
 from scipy.sparse.linalg import gmres
 import scipy.linalg as la
 
+from pySDC.core.hooks import Hooks
 from pySDC.core.problem import Problem, WorkCounter
 from pySDC.implementations.datatype_classes.mesh import mesh
 from pySDC.core.errors import ProblemError
+
+
+class LogGlobalError(Hooks):
+    def log_global_error(self, step, level_number, suffix=""):
+        """
+        Function to add the global error to the stats
+
+        Args:
+            step (pySDC.Step.step): The current step
+            level_number (int): The index of the level
+            suffix (str): Suffix for naming the variable in stats
+
+        Returns:
+            None
+        """
+        L = step.levels[level_number]
+        P = L.prob
+
+        L.sweep.compute_end_point()
+
+        u_ex = L.prob.u_exact(t=L.time + L.dt)
+
+        diff_e_global = abs(u_ex[0] - L.uend[0])
+        alg_e_global = abs(u_ex[-1] - L.uend[-1])
+
+        g = P.lamb_diff / P.eps * L.uend[0] - P.lamb_alg / P.eps * L.uend[1]
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type=f"e_global_differential{suffix}",
+            value=diff_e_global,
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type=f"e_global_algebraic{suffix}",
+            value=alg_e_global,
+        )
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type=f"g_abs{suffix}",
+            value=abs(g),
+        )
+
+
+class LogGlobalErrorLinearTestSPP(LogGlobalError):
+    def pre_iteration(self, step, level_number):
+        super().pre_iteration(step, level_number)
+        self.log_global_error(step, level_number, suffix="_pre_iteration")
+
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+        self.log_global_error(step, level_number, suffix="_post_iteration")
+
+    def pre_sweep(self, step, level_number):
+        super().pre_sweep(step, level_number)
+        self.log_global_error(step, level_number, suffix="_pre_sweep")
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.log_global_error(step, level_number, suffix="_post_sweep")
+
+    def post_step(self, step, level_number):
+        super().post_step(step, level_number)
+        self.log_global_error(step, level_number, suffix="_post_step")
 
 
 def compute_solution(A, u0):

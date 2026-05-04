@@ -74,11 +74,12 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_MIN-SR-FLEX": "darkgrey",
         "constrainedDAE_Picard": "dodgerblue",
         "constrainedDAE_DOPRI5": "darkmagenta",
-        "embeddedDAE_IE": "royalblue",
+        "embeddedDAE_EE": "black",
+        "embeddedDAE_IE": "firebrick",
         "embeddedDAE_LU": "green",
         "embeddedDAE_MIN-SR-NS": "plum",
         "embeddedDAE_MIN-SR-S": "coral",
-        "embeddedDAE_Picard": "darkcyan",
+        "embeddedDAE_Picard": "darkturquoise",
         "fullyImplicitDAE_IE": "limegreen",
         "fullyImplicitDAE_LU": "darkturquoise",
         "fullyImplicitDAE_MIN-SR-NS": "slategrey",
@@ -105,6 +106,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_MIN-SR-FLEX": "*",
         "constrainedDAE_Picard": "H",
         "constrainedDAE_DOPRI5": "p",
+        "embeddedDAE_EE": "s",
         "embeddedDAE_IE": "D",
         "embeddedDAE_LU": "<",
         "embeddedDAE_MIN-SR-NS": "H",
@@ -132,6 +134,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "embeddedDAE": "SDC-E",
         "fullyImplicitDAE": "FI-SDC",
         "semiImplicitDAE": "SI-SDC",
+        "SPP": "SDC-SPP",
     }
 
     return colors, markers, sweeper_labels
@@ -326,7 +329,7 @@ def setup_problem(
     elif problem_name == "LINEAR-TEST":
         eps = kwargs.get("eps", 0.0)
         if eps > 0.0:
-            from pySDC.implementations.problem_classes.singularPerturbed import LinearTestSPP as problem
+            from pySDC.implementations.problem_classes.linearTestSPP import LinearTestSPP as problem
             # from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
         elif sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.problems.linearTestDAE import LinearTestDAEConstrained as problem

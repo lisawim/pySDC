@@ -35,6 +35,34 @@ class LogGlobalError(Hooks):
             value=e_global,
         )
 
+    def log_absolute_value_g(self, step, level_number, suffix=""):
+        """
+        Function to add the absolute value of g to the stats
+
+        Args:
+            step (pySDC.Step.step): The current step
+            level_number (int): The index of the level
+            suffix (str): Suffix for naming the variable in stats
+
+        Returns:
+            None
+        """
+        L = step.levels[level_number]
+
+        L.sweep.compute_end_point()
+
+        g = L.prob.algebraic_constraints(u=L.uend, t=L.time + L.dt)
+
+        self.add_to_stats(
+            process=step.status.slot,
+            time=L.time + L.dt,
+            level=L.level_index,
+            iter=step.status.iter,
+            sweep=L.status.sweep,
+            type=f"g_abs{suffix}",
+            value=abs(g),
+        )
+
 
 class LogGlobalErrorDiffVar(LogGlobalError):
     def pre_iteration(self, step, level_number):
@@ -78,3 +106,17 @@ class LogGlobalErrorAlgVar(LogGlobalError):
     def post_step(self, step, level_number):
         super().post_step(step, level_number)
         self.log_global_error(step, level_number, attr="alg", variable="algebraic", suffix="_post_step")
+
+
+class LogAbsValueAlgConstraints(LogGlobalError):
+    def post_iteration(self, step, level_number):
+        super().post_iteration(step, level_number)
+        self.log_absolute_value_g(step, level_number, suffix="_post_iteration")
+
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.log_absolute_value_g(step, level_number, suffix="_post_sweep")
+
+    def post_step(self, step, level_number):
+        super().post_step(step, level_number)
+        self.log_absolute_value_g(step, level_number, suffix="_post_step")

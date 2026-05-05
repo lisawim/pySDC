@@ -66,7 +66,7 @@ def sync_ylim(axs, min_y_set=1e-15):
     return axs
 
 
-def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration."""
 
     from pySDC.projects.DAE.misc.hooksDAE import (
@@ -82,7 +82,6 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
     linestyles = ["solid", "dotted"]
 
     QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
-    num_nodes = 3
     maxiter = 2 * num_nodes - 1
     e_tol = -1
 
@@ -229,7 +228,7 @@ def plot_order_linear(sweeper_type="constrainedDAE", journal="Springer_Scientifi
         plt.close(fig)
 
 
-def plot_order_andrews(sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration for Andrews' problem"""
 
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
@@ -246,7 +245,6 @@ def plot_order_andrews(sweeper_type="constrainedDAE", journal="Springer_Scientif
     linestyles = ["solid", "dotted"]
 
     QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
-    num_nodes = 3
     maxiter = 2 * num_nodes - 1
     e_tol = -1
 
@@ -480,7 +478,7 @@ def plot_order_andrews(sweeper_type="constrainedDAE", journal="Springer_Scientif
         plt.close(fig)
 
 
-def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
+def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
     """Plots the order in each iteration for reaction-diffusion problem"""
 
     from pySDC.projects.DAE.problems.reactionDiffusionPDAE import (
@@ -496,7 +494,6 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
     linestyles = ["solid", "dotted"]
 
     QI_list = ["IE", "LU", "MIN-SR-S"]
-    num_nodes = 3
     maxiter = 2 * num_nodes - 1
     e_tol = -1
 
@@ -684,15 +681,11 @@ def plot_order_reaction_diffusion(format="eps", sweeper_type="constrainedDAE", j
 
         ax_flatten[3].remove()
 
-        plot_name = "Fig10" if QI == "IE" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
+        # plot_name = "Fig10.png" if QI == "IE" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.png"
+        plot_name = f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.png"
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
-
-
-if __name__ == "__main__":
-    plot_order_linear(journal="BUW_thesis")
-    plot_order_linear(sweeper_type="semiImplicitDAE", journal="BUW_thesis")

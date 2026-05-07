@@ -218,9 +218,8 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
-        # plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
-        plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
+        plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}.png"
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -244,7 +243,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
     linestyles = ["solid", "dotted"]
 
-    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
+    QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
     maxiter = 2 * num_nodes - 1
     e_tol = -1
 
@@ -259,7 +258,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
         LogGlobalErrorPostIterMechanicalVars,
     ]
 
-    my_setup_mpl(fontsize=7)
+    my_setup_mpl(fontsize=6)
 
     offsets_pos = [0.8, 0.1, 0.6, 0.25, 0.55, 0.5, 0.45]
     offsets_vel = [0.15, 0.57, 0.6, 0.55, 0.55, 0.5, 0.35]
@@ -340,6 +339,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
+                linewidth=0.75,
                 label=f"k = {k}",
             )
 
@@ -348,6 +348,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 err_vel_iter,
                 color=colors[k],
                 marker=markers[k],
+                linewidth=0.75,
                 linestyle=linestyles[k % 2],
             )
 
@@ -356,6 +357,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 err_acc_iter,
                 color=colors[k],
                 marker=markers[k],
+                linewidth=0.75,
                 linestyle=linestyles[k % 2],
             )
 
@@ -364,6 +366,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 err_lag_iter,
                 color=colors[k],
                 marker=markers[k],
+                linewidth=0.75,
                 linestyle=linestyles[k % 2],
             )
 
@@ -378,7 +381,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_pos,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
@@ -397,7 +400,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_vel,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
@@ -416,7 +419,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_acc,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
@@ -435,7 +438,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_lag,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
@@ -467,10 +470,10 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
 
-        plot_name = "Fig6" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + ".png"
+        plot_name = f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}.png"
+        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -509,9 +512,9 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
         LogGlobalErrorPostIterConcentrations,
     ]
 
-    my_setup_mpl(fontsize=8)
+    my_setup_mpl(fontsize=6)
 
-    offsets = [0.18, 0.18, 0.2, 0.25, 0.3, 0.3, 0.35]
+    offsets = [0.18, 0.18, 0.2, 0.25, 0.3, 0.8]
 
     for q, QI in enumerate(QI_list):
         print(f"Running for {QI}..")
@@ -581,6 +584,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
+                linewidth=0.75,
                 label=f"k = {k}",
             )
 
@@ -590,6 +594,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
+                linewidth=0.75,
             )
 
             ax_flatten[2].loglog(
@@ -598,6 +603,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 color=colors[k],
                 marker=markers[k],
                 linestyle=linestyles[k % 2],
+                linewidth=0.75,
             )
 
             C_u = compute_constant_reference_order(dt_list_pov, err_u_iter, k)
@@ -610,12 +616,12 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short,
                 ref_u,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
             ax_flatten[0].text(
-                dt_list_short[-1] * 0.82,
+                dt_list_short[-1] * 0.7,
                 ref_u[-1] * offsets[k],
                 rf"${k+1}$",
                 fontsize=6,
@@ -629,12 +635,12 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short,
                 ref_v,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
             ax_flatten[1].text(
-                dt_list_short[-1] * 0.82,
+                dt_list_short[-1] * 0.7,
                 ref_v[-1] * offsets[k],
                 rf"${k+1}$",
                 fontsize=6,
@@ -648,12 +654,12 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short,
                 ref_w,
                 color="black",
-                linewidth=0.9,
+                linewidth=0.75,
                 linestyle="dashed",
             )
 
             ax_flatten[2].text(
-                dt_list_short[-1] * 0.82,
+                dt_list_short[-1] * 0.7,
                 ref_w[-1] * offsets[k],
                 rf"${k+1}$",
                 fontsize=6,
@@ -673,7 +679,9 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
         ax_flatten[1].set_ylabel(r"LTE $||v(t_1) - v^k_{M,t_1}||_{\infty}$")
         ax_flatten[2].set_ylabel(r"LTE $||w(t_1) - w^k_{M,t_1}||_{\infty}$")
 
-        ax_flatten = sync_ylim(ax_flatten, min_y_set=5e-17)
+        ax_flatten = sync_ylim(ax_flatten, min_y_set=3e-18)
+        for ax in ax_flatten:
+            ax.set_ylim(top=5e-2)
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
@@ -681,7 +689,6 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
         ax_flatten[3].remove()
 
-        # plot_name = "Fig10.png" if QI == "IE" else f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.png"
         plot_name = f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.png"
         filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
         file_path = Path(filename)
@@ -689,3 +696,8 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
         fig.savefig(filename, dpi=400, bbox_inches="tight")
         plt.close(fig)
+
+
+if __name__ == "__main__":
+    plot_order_reaction_diffusion(num_nodes=3, journal="BUW_thesis")
+    # plot_order_reaction_diffusion(num_nodes=3, sweeper_type="semiImplicitDAE", journal="BUW_thesis")

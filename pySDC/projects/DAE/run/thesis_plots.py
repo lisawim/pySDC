@@ -42,7 +42,7 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
         absolute_values_g_thesis,
         dae_errors_thesis,
     )
-    from pySDC.projects.DAE.run.plot_order_iteration import plot_order_linear
+    from pySDC.projects.DAE.run.plot_order_iteration import plot_order_linear, plot_order_andrews, plot_order_reaction_diffusion
 
     num_nodes = 4
 
@@ -67,7 +67,13 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     plot_order_linear(journal=journal)
     plot_order_linear(sweeper_type="semiImplicitDAE", journal=journal)
 
+    # Section 6.4
+    plot_order_andrews(journal=journal)
+    plot_order_andrews(sweeper_type="semiImplicitDAE", journal=journal)
 
+    # Section 6.5
+    plot_order_reaction_diffusion(journal=journal)
+    plot_order_reaction_diffusion(sweeper_type="semiImplicitDAE", journal=journal)
 
 
 def make_plots_for_chapter_num_results_SE(journal="BUW_thesis"):

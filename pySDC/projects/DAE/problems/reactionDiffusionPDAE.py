@@ -5,6 +5,7 @@ from pySDC.core.errors import ProblemError
 from pySDC.core.hooks import Hooks
 from pySDC.core.problem import WorkCounter
 from pySDC.implementations.datatype_classes.mesh import mesh
+from pySDC.projects.DAE.misc.meshDAE import MeshDAE, imex_dae_mesh
 from pySDC.projects.DAE.misc.problemDAE import ProblemDAE
 from pySDC.projects.DAE.problems.spectralTester import SpectralTester
 from pySDC.helpers import problem_helper
@@ -1681,3 +1682,155 @@ class ReactionDiffusionPDAEConstrained(ReactionDiffusionPDAE):
         """
 
         return super().solve_system(None, rhs, factor, u0, t)
+    
+
+class ReactionDiffusionPDAE_IMEX(ReactionDiffusionPDAEConstrained):
+    """Constrained formulation where only the differential equations are integrated numerically."""
+
+    dtype_u = MeshDAE
+    dtype_f = imex_dae_mesh
+
+    def eval_f(self, u, t):
+        r"""
+        Routine to evaluate the right-hand side of the problem.
+
+        Parameters
+        ----------
+        u : dtype_u
+            Current values of the numerical solution at time t.
+        t : float
+            Current time of the numerical solution.
+
+        Returns
+        -------
+        f : dtype_f
+            The right-hand side of f (contains ``3 * nvars`` components).
+        """
+
+        u_, v_ = u.diff[: self.nvars], u.diff[self.nvars :]
+        w_ = u.alg[: self.nvars]
+
+        u_hat, v_hat, w_hat = self.transform(u_), self.transform(v_), self.transform(w_)
+
+        Lu = self.Lx * u_hat
+        Lv = self.Lx * v_hat
+        Dw = self.Dx * w_hat
+        uDw_hat = self.dealias * self.transform(u_ * self.itransform(Dw))
+        vDw_hat = self.dealias * self.transform(v_ * self.itransform(Dw))
+
+        src_f = self.src_f_spectral(t=t, n=self.nvars)
+        src_g = self.src_g_spectral(t=t, n=self.nvars)
+
+        tmp_f_diff1_impl = Lu
+        tmp_f_diff2_impl = Lv
+        tmp_f_diff1_expl = uDw_hat + src_f
+        tmp_f_diff2_expl = -vDw_hat + src_g
+        # reaction explicit (uDw_hat + src_f, -vDw_hat + src_g), diffusion implicit (Lu, Lv)
+        f = self.dtype_f(self.init)
+        f.diff_impl[: self.nvars] = self.itransform(tmp_f_diff1_impl)
+        f.diff_impl[self.nvars :] = self.itransform(tmp_f_diff2_impl)
+
+        f.diff_expl[: self.nvars] = self.itransform(tmp_f_diff1_expl)
+        f.diff_expl[self.nvars :] = self.itransform(tmp_f_diff2_expl)
+
+        g = self.algebraic_constraints(u, t)
+        f.alg[: self.nvars] = g
+        self.work_counters["rhs"]()
+        return f
+
+    def g_phys(self, factor, rhs, t, u):
+        # TODO: Nur das implizite brauchen wir hier (also bezüglich Lu, Lv)
+        rhs_u, rhs_v = rhs.diff[: self.nvars], rhs.diff[self.nvars :]
+
+        rhs_u_hat, rhs_v_hat = self.transform(rhs_u), self.transform(rhs_v)
+
+        u_, v_ = u.diff[: self.nvars], u.diff[self.nvars :]
+
+        u_hat, v_hat = self.transform(u_), self.transform(v_)
+
+        f = self.eval_f(u, t)
+        f1_hat = self.transform(f.diff_impl[: self.nvars])
+        f2_hat = self.transform(f.diff_impl[self.nvars :])
+        f3_hat = self.transform(f.alg[: self.nvars])
+
+        g1_hat = u_hat - factor * f1_hat - rhs_u_hat
+        g2_hat = v_hat - factor * f2_hat - rhs_v_hat
+        g3_hat = f3_hat[:]
+
+        return np.concatenate((self.itransform(g1_hat), self.itransform(g2_hat), self.itransform(g3_hat)))
+
+    def g_hat(self, factor, rhs_hat, t, u_hat_):
+        """Defines function g in spectral space to find the root for to solve system in SDC."""
+
+        u_hat, v_hat = u_hat_.diff[: self.Nr], u_hat_.diff[self.Nr :]
+        w_hat = u_hat_.alg[: self.Nr]
+
+        rhs_u_hat, rhs_v_hat = rhs_hat.diff[: self.Nr], rhs_hat.diff[self.Nr :]
+
+        u = self.dtype_u(self.init)
+        u.diff[: self.nvars], u.diff[self.nvars :] = self.itransform(u_hat), self.itransform(v_hat)
+        u.alg[: self.nvars] = self.itransform(w_hat)
+
+        f = self.eval_f(u, t)
+        f1_hat = self.transform(f.diff_impl[: self.nvars])
+        f2_hat = self.transform(f.diff_impl[self.nvars :])
+        f3_hat = self.transform(f.alg[: self.nvars])
+
+        g1_hat = u_hat - factor * f1_hat - rhs_u_hat
+        g2_hat = v_hat - factor * f2_hat - rhs_v_hat
+        g3_hat = f3_hat[:]
+
+        return np.concatenate((g1_hat, g2_hat, g3_hat))
+
+    def dg_hat(self, factor, rhs, u, apply_mask=True):
+        """
+        Computes Jacobian for PDAE system. The DC mode in w (i.e., k = 0 in Fourier coefficients) is
+        the average of w being constant and is thus removed in the numerical solution and in the algebraic equation
+        for the linear system to be solved.
+        """
+
+        # Shortcuts
+        u_, v_ = u.diff[: self.nvars], u.diff[self.nvars :]
+
+        w_hat = self.transform(u.alg[: self.nvars])
+
+        wx_phys = self.itransform(self.Dx * w_hat).real
+
+        mult_op_wx = self._make_mult_operator_wx(wx_phys, n=self.nvars)
+        mult_op_uDx = self._make_mult_operator_uDx(u_, n=self.nvars)
+        mult_op_vDx = self._make_mult_operator_uDx(v_, n=self.nvars)
+
+        # Blocks for Jacobian
+        J11 = self.I_Nr - factor * np.diag(self.Lx)
+        J22 = self.I_Nr - factor * np.diag(self.Lx)
+        J13 = self.O_Nr
+        J23 = self.O_Nr
+        J31 = -self.I_Nr
+        J32 = -self.I_Nr
+        J33 = -np.diag(self.Lx)
+
+        # Remove DC mode (k = 0 in Fourier coefficients) in variables and equations
+        if apply_mask:
+            J13_red = J13[:, self.mask_w]
+            J23_red = J23[:, self.mask_w]
+            J33_red = J33[np.ix_(self.mask_g3, self.mask_w)]
+
+            J31_red = J31[self.mask_g3, :]
+            J32_red = J32[self.mask_g3, :]
+        else:
+            J13_red = J13.copy()
+            J23_red = J23.copy()
+            J33_red = J33.copy()
+
+            J31_red = J31.copy()
+            J32_red = J32.copy()
+
+        J = np.block(
+            [
+                [J11, self.O_Nr, J13_red],
+                [self.O_Nr, J22, J23_red],
+                [J31_red, J32_red, J33_red],
+            ]
+        )
+
+        return J

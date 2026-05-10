@@ -66,6 +66,11 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     """
 
     colors = {
+        "imexConstrainedDAE_EE": "green",
+        "imexConstrainedDAE_IE": "lightskyblue",
+        "imexConstrainedDAE_LU": "pink",
+        "imexConstrainedDAE_MIN-SR-NS": "coral",
+        "imexConstrainedDAE_MIN-SR-S": "plum",
         "constrainedDAE_EE": "forestgreen",
         "constrainedDAE_IE": "gold",
         "constrainedDAE_LU": "orange",
@@ -98,6 +103,11 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     }
 
     markers = {
+        "imexConstrainedDAE_EE": "*",
+        "imexConstrainedDAE_IE": "s",
+        "imexConstrainedDAE_LU": "^",
+        "imexConstrainedDAE_MIN-SR-NS": "o",
+        "imexConstrainedDAE_MIN-SR-S": "d",
         "constrainedDAE_EE": "D",
         "constrainedDAE_IE": "o",
         "constrainedDAE_LU": "s",
@@ -130,6 +140,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     }
 
     sweeper_labels = {
+        "imexConstrainedDAE": "IMEX-SDC-C",
         "constrainedDAE": "SDC-C",
         "embeddedDAE": "SDC-E",
         "fullyImplicitDAE": "FI-SDC",
@@ -366,6 +377,8 @@ def setup_problem(
     elif problem_name == "REACTION-DIFFUSION":
         if sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAEConstrained as problem
+        elif sweeper_type == "imexConstrainedDAE":
+            from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAE_IMEX as problem
         elif sweeper_type == "fullyImplicitDAE":
             if QI.startswith("RadauIIA"):
                 from pySDC.projects.DAE.problems.reactionDiffusionPDAE import ReactionDiffusionPDAE_Radau as problem
@@ -477,6 +490,8 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: boo
                 from pySDC.implementations.sweeper_classes.generic_implicit_MPI import generic_implicit_MPI as sweeper
             elif sweeper_type == "constrainedDAE":
                 from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitConstrainedMPI as sweeper
+            # elif sweeper_type == "imexConstrainedDAE":
+            #     from pySDC.projects.DAE.sweepers.imex_sdc_c import imex_sdc_c as sweeper
             elif sweeper_type == "embeddedDAE":
                 from pySDC.projects.DAE.sweepers.genericImplicitDAEMPI import genericImplicitEmbeddedMPI as sweeper
             elif sweeper_type == "fullyImplicitDAE":
@@ -500,6 +515,8 @@ def get_sweeper_class_sdc(use_mpi: bool, sweeper_type: str, use_mpi_grouped: boo
             from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit as sweeper
         elif sweeper_type == "constrainedDAE":
             from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitConstrained as sweeper
+        elif sweeper_type == "imexConstrainedDAE":
+            from pySDC.projects.DAE.sweepers.imex_sdc_c import imex_sdc_c as sweeper
         elif sweeper_type == "embeddedDAE":
             from pySDC.projects.DAE.sweepers.genericImplicitDAE import genericImplicitEmbedded as sweeper
         elif sweeper_type == "fullyImplicitDAE":
@@ -554,6 +571,7 @@ def setup_sweeper_sdc(
         "quad_type": "RADAU-RIGHT",
         "num_nodes": num_nodes,
         "QI": QI,
+        "QE": kwargs.get("QE", "EE"),
         "initial_guess": kwargs.get("initial_guess", "spread"),
         "skip_residual_computation": kwargs.get("skip_residual_computation", skip_residual_computation_default),
     }

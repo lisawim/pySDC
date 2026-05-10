@@ -192,7 +192,7 @@ def make_plots_for_test_DAE(journal="BUW_thesis"):  # pragma: no cover
     plot_event_time_error_before_restarts(results_event_error_restarts, problem_name, dt_fix, journal)
 
 
-def make_plots_for_WSCC9_test_case(cwd='./', journal="BUW_thesis"):  # pragma: no cover
+def make_plots_for_WSCC9_test_case(journal="BUW_thesis"):  # pragma: no cover
     """
     Generates the plots for the WSCC 9-bus test case, i.e.,
 

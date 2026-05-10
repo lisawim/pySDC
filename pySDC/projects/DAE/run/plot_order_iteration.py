@@ -730,5 +730,5 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
 
 if __name__ == "__main__":
-    plot_order_reaction_diffusion(num_nodes=3, journal="BUW_thesis")
-    # plot_order_reaction_diffusion(num_nodes=3, sweeper_type="semiImplicitDAE", journal="BUW_thesis")
+    # plot_order_reaction_diffusion(num_nodes=3, journal="BUW_thesis")
+    plot_order_reaction_diffusion(num_nodes=2, sweeper_type="imexConstrainedDAE", journal="BUW_thesis")

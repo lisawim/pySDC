@@ -133,7 +133,11 @@ def absolute_values_g_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", 
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
 
-    sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    if problem_name == "REACTION-DIFFUSION":
+        sweeper_types = ["imexConstrainedDAE", "constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    else:
+        sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+
     for s, sweeper_type in enumerate(sweeper_types):
         ax_flatten[s].set_title(sweeper_labels[sweeper_type])
 
@@ -155,7 +159,8 @@ def absolute_values_g_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", 
     min_y_set = 1e-12 if problem_name == "REACTION-DIFFUSION" else 1e-15
     ax_flatten = sync_ylim(ax_flatten, min_y_set=min_y_set)
 
-    ax_flatten[3].remove()
+    if problem_name != "REACTION-DIFFUSION":
+        ax_flatten[3].remove()
 
     handles, labels = ax_flatten[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.03), ncol=4)
@@ -246,7 +251,11 @@ def dae_errors_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
 
-    sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    if problem_name == "REACTION-DIFFUSION":
+        sweeper_types = ["imexConstrainedDAE", "constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+    else:
+        sweeper_types = ["constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
+
     for s, sweeper_type in enumerate(sweeper_types):
         ax_flatten[s].set_title(sweeper_labels[sweeper_type])
 
@@ -268,7 +277,8 @@ def dae_errors_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_
     min_y_set = 1e-16 if problem_name == "REACTION-DIFFUSION" else 1e-6
     ax_flatten = sync_ylim(ax_flatten, min_y_set=min_y_set)
 
-    ax_flatten[3].remove()
+    if problem_name != "REACTION-DIFFUSION":
+        ax_flatten[3].remove()
 
     handles, labels = ax_flatten[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.03), ncol=4)

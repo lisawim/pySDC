@@ -1,7 +1,5 @@
-import numpy as np
-
 from pySDC.implementations.sweeper_classes.generic_implicit import generic_implicit
-from pySDC.core.errors import ParameterError
+from pySDC.core.errors import ParameterError, ProblemError
 
 
 class genericImplicitConstrained(generic_implicit):
@@ -187,6 +185,28 @@ class genericImplicitConstrained(generic_implicit):
 
         # indicate that the residual has seen the new values
         L.status.updated = False
+
+        return None
+    
+    def compute_end_point(self):
+        """
+        Compute u at the right point of the interval
+
+        The value uend computed here is a full evaluation of the Picard formulation unless do_full_update==False
+
+        Returns:
+            None
+        """
+
+        L = self.level
+        P = L.prob
+
+        # check if Mth node is equal to right point and do_coll_update is false, perform a simple copy
+        if self.coll.right_is_node and not self.params.do_coll_update:
+            # a copy is sufficient
+            L.uend = P.dtype_u(L.u[-1])
+        else:
+            raise ProblemError("No collocation update possible due to algebraic constraints!")
 
         return None
 

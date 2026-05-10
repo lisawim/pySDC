@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 import matplotlib.pyplot as plt
 
 from pySDC.helpers.plot_helper import figsize_by_journal
@@ -84,6 +85,8 @@ def plot_svd(num_nodes, QI="MIN-SR-NS", journal="Springer_Scientific_Computing")
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=4)
     filename = "data" + "/" + f"{problem_name}" + "/" + "svd_thesis" + "/" + f"svd_{QI}_{num_nodes=}_{dt=}.png"
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 
@@ -174,6 +177,8 @@ def plot_svd_of_iteration_matrix_powers(num_nodes, QI="MIN-SR-NS", journal="Spri
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=5)
     filename = "data" + "/" + f"{problem_name}" + "/" + "svd_thesis" + "/" + f"svd_powers_{QI}_{num_nodes=}_{dt=}.png"
+    file_path = Path(filename)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(filename, dpi=400, bbox_inches="tight")
     plt.close(fig)
 

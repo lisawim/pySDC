@@ -58,9 +58,9 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     # Section 6.2
     problem_name2 = "ANDREWS-SQUEEZER"
     dt_list_andrews, _ = choose_time_step_sizes(problem_name2)
-    dt_andrews = dt_list_andrews[3]
+    dt_andrews = dt_list_andrews[0]
 
-    absolute_values_g_thesis(dt=dt_list_andrews, num_nodes=num_nodes, problem_name=problem_name2, journal=journal)
+    absolute_values_g_thesis(dt=dt_andrews, num_nodes=num_nodes, problem_name=problem_name2, journal=journal)
     dae_errors_thesis(dt=dt_andrews, num_nodes=num_nodes, problem_name=problem_name2, journal=journal)
 
     # Section 6.3
@@ -75,11 +75,19 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     plot_order_reaction_diffusion(journal=journal)
     plot_order_reaction_diffusion(sweeper_type="semiImplicitDAE", journal=journal)
 
+    problem_name3 = "REACTION-DIFFUSION"
+    dt_list_reacdiff, _ = choose_time_step_sizes(problem_name3)
+    dt_reacdiff = dt_list_reacdiff[2]
+
+    absolute_values_g_thesis(dt=dt_reacdiff, num_nodes=num_nodes, problem_name=problem_name3, journal=journal)
+    dae_errors_thesis(dt=dt_reacdiff, num_nodes=num_nodes, problem_name=problem_name3, journal=journal)
+
 
 def make_plots_for_chapter_num_results_SE(journal="BUW_thesis"):
     from pySDC.projects.PinTSimE.paper_PSCC2024.paper_plots import make_plots_for_test_DAE, make_plots_for_WSCC9_test_case
 
-    make_plots_for_test_DAE(journal=journal)
+    # make_plots_for_test_DAE(journal=journal)
+    make_plots_for_WSCC9_test_case(journal=journal)
 
 
 if __name__ == "__main__":

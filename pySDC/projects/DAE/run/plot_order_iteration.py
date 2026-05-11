@@ -262,8 +262,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
     """Plots the order in each iteration for Andrews' problem"""
 
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
-        LogGlobalErrorPreIterMechanicalVars,
-        LogGlobalErrorPostIterMechanicalVars,
+        LogGlobalErrorMechanicalVars,
     )
 
     problem_name = "ANDREWS-SQUEEZER"
@@ -284,10 +283,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
     dt_list, Tend = choose_time_step_sizes(problem_name)
     dt_list_short = dt_list[3:7]
 
-    hook_class = [
-        LogGlobalErrorPreIterMechanicalVars,
-        LogGlobalErrorPostIterMechanicalVars,
-    ]
+    hook_class = [LogGlobalErrorMechanicalVars]
 
     my_setup_mpl(fontsize=6)
 
@@ -730,5 +726,5 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
 
 if __name__ == "__main__":
-    # plot_order_reaction_diffusion(num_nodes=3, journal="BUW_thesis")
-    plot_order_reaction_diffusion(num_nodes=2, sweeper_type="imexConstrainedDAE", journal="BUW_thesis")
+    plot_order_reaction_diffusion(num_nodes=5, journal="BUW_thesis")
+    # plot_order_reaction_diffusion(num_nodes=5, sweeper_type="imexConstrainedDAE", journal="BUW_thesis")

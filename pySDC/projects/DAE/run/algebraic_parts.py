@@ -9,7 +9,17 @@ from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE.run.study_embedding_linear import get_hooks, get_ylabel
 
 
-def plot_absolute_value_g_vs_iterations_qi(dt, num_nodes, problem_name, sweeper_type, journal="BUW_thesis", ax=None, return_ax=False):
+def get_ylabel_errors_z(problem_name, along):
+    if along == "iterations":
+        if problem_name == "REACTION-DIFFUSION":
+            return r"$||w(t_0 + \Delta t) - w^k_M||_\infty$"
+        else:
+            return r"$||z(t_0 + \Delta t) - z^k_M||$"
+
+
+def plot_absolute_value_g_vs_iterations_qi(
+    dt, num_nodes, problem_name, sweeper_type, maxiter, journal="BUW_thesis", ax=None, return_ax=False
+):
     created_fig = ax is None
 
     QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS"]
@@ -22,7 +32,6 @@ def plot_absolute_value_g_vs_iterations_qi(dt, num_nodes, problem_name, sweeper_
     else:
         fig = ax.figure
 
-    maxiter = 20
     for QI in QI_list:
         key = f"semiImplicitDAE_{QI}"
 
@@ -69,7 +78,9 @@ def plot_absolute_value_g_vs_iterations_qi(dt, num_nodes, problem_name, sweeper_
     return ax if return_ax else None
 
 
-def plot_error_z_vs_iterations_dae_solvers(dt, num_nodes, problem_name, sweeper_type, journal="BUW_thesis", ax=None, return_ax=False):
+def plot_error_z_vs_iterations_dae_solvers(
+    dt, num_nodes, problem_name, sweeper_type, maxiter, journal="BUW_thesis", ax=None, return_ax=False
+):
     created_fig = ax is None
 
     QI_list = ["IE", "LU", "MIN-SR-NS", "MIN-SR-S"]
@@ -96,6 +107,7 @@ def plot_error_z_vs_iterations_dae_solvers(dt, num_nodes, problem_name, sweeper_
             hook_class=get_hooks(stat="diff_alg_error", along="iterations", eps=0.0),
             measure=False,
             e_tol=-1,
+            maxiter=maxiter,
         )
 
         x = [me[0] for me in get_sorted(solution_stats, type=f"e_global_algebraic_post_iteration", sortby="iter")]
@@ -104,7 +116,8 @@ def plot_error_z_vs_iterations_dae_solvers(dt, num_nodes, problem_name, sweeper_
         ax.plot(x, alg_error_values, color=colors[key], marker=markers[key], label=f"{QI}")
 
     ax.set_xlabel(r"iteration $k$")
-    ax.set_ylabel(r"$||z(t_0 + \Delta t) - z^k_M||$")
+    ylabel = get_ylabel_errors_z(problem_name, along="iterations")
+    ax.set_ylabel(ylabel)
 
     ax.set_yscale("log", base=10)
     ax.set_ylim((1e-16, 1e3))
@@ -133,6 +146,7 @@ def absolute_values_g_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", 
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
 
+    maxiter = 20 if problem_name == "ANDREWS-SQUEEZER" else 35
     if problem_name == "REACTION-DIFFUSION":
         sweeper_types = ["imexConstrainedDAE", "constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
     else:
@@ -147,13 +161,14 @@ def absolute_values_g_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", 
             problem_name=problem_name,
             sweeper_type=sweeper_type,
             journal=journal,
+            maxiter=maxiter,
             ax=ax_flatten[s],
             return_ax=return_ax,
         )
 
     top = 1e0 if problem_name == "REACTION-DIFFUSION" else 1e2
     for ax in ax_flatten:
-        ax.set_xlim((1, 20))
+        ax.set_xlim((1, maxiter))
         ax.set_ylim(top=top)
 
     min_y_set = 1e-12 if problem_name == "REACTION-DIFFUSION" else 1e-15
@@ -251,6 +266,7 @@ def dae_errors_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
 
+    maxiter = 20 if problem_name == "ANDREWS-SQUEEZER" else 35
     if problem_name == "REACTION-DIFFUSION":
         sweeper_types = ["imexConstrainedDAE", "constrainedDAE", "semiImplicitDAE", "fullyImplicitDAE"]
     else:
@@ -265,13 +281,14 @@ def dae_errors_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_
             problem_name=problem_name,
             sweeper_type=sweeper_type,
             journal=journal,
+            maxiter=maxiter,
             ax=ax_flatten[s],
             return_ax=return_ax,
         )
 
     top = 1e-2 if problem_name == "REACTION-DIFFUSION" else 1e4
     for ax in ax_flatten:
-        ax.set_xlim((1, 20))
+        ax.set_xlim((1, maxiter))
         ax.set_ylim(top=top)
 
     min_y_set = 1e-16 if problem_name == "REACTION-DIFFUSION" else 1e-6

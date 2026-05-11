@@ -99,6 +99,12 @@ class LogGlobalErrorPostStep(LogError):
         self.log_global_error(step, level_number, '_post_step')
 
 
+class LogGlobalErrorPostSweep(LogError):
+    def post_sweep(self, step, level_number):
+        super().post_sweep(step, level_number)
+        self.log_global_error(step, level_number, '_post_sweep')
+
+
 class LogGlobalErrorPostIter(LogError):
     """
     Log the global error after each iteration

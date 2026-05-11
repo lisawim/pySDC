@@ -28,7 +28,7 @@ def my_setup_mpl(fontsize: int = 16) -> None:
     plt.rcParams["ytick.labelsize"] = fontsize
     plt.rcParams['legend.fontsize'] = fontsize
     plt.rcParams['axes.titlesize'] = fontsize
-    plt.rcParams['axes.linewidth'] = 0.6
+    plt.rcParams['axes.linewidth'] = 0.5
 
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False

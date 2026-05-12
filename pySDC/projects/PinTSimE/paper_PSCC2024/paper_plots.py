@@ -10,8 +10,7 @@ from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE
 from pySDC.projects.DAE.problems.discontinuousTestDAE import DiscontinuousTestDAE
 from pySDC.projects.DAE.problems.wscc9BusSystem import WSCC9BusSystem
 
-from pySDC.projects.PinTSimE.battery_model import generateDescription
-from pySDC.projects.PinTSimE.battery_model import controllerRun
+from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE import my_setup_mpl
 from pySDC.helpers.plot_helper import figsize_by_journal
@@ -180,7 +179,7 @@ def make_plots_for_test_DAE(journal="BUW_thesis"):  # pragma: no cover
         dt_fix = loaded_results["metadata"]["dt_fix"]
 
     plot_functions_over_time(
-        results_error_over_time, problem_name, r"global error $|y(t) - y_{ex}(t)|$", dt_fix, journal
+        results_error_over_time, problem_name, r"$|y(t) - y^{\tilde{k}}_M|$", dt_fix, journal
     )
     plot_error_norm(results_error_norm, problem_name, journal)
     plot_state_function_detection(
@@ -611,7 +610,7 @@ def plot_state_function_detection(results_state_function, problem_name, y_label,
     axs[1].set_ylabel("number of restarts")
 
     handles, labels = axs[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.05), ncol=3)
 
     filename = "data" + "/" + f"{problem_name}" + "/" + "state_function_detection.png"
     file_path = Path(filename)
@@ -764,6 +763,8 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, problem_
         h_ax.set_yscale("log", base=10)
         h_ax.set_ylabel(r"maximum value of h $||h(t)||_\infty$")
         h_ax.minorticks_off()
+
+        h_ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
 
         ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
         ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.4)

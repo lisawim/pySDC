@@ -389,7 +389,7 @@ def plot_spectral_radius(
 def plot_spectral_radius_sdc_spp_and_sdc_e_and_sdc_c(journal="Springer_Scientific_Computing"):
     problem_name = "LINEAR-TEST"
 
-    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.83)
+    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
 
     sweeper_types = ["constrainedDAE", "embeddedDAE", "SPP"]
     # QI_list = ["IE", "EE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
@@ -403,24 +403,13 @@ def plot_spectral_radius_sdc_spp_and_sdc_e_and_sdc_c(journal="Springer_Scientifi
 
     QI_coefficients = compute_QI_coefficients(Q_coefficients, QI_list)
 
-    my_setup_mpl(fontsize=7)
+    my_setup_mpl(fontsize=6)
     colors, markers, sweeper_labels = my_plot_style_config()
-    fig = plt.figure(figsize=figsize)
-
-    gs = plt.GridSpec(
-        nrows=2,
-        ncols=4,
-        figure=fig,
-        height_ratios=[1, 1],
-    )
-
-    ax1 = fig.add_subplot(gs[0, 0:2])   # oben links
-    ax2 = fig.add_subplot(gs[0, 2:4])   # oben rechts
-    ax3 = fig.add_subplot(gs[1, 1:3])   # unten mittig
+    fig, axs = plt.subplots(2, 2, figsize=figsize)
+    ax_flatten = axs.flatten()
 
     for s, sweeper_type in enumerate(sweeper_types):
-        ax_grid = ax1 if s == 0 else ax2 if s == 1 else ax3
-        ax_grid.set_title(sweeper_labels[sweeper_type])
+        ax_flatten[s].set_title(sweeper_labels[sweeper_type])
 
         eps_list = [10 ** (-m) for m in range(1, 12)] if sweeper_type == "SPP" else [0.0]
         for e, eps in enumerate(eps_list):
@@ -450,30 +439,36 @@ def plot_spectral_radius_sdc_spp_and_sdc_e_and_sdc_c(journal="Springer_Scientifi
                 if eps == 0.0:
                     print(key, QI, sweeper_type, color)
                 marker = "o" if sweeper_type == "SPP" else markers[key]
-                ax_grid.plot(
+                ax_flatten[s].plot(
                     num_nodes_list,
                     spectral_radii,
                     marker=marker,
                     color=color,
+                    linewidth=0.9,
+                    markersize=3.5,
+                    markeredgewidth=0.4,
                     label=rf"$\varepsilon=${eps}" if sweeper_type == "SPP" else f"{QI}",
                 )
 
-    for ax in [ax1, ax2, ax3]:
+    for ax in ax_flatten:
+        ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
         ax.tick_params(axis="both", which="minor", bottom=False, left=False)
         ax.set_ylabel(r"spectral radius $\rho(\mathbf{K})$")
 
         ax.set_yscale("log", base=10)
         ax.set_ylim((2e-3, 9e0))
 
-        ax.grid(linewidth=0.5)
+        ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
 
         ax.set_xlabel(r"number of collocation nodes $M$")
 
-    handles1, labels1 = ax1.get_legend_handles_labels()
-    handles2, labels2 = ax3.get_legend_handles_labels()
+    ax_flatten[3].remove()
 
-    handles = handles1 + handles2
-    labels = labels1 + labels2
+    handles1, labels1 = ax_flatten[0].get_legend_handles_labels()
+    handles3, labels3 = ax_flatten[2].get_legend_handles_labels()
+
+    handles = handles1 + handles3
+    labels = labels1 + labels3
 
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=4)
 

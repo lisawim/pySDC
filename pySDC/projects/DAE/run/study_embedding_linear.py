@@ -116,7 +116,7 @@ def get_ylabel(stat, along="time"):
     elif stat == "diff_alg_error":
         if along == "iterations":
             return (r"$||y(t_0 + \Delta t) - y^k_M||$", r"$||z(t_0 + \Delta t) - z^k_M||$")
-        return (r"$|y(t) - y_M|$", r"$|z(t) - z_M|$")
+        return (r"$|y(t) - y^{\tilde{k}}_M|$", r"$|z(t) - z^{\tilde{k}}_M|$")
     elif stat == "error":
         if along == "iterations":
             return r"$L_\infty$ error $||u(t_0 + \Delta t) - u^k_M||$"

@@ -52,6 +52,7 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     )
     from pySDC.projects.DAE.run.plots_work_prec import plots_work_vs_error
     from pySDC.projects.DAE.run.plots_scaling import plots_scaling
+    from pySDC.projects.DAE.run.plots_speedup_at_accuracy import plots_speedup_at_accuracy
 
     num_nodes = 4
 
@@ -84,6 +85,14 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     filename = "results_scaling_dt=0.05_linear_thesis.pkl"
     plots_scaling(
         global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_linear_scaling
+    )
+    
+    # Plots for LINEAR-TEST
+    print("\nGenerating speedup plots for LINEAR-TEST...\n")
+    config_linear_speedup_acc = get_configs(problem_name="LINEAR-TEST", config_type="speedup_at_accuracy")
+    filename = "results_speedup_at_acc_dt=0.05_linear_thesis.pkl"
+    plots_speedup_at_accuracy(
+        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_linear_speedup_acc
     )
 
     # Section 6.4
@@ -131,6 +140,12 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     filename = "results_scaling_dt=0.05_reaction_diffusion_thesis.pkl"
     plots_scaling(
         global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_reacdiff_scaling
+    )
+
+    config_reacdiff_speedup_acc = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
+    filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_thesis.pkl"
+    plots_speedup_at_accuracy(
+        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_reacdiff_speedup_acc
     )
 
 

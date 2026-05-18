@@ -61,9 +61,9 @@ def get_ylabel_based_on_metric(metric_key: str, type: str = "step") -> str:
 
     if metric_key == "q_max_final_error":
         if type == "step":
-            return r"error $||q(T) - q^{\tilde{k}}_M||_{\infty}$"
+            return r"error $||q(T) - q^{\tilde{k}}_{M,T}||_{\infty}$"
         elif type == "iter":
-            return r"error $||q(T) - q^{k}_M||_{\infty}$"
+            return r"error $||q(T) - q^{k}_{M,T}||_{\infty}$"
 
     elif metric_key == "all_max_global_error":
         if type == "step":

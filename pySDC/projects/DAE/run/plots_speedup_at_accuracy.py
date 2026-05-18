@@ -278,6 +278,7 @@ def plot_speedups(
                     markersize=2.2,
                     markeredgewidth=0.4,
                 )
+                print(f"Plotted maximum speedup for {key_par}: {max(ys_s)}")
 
     for spine in ax.spines.values():
         spine.set_linewidth(0.5)
@@ -285,7 +286,7 @@ def plot_speedups(
     ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
 
     used_nodes_sorted = sorted(used_nodes_all)
-    ax.set_xlabel(r"number of $\mathtt{MPI}$ ranks")
+    ax.set_xlabel(r"number of $\mathtt{MPI}$ processes")
     print(f"Used nodes for plotting: {used_nodes_sorted}")
     # ax.set_xscale("log", base=2)
     ax.set_xscale("linear")
@@ -293,6 +294,7 @@ def plot_speedups(
     ax.set_xticklabels(used_nodes_sorted)
     ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
 
+    ax.set_xlim((nodes[0] - 0.06, nodes[-1] + 0.06))
     ax.set_yscale("linear")
     ax.set_ylabel("speedup")
     ymax = max(s_max)

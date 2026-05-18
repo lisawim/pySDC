@@ -12,9 +12,9 @@ from pySDC.projects.DAE.run.study_embedding_linear import get_hooks, get_ylabel
 def get_ylabel_errors_z(problem_name, along):
     if along == "iterations":
         if problem_name == "REACTION-DIFFUSION":
-            return r"$||w(t_0 + \Delta t) - w^k_M||_\infty$"
+            return r"$||w(t_1) - w^k_{M,t_1}||_\infty$"
         else:
-            return r"$||z(t_0 + \Delta t) - z^k_M||$"
+            return r"$||z(t_1) - z^k_{M,t_1}||$"
 
 
 def plot_absolute_value_g_vs_iterations_qi(
@@ -55,7 +55,7 @@ def plot_absolute_value_g_vs_iterations_qi(
         ax.plot(x, g_abs_values, color=colors[key], marker=markers[key], label=f"{QI}")
 
     ax.set_xlabel(r"iteration $k$")
-    ax.set_ylabel(r"$||g(y^k, z^k)||_\infty$")
+    ax.set_ylabel(r"$||g(y^k_{M,t_1}, z^k_{M,t_1})||_\infty$")
 
     ax.set_xlim((1, maxiter))
 

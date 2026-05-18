@@ -21,7 +21,7 @@ class LogEventDiscontinuousTestDAE(Hooks):
             iter=step.status.iter,
             sweep=L.status.sweep,
             type='state_function',
-            value=2 * L.uend.diff[0] - 100,
+            value=2 * L.uend[0] - 100,#2 * L.uend.diff[0] - 100,
         )
 
 
@@ -46,5 +46,5 @@ class LogEventWSCC9(Hooks):
             iter=step.status.iter,
             sweep=L.status.sweep,
             type='state_function',
-            value=L.uend.diff[10 * P.m] - P.psv_max,
+            value=L.uend[10 * P.m] - P.psv_max,#L.uend.diff[10 * P.m] - P.psv_max,
         )

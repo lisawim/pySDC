@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 
 from pySDC.core.errors import ParameterError
 
-from pySDC.projects.DAE.sweepers.fullyImplicitDAE import FullyImplicitDAE
-from pySDC.projects.DAE.problems.discontinuousTestDAE import DiscontinuousTestDAE
-from pySDC.projects.DAE.problems.wscc9BusSystem import WSCC9BusSystem
+from pySDC.projects.PinTSimE.fully_implicit_DAE import fully_implicit_DAE as FullyImplicitDAE
+from pySDC.projects.PinTSimE.DiscontinuousTestDAE import DiscontinuousTestDAE
+from pySDC.projects.PinTSimE.WSCC9BusSystem import WSCC9BusSystem
 
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 from pySDC.helpers.stats_helper import get_sorted
@@ -179,7 +179,7 @@ def make_plots_for_test_DAE(journal="BUW_thesis"):  # pragma: no cover
         dt_fix = loaded_results["metadata"]["dt_fix"]
 
     plot_functions_over_time(
-        results_error_over_time, problem_name, r"$|y(t) - y^{\tilde{k}}_M|$", dt_fix, journal
+        results_error_over_time, problem_name, r"$|y(t) - y^{\tilde{k}}_{M,t}|$", dt_fix, journal
     )
     plot_error_norm(results_error_norm, problem_name, journal)
     plot_state_function_detection(
@@ -461,7 +461,7 @@ def plot_functions_over_time(
             filename = f"test_DAE_error_over_time_{dt=}"
         elif problem_name == "WSCC9":
             filename = f"wscc9_state_function_over_time_{dt=}"
-        
+
         filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -696,49 +696,50 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, problem_
         Step size considered.
     """
 
-    my_setup_mpl(fontsize=4)
+    my_setup_mpl(fontsize=7.5)
     plt.rcParams['axes.linewidth'] = 0.45
-    figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
+    figsize = figsize_by_journal(journal, scale=0.85, ratio=0.47)
 
     colors, markers, _ = plot_styling_stuff(problem_name)
 
     M_key = list(results_event_error_restarts.keys())[0]
     dt_list = [dt_fix] if dt_fix is not None else results_event_error_restarts[M_key].keys()
+
+    h_max_vals = []
     for dt in dt_list:
-        fig, ax = plt.subplots(1, 1, figsize=figsize)
-        h_ax = ax.twinx()
+        fig, axs = plt.subplots(1, 2, figsize=figsize)
+
         for M in results_event_error_restarts.keys():
             for use_SE in results_event_error_restarts[M][dt].keys():
                 if use_SE:
                     event_error_all = results_event_error_restarts[M][dt][use_SE]['event_error_all']
 
-                    (line,) = ax.semilogy(
+                    axs[0].semilogy(
                         np.arange(1, len(event_error_all) + 1),
                         event_error_all,
                         color=colors[M],
                         linestyle="solid",
                         linewidth=0.7,
-                        # marker=markers[M],
+                        label=rf"$M=${M}",
                     )
 
-                    line.set_label(rf"$M=${M}")
-
                     h_max_event = results_event_error_restarts[M][dt][use_SE]["h_max_event"]
-                    h_ax.semilogy(
+                    axs[1].semilogy(
                         np.arange(1, len(h_max_event) + 1),
                         h_max_event,
                         color=colors[M],
                         linestyle="dashdot",
-                        marker=markers[M],
+                        marker="s",
                         linewidth=0.7,
-                        markersize=2.0,
+                        markersize=3.0,
                         markeredgewidth=0.4,
                         # markersize=5,
-                        alpha=0.4,
+                        # alpha=0.4,
                     )
+                    h_max_vals.append(len(h_max_event))
 
                     if M == 5:  # dummy plot for more pretty legend
-                        ax.plot(
+                        axs[0].plot(
                             1,
                             event_error_all[0],
                             color="black",
@@ -746,39 +747,36 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, problem_
                             linewidth=0.7,
                             label=r"$|t^*_{ex} - t^*_{SE}|$",
                         )
-                        ax.plot(
+                        axs[0].plot(
                             1,
                             1e2,
                             color="black",
                             linestyle="dashdot",
-                            marker=markers[M],
+                            marker="s",
                             linewidth=0.7,
-                            markersize=2,
-                            alpha=0.4,
+                            markersize=3.0,
+                            # alpha=0.4,
                             label=r"$||h(t)||_\infty$",
                         )
 
-        # h_ax.tick_params(labelsize=16)
-        h_ax.set_ylim(1e-11, 1e0)
-        h_ax.set_yscale("log", base=10)
-        h_ax.set_ylabel(r"maximum value of h $||h(t)||_\infty$")
-        h_ax.minorticks_off()
+        for ax in axs:
+            ax.tick_params(axis="both", which="major", length=2.5, width=0.45)
+            ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.45)
 
-        h_ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
+            ax.set_xlim((1, max(h_max_vals)))
 
-        ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
-        ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.4)
+            ax.set_ylim(1e-11, 1e0)
+            ax.set_yscale("log", base=10)
 
-        ax.set_ylim(1e-11, 1e-1)
-        ax.set_yscale("log", base=10)
+            ax.set_xlabel(r"number of restarted steps")
 
-        ax.set_xlabel(r"number of restarted steps $n_{restart}$")
-        ax.set_ylabel(r"event time error $|t^*_{ex} - t^*_{SE}|$")
+            ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
+            ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
 
-        ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
-        ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
+        axs[0].set_ylabel(r"event time error $|t^*_{ex} - t^*_{SE}|$")
+        axs[1].set_ylabel(r"maximum value of h $||h(t)||_\infty$")
 
-        fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0.07), ncol=3)
+        fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
 
         filename = "data" + "/" + f"{problem_name}" + "/" + f"test_DAE_event_time_error_restarts_{dt=}.png"
         file_path = Path(filename)

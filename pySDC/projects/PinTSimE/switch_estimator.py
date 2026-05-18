@@ -49,7 +49,7 @@ class SwitchEstimator(ConvergenceController):
         defaults = {
             'control_order': 0,
             'nodes': coll.nodes,
-            'tol_zero': 2.5e-12,
+            'tol_zero': 1e-13,
             't_interp': [],
             'state_function': [],
         }
@@ -322,9 +322,10 @@ class SwitchEstimator(ConvergenceController):
             """
 
             dt_FD = 1e-10
-            dp = (
-                25 * p(t) - 48 * p(t - dt_FD) + 36 * p(t - 2 * dt_FD) - 16 * p(t - 3 * dt_FD) + 3 * p(t - 4 * dt_FD)
-            ) / (12 * dt_FD)
+            dp = (p(t + dt_FD) - p(t)) / dt_FD
+            # dp = (
+            #     25 * p(t) - 48 * p(t - dt_FD) + 36 * p(t - 2 * dt_FD) - 16 * p(t - 3 * dt_FD) + 3 * p(t - 4 * dt_FD)
+            # ) / (12 * dt_FD)
             return dp
 
         newton_tol, newton_maxiter = 1e-14, 100

@@ -8,8 +8,8 @@ from pySDC.projects.DAE.run.plot_order_iteration import sync_ylim
 from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 
 from pySDC.projects.DAE.misc.hooksDAE import (
-    LogGlobalErrorPostIterDiff,
-    LogGlobalErrorPostIterAlg,
+    LogGlobalErrorDiffVar,
+    LogGlobalErrorAlgVar,
 )
 
 from pySDC.projects.DAE.misc.hooksDAE import LogAbsValuePostIterAlgebraicConstraints
@@ -26,7 +26,7 @@ def plot_manifold_val_and_error_vs_iteration(
     t0 = 0.0
     maxiter = 10
 
-    hook_class = [LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg, LogAbsValuePostIterAlgebraicConstraints]
+    hook_class = [LogGlobalErrorDiffVar, LogGlobalErrorAlgVar, LogAbsValuePostIterAlgebraicConstraints]
 
     my_setup_mpl(fontsize=8)
     colors, markers, sweeper_labels = my_plot_style_config()
@@ -95,7 +95,7 @@ def plot_manifold_val_and_error_vs_iteration(
 def plot_manifold_value_vs_iteration(
     dt, num_nodes, problem_name="REACTION-DIFFUSION", journal="Springer_Scientific_Computing"
 ):
-    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.6)
+    figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
 
     sweeper_types = ["constrainedDAE", "semiImplicitDAE"]
     QI_list = ["IE", "LU", "MIN-SR-S"]
@@ -105,7 +105,8 @@ def plot_manifold_value_vs_iteration(
 
     hook_class = [LogAbsValuePostIterAlgebraicConstraints]
 
-    my_setup_mpl(fontsize=8)
+    my_setup_mpl(fontsize=5)
+    plt.rcParams['axes.linewidth'] = 0.45
     colors, markers, sweeper_labels = my_plot_style_config()
 
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -134,18 +135,34 @@ def plot_manifold_value_vs_iteration(
             g_abs_values = [me[1] for me in get_sorted(solution_stats, type="abs_g_post_iteration", sortby="iter")]
 
             label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-            ax.semilogy(x, g_abs_values, color=colors[key], marker=markers[key], label=label)
+            ax.semilogy(
+                x,
+                g_abs_values,
+                color=colors[key],
+                marker=markers[key],
+                linewidth=1.0,
+                markersize=2.7,
+                markeredgewidth=0.5,
+                label=label,
+            )
 
-        ax.set_ylabel(r"$|g(y,z)|$")
+    ax.set_ylabel(r"$||g(y^k_{M,t_1}, z^k_{M,t_1})||_\infty$")
 
     ax.set_xlabel(r"iteration $k$")
     ax.set_xticks([k for k in range(1, maxiter + 1, 2)])
+    ax.set_xticklabels([k for k in range(1, maxiter + 1, 2)])
 
-    ax.grid(linewidth=0.5)
+    ax.set_xlim((0.8, maxiter + 0.2))
+
+    ax.tick_params(axis="both", which="major", length=2.5, width=0.45)
+    ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.45)
+
+    ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
+    ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
 
     handles, labels = ax.get_legend_handles_labels()
 
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.03), ncol=3)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.07), ncol=3)
 
     plot_name = "Fig13.png"
     filename = "data" + "/" + f"{problem_name}" + "/" + plot_name

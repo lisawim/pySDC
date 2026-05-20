@@ -136,14 +136,14 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
     )
 
     problem_name = "LINEAR-TEST"
-    figsize = figsize_by_journal(journal, scale=0.71, ratio=0.6)
+    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.5)
 
     colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
     linestyles = ["solid", "dotted"]
 
     sweeper_type = "constrainedDAE"
-    QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
+    QI_list = ["EE", "IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
     maxiter = 2 * num_nodes - 1
     e_tol = -1
 
@@ -155,15 +155,13 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
 
     hook_class = [LogGlobalErrorDiffVar, LogGlobalErrorAlgVar]
 
-    my_setup_mpl(fontsize=7)
+    my_setup_mpl(fontsize=7.5)
 
     offsets = [0.7, 0.45, 0.6, 0.55, 0.55, 0.5, 0.45]
 
     for q, QI in enumerate(QI_list):
         print(f"Running for {QI}..")
         errors_y, errors_z = [], []
-
-        mode = "sweep" if QI == "MIN-SR-FLEX" else "iteration"
 
         fig, axs = plt.subplots(1, 2, figsize=figsize)
 
@@ -179,13 +177,12 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
                 use_mpi=False,
                 hook_class=hook_class,
                 measure=False,
-                maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
-                nsweeps=1 if QI != "MIN-SR-FLEX" else num_nodes,
+                maxiter=maxiter,
                 **kwargs,
             )
 
-            errors_y.append(get_error_values(solution_stats, "differential", mode))
-            errors_z.append(get_error_values(solution_stats, "algebraic", mode))
+            errors_y.append(get_error_values(solution_stats, "differential", "iteration"))
+            errors_z.append(get_error_values(solution_stats, "algebraic", "iteration"))
 
         for k in range(len(errors_y[0])):
             err_y_iter = [res[k] for res in errors_y]
@@ -225,7 +222,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
                 dt_list_short[-1] * 0.8,
                 ref_y[-1] * offsets[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -244,7 +241,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
                 dt_list_short[-1] * 0.8,
                 ref_z[-1] * offsets[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -290,7 +287,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
     linestyles = ["solid", "dotted"]
 
-    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "MIN-SR-FLEX", "Picard"]
+    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
     maxiter = 2 * num_nodes - 1
     nsweeps = maxiter
     e_tol = -1
@@ -303,7 +300,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
 
     hook_class = [LogGlobalErrorMechanicalVars]
 
-    my_setup_mpl(fontsize=7)
+    my_setup_mpl(fontsize=8)
 
     offsets_pos = [0.8, 0.1, 0.6, 0.25, 0.55, 0.5, 0.45]
     offsets_vel = [0.15, 0.57, 0.6, 0.55, 0.55, 0.5, 0.35]
@@ -314,8 +311,6 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
         print(f"Running for {QI}..")
         errors_pos, errors_vel = [], []
         errors_acc, errors_lag = [], []
-
-        mode = "sweep" if QI == "MIN-SR-FLEX" else "iteration"
 
         fig, axs = plt.subplots(2, 2, figsize=figsize)
         ax_flatten = axs.flatten()
@@ -332,15 +327,15 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 use_mpi=False,
                 hook_class=hook_class,
                 measure=False,
-                maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
-                nsweeps=1 if QI != "MIN-SR-FLEX" else nsweeps,
+                maxiter=maxiter,
+                nsweeps=1,
                 **kwargs,
             )
 
-            errors_pos.append(get_error_values(solution_stats, "position", mode))
-            errors_vel.append(get_error_values(solution_stats, "velocity", mode))
-            errors_acc.append(get_error_values(solution_stats, "acceleration", mode))
-            errors_lag.append(get_error_values(solution_stats, "lagrange", mode))
+            errors_pos.append(get_error_values(solution_stats, "position", "iteration"))
+            errors_vel.append(get_error_values(solution_stats, "velocity", "iteration"))
+            errors_acc.append(get_error_values(solution_stats, "acceleration", "iteration"))
+            errors_lag.append(get_error_values(solution_stats, "lagrange", "iteration"))
 
         for k in range(len(errors_pos[0])):
             err_pos_iter = [res[k] for res in errors_pos]
@@ -392,7 +387,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_pos,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -400,7 +395,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short[-1] * 0.75,
                 ref_pos[-1] * offsets_pos[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -411,7 +406,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_vel,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -419,7 +414,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short[-1] * 0.75,
                 ref_vel[-1] * offsets_vel[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -430,7 +425,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_acc,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -438,7 +433,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short[-1] * 0.75,
                 ref_acc[-1] * offsets_acc[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -449,7 +444,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short,
                 ref_lag,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -457,7 +452,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
                 dt_list_short[-1] * 0.75,
                 ref_lag[-1] * offsets_lag[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -479,7 +474,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
 
         plot_name = "Fig6" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
         # plot_name = f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
@@ -528,8 +523,6 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
         errors_u, errors_v = [], []
         errors_w = []
 
-        mode = "sweep" if QI == "MIN-SR-FLEX" else "iteration"
-
         fig, axs = plt.subplots(2, 2, figsize=figsize)
         ax_flatten = axs.flatten()
 
@@ -545,14 +538,13 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 use_mpi=False,
                 hook_class=hook_class,
                 measure=False,
-                maxiter=maxiter if QI != "MIN-SR-FLEX" else 1,
-                nsweeps=1 if QI != "MIN-SR-FLEX" else nsweeps,
+                maxiter=maxiter,
                 **kwargs,
             )
 
-            errors_u.append(get_error_values(solution_stats, "concentration_u", mode))
-            errors_v.append(get_error_values(solution_stats, "concentration_v", mode))
-            errors_w.append(get_error_values(solution_stats, "concentration_w", mode))
+            errors_u.append(get_error_values(solution_stats, "concentration_u", "iteration"))
+            errors_v.append(get_error_values(solution_stats, "concentration_v", "iteration"))
+            errors_w.append(get_error_values(solution_stats, "concentration_w", "iteration"))
 
         for k in range(len(errors_u[0])):
             err_u_iter = [res[k] for res in errors_u]
@@ -594,7 +586,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short,
                 ref_u,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -602,7 +594,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short[-1] * 0.82,
                 ref_u[-1] * offsets[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -613,7 +605,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short,
                 ref_v,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -621,7 +613,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short[-1] * 0.82,
                 ref_v[-1] * offsets[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -632,7 +624,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short,
                 ref_w,
                 color="black",
-                linewidth=0.9,
+                linewidth=1.0,
                 linestyle="dashed",
             )
 
@@ -640,7 +632,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
                 dt_list_short[-1] * 0.82,
                 ref_w[-1] * offsets[k],
                 rf"${k+1}$",
-                fontsize=6,
+                fontsize=7,
                 va="center",
                 ha="left",
                 color="black",
@@ -661,7 +653,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
 
         ax_flatten[3].remove()
 

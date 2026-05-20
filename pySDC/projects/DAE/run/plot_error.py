@@ -10,10 +10,8 @@ from pySDC.projects.DAE import my_setup_mpl, my_plot_style_config
 
 from pySDC.implementations.hooks.log_errors import LogGlobalErrorPostStep, LogGlobalErrorPostIter
 from pySDC.projects.DAE.misc.hooksDAE import (
-    LogGlobalErrorPostIterDiff,
-    LogGlobalErrorPostIterAlg,
-    LogGlobalErrorPostStepDifferentialVariable,
-    LogGlobalErrorPostStepAlgebraicVariable,
+    LogGlobalErrorDiffVar,
+    LogGlobalErrorAlgVar,
 )
 from pySDC.projects.DAE.problems.reactionDiffusionPDAE import LogGlobalErrorPostIterAlgebraicEquation
 from pySDC.implementations.hooks.log_embedded_error_estimate import (
@@ -151,7 +149,7 @@ def run_and_plot_error_vs_iteration(dt, num_nodes, problem_name="LINEAR-TEST", j
 
     t0 = 0.0
 
-    hook_class = [LogGlobalErrorPostIterDiff, LogGlobalErrorPostIterAlg]
+    hook_class = [LogGlobalErrorDiffVar, LogGlobalErrorAlgVar]
 
     my_setup_mpl(fontsize=8)
     colors, markers, sweeper_labels = my_plot_style_config()
@@ -560,9 +558,9 @@ def plot_embedded_error_vs_time(dt, num_nodes, problem_name="LINEAR-TEST", journ
 
 
 def plot_algebraic_error_vs_iteration(
-    dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="png"
+    dt, num_nodes, problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"
 ):
-    figsize = figsize_by_journal(journal, scale=0.7, ratio=0.6)
+    figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
     pair_to_compare = (
         ("constrainedDAE", "MIN-SR-NS")
         if problem_name in ["ANDREWS-SQUEEZER", "LINEAR-TEST"]
@@ -586,9 +584,10 @@ def plot_algebraic_error_vs_iteration(
 
     t0 = 0.0
 
-    hook_class = [LogGlobalErrorPostIterAlg]
+    hook_class = [LogGlobalErrorAlgVar]
 
-    my_setup_mpl(fontsize=7)
+    my_setup_mpl(fontsize=5)
+    plt.rcParams['axes.linewidth'] = 0.45
     colors, markers, sweeper_labels = my_plot_style_config()
 
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -619,24 +618,40 @@ def plot_algebraic_error_vs_iteration(
             ]
 
             label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-            ax.semilogy(x, err_alg_values, color=colors[key], marker=markers[key], label=label)
+            ax.semilogy(
+                x,
+                err_alg_values,
+                color=colors[key],
+                marker=markers[key],
+                linewidth=1.0,
+                markersize=2.7,
+                markeredgewidth=0.5,
+                label=label,
+            )
 
-        ax.set_xlabel(r"iteration $k$")
-        ax.set_xticks(np.arange(1, maxiter + 1, 2))
+    ax.set_xlabel(r"iteration $k$")
 
-        if problem_name == "ANDREWS-SQUEEZER":
-            ax.set_ylabel(r"LTE $||z(t_1) - z^k_{M,t_1}||_{\infty}$")
-            ax.set_ylim((1e-12, 1e7))
-        elif problem_name == "REACTION-DIFFUSION":
-            ax.set_ylabel(r"LTE $||w(t_1) - w^k_{M,t_1}||_{\infty}$")
-            ax.set_ylim((1e-16, 1e-3))
+    ax.set_xticks(np.arange(1, maxiter + 1, 2))
+    ax.set_xticklabels(np.arange(1, maxiter + 1, 2))
+    ax.set_xlim((0.8, maxiter + 0.2))
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=3)
+    if problem_name == "ANDREWS-SQUEEZER":
+        ax.set_ylabel(r"LTE $||z(t_1) - z^k_{M,t_1}||_{\infty}$")
+        ax.set_ylim((1e-12, 1e8))
+    elif problem_name == "REACTION-DIFFUSION":
+        ax.set_ylabel(r"LTE $||w(t_1) - w^k_{M,t_1}||_{\infty}$")
+        ax.set_ylim((1e-16, 1e-3))
 
-    ax.grid(linewidth=0.5)
+    ax.tick_params(axis="both", which="major", length=2.5, width=0.45)
+    ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.45)
 
-    plot_name = f"Fig7"
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "." + format
+    ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
+    ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
+
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.35), ncol=3)
+
+    plot_name = f"Fig7.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 

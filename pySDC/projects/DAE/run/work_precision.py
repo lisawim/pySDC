@@ -29,7 +29,7 @@ def build_args_list(args, hook_class):
     return args_list
 
 
-def run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, setup, test_methods, **kwargs):
+def run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs):
     python_exec = sys.executable
 
     output_dir = "data" + "/" + f"{problem_name}" + "/" + "results"
@@ -77,10 +77,8 @@ def run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, 
                     "use_mpi": use_mpi,
                     "QI": QI,
                     "sweeper_type": sweeper_type,
-                    "setup": setup,
                     "problem_name": problem_name,
                     "num_nodes": str(num_nodes),
-                    "nsweeps": str(nsweeps),
                     "output_dir": output_dir,
                 }
             )

@@ -61,9 +61,9 @@ def get_ylabel_based_on_metric(metric_key: str, type: str = "step") -> str:
 
     if metric_key == "q_max_final_error":
         if type == "step":
-            return r"error $||q(T) - q^{\tilde{k}}_M||_{\infty}$"
+            return r"error $||q(T) - q^{\tilde{k}}_{M,T}||_{\infty}$"
         elif type == "iter":
-            return r"error $||q(T) - q^{k}_M||_{\infty}$"
+            return r"error $||q(T) - q^{k}_{M,T}||_{\infty}$"
 
     elif metric_key == "all_max_global_error":
         if type == "step":
@@ -109,10 +109,8 @@ def plots_work_vs_error(
     num_nodes: int,
     problem_name: str,
     sweepers: list[str],
-    setup: str,
-    nsweeps: int,
     test_methods: list[str],
-    qDelta_best: list[str] = ["LU", "MIN-SR-NS", "MIN-SR-S", "MIN-SR-FLEX"],
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS", "MIN-SR-S"],
     include_dopri: bool = True,
     filename: str = None,
     **kwargs: Any,
@@ -157,11 +155,11 @@ def plots_work_vs_error(
             results_file = precomputed_files[problem_name]
             path = os.path.join(base_path, results_file)
             if not os.path.exists(path):
-                run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, setup, test_methods, **kwargs)
-                results_file = f"results_experiment_{num_nodes}_{nsweeps}.pkl"
+                run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
+                results_file = f"results_experiment_{num_nodes}.pkl"
         else:
-            run_all_simulations(hook_class, num_nodes, nsweeps, problem_name, sweepers, setup, test_methods, **kwargs)
-            results_file = f"results_experiment_{num_nodes}_{nsweeps}.pkl"
+            run_all_simulations(hook_class, num_nodes, problem_name, sweepers, test_methods, **kwargs)
+            results_file = f"results_experiment_{num_nodes}.pkl"
 
     path = os.path.join(base_path, results_file)
     with open(path, "rb") as f:
@@ -216,13 +214,14 @@ def plot_work_vs_error_single(
 
     plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig8", "REACTION-DIFFUSION": "Fig11"}
 
-    figsize = figsize_by_journal(journal, scale=0.55, ratio=0.7)
+    figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
 
     ylabel = get_ylabel_based_on_metric(metric_key)
 
     label_order = []
 
-    my_setup_mpl(fontsize=8)
+    my_setup_mpl(fontsize=5)
+    plt.rcParams['axes.linewidth'] = 0.45
 
     colors, markers, _ = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -239,22 +238,29 @@ def plot_work_vs_error_single(
             metric_values,
             marker=markers[key],
             color=colors[key],
+            linewidth=1.0,
+            markersize=2.7,
+            markeredgewidth=0.5,
             label=label,
         )
 
         label_order.append(label)
 
-    ax.tick_params(axis="both", which="minor", bottom=False, left=False)
+    ax.tick_params(axis="both", which="major", length=2.5, width=0.45)
+    ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.45)
+
     ax.set_xlabel("wall-clock time in s")
     ax.set_ylabel(ylabel)
-    ax.grid(linewidth=0.5)
+
+    ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
+    ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
 
     labels_sorted, handles_sorted = get_sorted_handles_and_labels(ax, label_order)
 
-    fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
+    fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.55, 0.07), ncol=3)
 
     plot_name = plot_names[problem_name]
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "_5_5.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -267,7 +273,7 @@ def plot_work_vs_error_sdc_radau(
     metric_key: str,
     problem_name: str,
     sweepers: list[str],
-    qDelta_best: list[str] = ["LU", "MIN-SR-NS", "MIN-SR-S", "MIN-SR-FLEX"],
+    qDelta_best: list[str] = ["LU", "MIN-SR-NS", "MIN-SR-S"],
     sweeper_type_best: list[str] = ["constrainedDAE", "semiImplicitDAE"],
     radau_methods_plot: list[str] = ["RadauIIA5", "RadauIIA7"],
     journal: str = "Springer_Scientific_Computing",
@@ -300,13 +306,14 @@ def plot_work_vs_error_sdc_radau(
 
     plot_names = {"LINEAR-TEST": "Fig5", "ANDREWS-SQUEEZER": "Fig9", "REACTION-DIFFUSION": "Fig12"}
 
-    figsize = figsize_by_journal(journal, scale=0.55, ratio=0.7)
+    figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
 
     ylabel = get_ylabel_based_on_metric(metric_key)
 
     label_order = []
 
-    my_setup_mpl(fontsize=8)
+    my_setup_mpl(fontsize=5)
+    plt.rcParams['axes.linewidth'] = 0.45
     colors, markers, sweeper_labels = my_plot_style_config()
 
     fig, axs = plt.subplots(1, 1, figsize=figsize)
@@ -341,22 +348,29 @@ def plot_work_vs_error_sdc_radau(
                     metric_values,
                     marker=markers[key],
                     color=colors[key],
+                    linewidth=1.0,
+                    markersize=2.7,
+                    markeredgewidth=0.5,
                     label=label,
                 )
 
                 label_order.append(label)
 
-    axs.tick_params(axis="both", which="minor", bottom=False, left=False)
+    axs.tick_params(axis="both", which="major", length=2.5, width=0.45)
+    axs.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.45)
+
     axs.set_xlabel("wall-clock time in s")
     axs.set_ylabel(ylabel)
-    axs.grid(linewidth=0.5)
+
+    axs.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
+    axs.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
 
     labels_sorted, handles_sorted = get_sorted_handles_and_labels(axs, label_order)
 
-    fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
+    fig.legend(handles_sorted, labels_sorted, loc="upper center", bbox_to_anchor=(0.55, 0.07), ncol=3)
 
     plot_name = plot_names[problem_name]
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name + "_5_5.png"
+    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -685,7 +699,13 @@ if __name__ == "__main__":
     equations of index one'.
     """
 
-    config_linear = get_configs(problem_name="LINEAR-TEST", config_type="work_precision")
-    filename = "results_experiment_5_5.pkl"
-
-    plots_work_vs_error(filename=filename, **config_linear)
+    config_linear = get_configs(problem_name="REACTION-DIFFUSION", config_type="work_precision")
+    filename = "results_experiment_6_6.pkl"
+    qDelta_best = ["LU", "MIN-SR-S", "MIN-SR-FLEX"]
+    include_dopri = False
+    plots_work_vs_error(
+        filename=filename,
+        qDelta_best=qDelta_best,
+        include_dopri=include_dopri,
+        **config_linear,
+    )

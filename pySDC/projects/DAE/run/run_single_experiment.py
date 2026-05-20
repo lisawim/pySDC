@@ -116,8 +116,6 @@ def parse_args():
     parser.add_argument("--sweeper_type", type=str, required=True)
     parser.add_argument("--problem_name", type=str, default="DPR")
     parser.add_argument("--num_nodes", type=int, default=3)
-    parser.add_argument("--nsweeps", type=int, default=3)
-    parser.add_argument("--setup", type=str, default="convergence")
     parser.add_argument("--use_mpi", action="store_true")
     parser.add_argument("--hook_class", nargs='+', type=parse_hook, default=[])
     parser.add_argument("--output_dir", type=str, required=True)
@@ -156,8 +154,6 @@ def main():
             use_mpi=args.use_mpi,
             hook_class=hook_class,
             measure=False,
-            setup=args.setup,
-            nsweeps=args.nsweeps,
         )
 
     if args.use_mpi:
@@ -188,8 +184,6 @@ def main():
                 use_mpi=args.use_mpi,
                 hook_class=hook_class,
                 measure=True,
-                setup=args.setup,
-                nsweeps=args.nsweeps,
             )
 
             comm.Barrier()
@@ -215,8 +209,6 @@ def main():
                     use_mpi=args.use_mpi,
                     hook_class=hook_class,
                     measure=True,
-                    setup=args.setup,
-                    nsweeps=args.nsweeps,
                 )
 
                 timing_run_full = runtime
@@ -233,7 +225,7 @@ def main():
                 q_max_final_error_full.append(qend_max_final_err)
 
     if rank == 0:
-        fname = f"results_experiment_{args.num_nodes}_{args.nsweeps}.pkl"
+        fname = f"results_experiment_{args.num_nodes}.pkl"
         path = os.path.join(args.output_dir, fname)
 
         if os.path.exists(path) and os.path.getsize(path) > 0:

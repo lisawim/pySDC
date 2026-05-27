@@ -23,6 +23,8 @@ def plot_solution_linear(
     QI: str = "LU",
     Tend: float = 1.0,
 ):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "LINEAR-TEST"
 
     t0 = 0.0
@@ -54,12 +56,8 @@ def plot_solution_linear(
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches='tight')
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_linear_embedded(
@@ -72,6 +70,8 @@ def plot_solution_linear_embedded(
     QI: str = "LU",
     Tend: float = 1.0,
 ):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     colors = [
         'mistyrose',
         'lightsalmon',
@@ -130,12 +130,8 @@ def plot_solution_linear_embedded(
     handles, labels = axs[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=4)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches='tight')
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_andrews(
@@ -198,7 +194,7 @@ def plot_solution_andrews(
     ax.plot(t, q4, label=r"$\Phi$")  # label=r"$q_4$")
     ax.plot(t, q5, label=r"$\delta$")  # label=r"$q_5$")
     ax.plot(t, q6, label=r"$\Omega$")  # label=r"$q_6$")
-    ax.plot(t, q7, label=r"$\varepsilon$")
+    ax.plot(t, q7, label=r"$\tilde{\varepsilon}$")
 
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solution $q$")
@@ -214,7 +210,7 @@ def plot_solution_andrews(
 
         out = Path("data") / problem_name / f"{filename}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out, dpi=400, bbox_inches="tight")
+        fig.savefig(out, dpi=500, bbox_inches="tight")
 
         if not return_ax:
             plt.close(fig)
@@ -231,6 +227,8 @@ def plot_solution_reaction_diffusion(
     Tend: float = 1.0,
     time_points_to_plot: list = [0.25, 0.5, 0.75, 1.0],
 ):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "REACTION-DIFFUSION"
 
     my_setup_mpl(fontsize=7)
@@ -297,12 +295,8 @@ def plot_solution_reaction_diffusion(
     handles, labels = ax_flatten[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.03), ncol=3)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_discontinuous_test(
@@ -314,6 +308,8 @@ def plot_solution_discontinuous_test(
     QI: str = "LU",
     Tend: float = 5.0,
 ):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "DISC-TEST"
 
     t0 = 1.0
@@ -347,12 +343,8 @@ def plot_solution_discontinuous_test(
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=2)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_wscc9(
@@ -380,6 +372,8 @@ def plot_solution_wscc9(
     cwd : str
         Current working directory.
     """
+
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
 
     problem_name = "WSCC9"
 
@@ -417,12 +411,8 @@ def plot_solution_wscc9(
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=3)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_battery(
@@ -434,6 +424,8 @@ def plot_solution_battery(
     QI: str = "LU",
     Tend: float = 3.5,
 ):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "BATTERY"
 
     t0 = 0.0
@@ -467,12 +459,8 @@ def plot_solution_battery(
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=2)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches='tight')
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_buck_converter(
@@ -485,6 +473,7 @@ def plot_solution_buck_converter(
     Tend: float = 0.02,
 ):
     from pySDC.projects.DAE.problems.buckConverterDAE import LogPWMSignal
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
 
     problem_name = "BUCK-CONVERTER"
 
@@ -533,12 +522,8 @@ def plot_solution_buck_converter(
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=4)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_solution_piline(
@@ -550,6 +535,8 @@ def plot_solution_piline(
     QI: str = "LU",
     Tend: float = 10.0,
 ):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "PILINE"
 
     t0 = 0.0
@@ -585,9 +572,5 @@ def plot_solution_piline(
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=3)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches='tight')
-    plt.close(fig)
+    plot_name = f"{filename}"
+    save_fig(plt, plot_name, problem_name)

@@ -276,7 +276,7 @@ def plot_speedups(
                     linewidth=0.8,
                     linestyle="solid" if sweeper_type_par == "constrainedDAE" else "dashdot",
                     markersize=2.2,
-                    markeredgewidth=0.4,
+                    markeredgewidth=0.3,
                 )
                 print(f"Plotted maximum speedup for {key_par}: {max(ys_s)}")
 

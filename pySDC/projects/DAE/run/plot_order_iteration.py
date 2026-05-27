@@ -104,6 +104,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
         LogGlobalErrorDiffVar,
         LogGlobalErrorAlgVar,
     )
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
 
     problem_name = "LINEAR-TEST"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.5)
@@ -249,13 +250,8 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
 
-        plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}.png"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
-        file_path = Path(filename)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
-        plt.close(fig)
+        plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
+        save_fig(plt, plot_name, problem_name)
 
 
 def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
@@ -264,10 +260,10 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
     from pySDC.projects.DAE.problems.andrewsSqueezingMechanism import (
         LogGlobalErrorMechanicalVars,
     )
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
 
     problem_name = "ANDREWS-SQUEEZER"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
-    figsize_g = figsize_by_journal(journal, scale=0.5, ratio=0.9)
 
     colors = ["yellow", "gold", "orange", "red", "pink", "mediumpurple"]
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D"]
@@ -294,14 +290,11 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
 
     for q, QI in enumerate(QI_list):
         print(f"Running for {QI}..")
-        abs_g_vals = []
         errors_pos, errors_vel = [], []
         errors_acc, errors_lag = [], []
 
         fig, axs = plt.subplots(2, 2, figsize=figsize)
         ax_flatten = axs.flatten()
-
-        fig_g, axs_g = plt.subplots(1, 1, figsize=figsize_g)
 
         for dt in dt_list:
             solution_stats = compute_solution(
@@ -492,20 +485,13 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
         ax_flatten[3].set_ylabel(r"LTE $||\lambda(t_1) - \lambda^k_{M,t_1}||_{\infty}$")
 
         ax_flatten = sync_ylim(ax_flatten, min_y_set=1e-15)
-        y_limits = ax_flatten[0].get_ylim()
-        axs_g.set_ylim(y_limits)
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
         fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
 
-        plot_name = f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}.png"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
-        file_path = Path(filename)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
-        plt.close(fig)
+        plot_name = f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
+        save_fig(plt, plot_name, problem_name)
 
 
 def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", journal="Springer_Scientific_Computing"):
@@ -515,6 +501,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
         LogGlobalErrorPreIterConcentrations,
         LogGlobalErrorPostIterConcentrations,
     )
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
 
     problem_name = "REACTION-DIFFUSION"
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
@@ -716,13 +703,8 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
         ax_flatten[3].remove()
 
-        plot_name = f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}.png"
-        filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
-        file_path = Path(filename)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
-        plt.close(fig)
+        plot_name = f"order_iteration_{num_nodes=}_{sweeper_type}_{QI}"
+        save_fig(plt, plot_name, problem_name)
 
 
 if __name__ == "__main__":

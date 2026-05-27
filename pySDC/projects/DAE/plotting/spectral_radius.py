@@ -387,6 +387,8 @@ def plot_spectral_radius(
 
 
 def plot_spectral_radius_sdc_spp_and_sdc_e_and_sdc_c(journal="Springer_Scientific_Computing"):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "LINEAR-TEST"
 
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.85)
@@ -472,13 +474,8 @@ def plot_spectral_radius_sdc_spp_and_sdc_e_and_sdc_c(journal="Springer_Scientifi
 
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=4)
 
-    plot_name = f"sr_constrained_embedded.png"
-    filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"sr_constrained_embedded"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_spectral_radius_and_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):

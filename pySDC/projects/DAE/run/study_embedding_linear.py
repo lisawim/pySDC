@@ -532,6 +532,8 @@ def plot_absolute_value_g_vs_metric(
 
 
 def convergence_plot_thesis(dt, num_nodes, along="iterations", QI="MIN-SR-NS", journal="BUW_thesis", return_axs=False):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "LINEAR-TEST"
 
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.83)
@@ -568,12 +570,13 @@ def convergence_plot_thesis(dt, num_nodes, along="iterations", QI="MIN-SR-NS", j
 
     ax_flatten[3].remove()
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"convergence_{num_nodes=}_{dt=}.png"
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"convergence_{num_nodes=}_{dt=}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def increment_plot_different_sweepers_thesis(dt, num_nodes, journal="BUW_thesis"):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "LINEAR-TEST"
 
     QI_list = ["EE", "IE", "LU", "MIN-SR-S", "Picard"]
@@ -605,9 +608,8 @@ def increment_plot_different_sweepers_thesis(dt, num_nodes, journal="BUW_thesis"
 
     ax_flatten[-1].remove()
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"increment_different_sweepers_{num_nodes=}_{dt=}.png"
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"increment_different_sweepers_{num_nodes=}_{dt=}"
+    save_fig(plt, plot_name, problem_name)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from pySDC.projects.PinTSimE.WSCC9BusSystem import WSCC9BusSystem
 from pySDC.projects.PinTSimE.battery_model import generateDescription, controllerRun
 from pySDC.helpers.stats_helper import get_sorted
 from pySDC.projects.DAE import my_setup_mpl
+from pySDC.projects.DAE.run.plots_scaling import save_fig
 from pySDC.helpers.plot_helper import figsize_by_journal
 
 from pySDC.projects.PinTSimE.paper_PSCC2024.log_event import LogEventDiscontinuousTestDAE, LogEventWSCC9
@@ -462,12 +463,8 @@ def plot_functions_over_time(
         elif problem_name == "WSCC9":
             filename = f"wscc9_state_function_over_time_{dt=}"
 
-        filename = "data" + "/" + f"{problem_name}" + "/" + f"{filename}.png"
-        file_path = Path(filename)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
-        plt.close(fig)
+        plot_name = f"{filename}"
+        save_fig(plt, plot_name, problem_name)
 
 
 def plot_error_norm(results_error_norm, problem_name, journal="BUW_thesis"):  # pragma: no cover
@@ -528,12 +525,8 @@ def plot_error_norm(results_error_norm, problem_name, journal="BUW_thesis"):  # 
 
     fig.legend(loc="upper center", bbox_to_anchor=(0.55, 0.07), ncol=3)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + "test_DAE_error_norms.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = "test_DAE_error_norms"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_state_function_detection(results_state_function, problem_name, y_label, journal="BUW_thesis"):  # pragma: no cover
@@ -612,12 +605,8 @@ def plot_state_function_detection(results_state_function, problem_name, y_label,
     handles, labels = axs[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.05), ncol=3)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + "state_function_detection.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = "state_function_detection"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_event_time_error(results_event_error, problem_name, journal="BUW_thesis"):  # pragma: no cover
@@ -673,12 +662,8 @@ def plot_event_time_error(results_event_error, problem_name, journal="BUW_thesis
 
     fig.legend(loc="upper center", bbox_to_anchor=(0.55, 0.07), ncol=3)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + "test_DAE_event_time_error.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = "test_DAE_event_time_error"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_event_time_error_before_restarts(results_event_error_restarts, problem_name, dt_fix=None, journal="BUW_thesis"):  # pragma: no cover
@@ -778,12 +763,8 @@ def plot_event_time_error_before_restarts(results_event_error_restarts, problem_
 
         fig.legend(loc="upper center", bbox_to_anchor=(0.5, 0.05), ncol=3)
 
-        filename = "data" + "/" + f"{problem_name}" + "/" + f"test_DAE_event_time_error_restarts_{dt=}.png"
-        file_path = Path(filename)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
-        plt.close(fig)
+        plot_name = f"test_DAE_event_time_error_restarts_{dt=}"
+        save_fig(plt, plot_name, problem_name)
 
 
 if __name__ == "__main__":

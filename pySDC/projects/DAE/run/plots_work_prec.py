@@ -273,7 +273,7 @@ def plot_work_vs_error_single(
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    fig.savefig(filename, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -357,7 +357,7 @@ def plot_work_vs_error_sdc_radau(
                     color=colors[key],
                     linewidth=0.7,
                     markersize=2.0,
-                    markeredgewidth=0.4,
+                    markeredgewidth=0.3,
                     label=label,
                 )
 
@@ -380,7 +380,7 @@ def plot_work_vs_error_sdc_radau(
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    fig.savefig(filename, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 

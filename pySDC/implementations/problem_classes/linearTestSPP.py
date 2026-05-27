@@ -190,7 +190,6 @@ class LinearTestSPP(Problem):
         non_f = self.dtype_f(self.init, val=0.0)
         return non_f
 
-
     def g(self, factor, u, t, rhs):
         g1 = u[0] - factor * (self.lamb_diff * u[0] + self.lamb_alg * u[1]) - rhs[0]
         g2 = u[1] - factor * (self.lamb_diff * u[0] - self.lamb_alg * u[1]) / self.eps - rhs[1]

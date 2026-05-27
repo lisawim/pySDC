@@ -37,7 +37,7 @@ def get_linestyles():
 def save_fig(plot, plot_name, problem_name):
     out = Path("data") / problem_name / f"{plot_name}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    plot.savefig(out, dpi=400, bbox_inches="tight")
+    plot.savefig(out, dpi=500, bbox_inches="tight")
     plot.close()
 
 
@@ -385,7 +385,7 @@ def plot_wallclocktime_vs_accuracy(
                     linestyle="solid" if sweeper_type == "constrainedDAE" else "dashdot",
                     linewidth=0.7,
                     markersize=2.0,
-                    markeredgewidth=0.4,
+                    markeredgewidth=0.3,
                     label=label,
                 )
 
@@ -803,7 +803,7 @@ def plot_quantity_over_time(
 
         out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out, dpi=400, bbox_inches="tight")
+        fig.savefig(out, dpi=500, bbox_inches="tight")
 
         if not return_ax:
             plt.close(fig)

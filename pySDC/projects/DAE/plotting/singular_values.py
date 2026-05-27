@@ -13,6 +13,8 @@ from pySDC.projects.DAE.plotting.spectral_radius import (
 
 
 def plot_svd(num_nodes, QI="MIN-SR-NS", journal="Springer_Scientific_Computing"):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "LINEAR-TEST"
 
     figsize = figsize_by_journal(journal, scale=0.55, ratio=0.7)
@@ -84,14 +86,14 @@ def plot_svd(num_nodes, QI="MIN-SR-NS", journal="Springer_Scientific_Computing")
     ax.set_axisbelow(True)
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=4)
-    filename = "data" + "/" + f"{problem_name}" + "/" + "svd_thesis" + "/" + f"svd_{QI}_{num_nodes=}_{dt=}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+
+    plot_name = f"svd_{QI}_{num_nodes=}_{dt=}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_svd_of_iteration_matrix_powers(num_nodes, QI="MIN-SR-NS", journal="Springer_Scientific_Computing"):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     problem_name = "LINEAR-TEST"
 
     figsize = figsize_by_journal(journal, scale=0.8, ratio=0.55)
@@ -176,12 +178,8 @@ def plot_svd_of_iteration_matrix_powers(num_nodes, QI="MIN-SR-NS", journal="Spri
     ax.set_axisbelow(True)
 
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=5)
-    filename = "data" + "/" + f"{problem_name}" + "/" + "svd_thesis" + "/" + f"svd_powers_{QI}_{num_nodes=}_{dt=}.png"
-    file_path = Path(filename)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
-
+    plot_name = f"svd_powers_{QI}_{num_nodes=}_{dt=}"
+    save_fig(plt, plot_name, problem_name)
 
 
 if __name__ == "__main__":

@@ -139,6 +139,8 @@ def plot_error_z_vs_iterations_dae_solvers(
 
 
 def absolute_values_g_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_ax=False):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     figsize = figsize_by_journal(journal=journal, scale=0.7, ratio=0.83)
 
     _, _, sweeper_labels = my_plot_style_config()
@@ -180,9 +182,8 @@ def absolute_values_g_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", 
     handles, labels = ax_flatten[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.03), ncol=4)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"absolute_values_g_{num_nodes=}_{dt=}.png"
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"absolute_values_g_{num_nodes=}_{dt=}"
+    save_fig(plt, plot_name, problem_name)
 
 
 def plot_differential_algebraic_error_vs_iterations_qi(dt, num_nodes, problem_name, sweeper_type, journal="BUW_thesis", axs=None, return_axs=False):
@@ -259,6 +260,8 @@ def plot_differential_algebraic_error_vs_iterations_qi(dt, num_nodes, problem_na
 
 
 def dae_errors_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_ax=False):
+    from pySDC.projects.DAE.run.plots_scaling import save_fig
+
     figsize = figsize_by_journal(journal=journal, scale=0.7, ratio=0.83)
 
     _, _, sweeper_labels = my_plot_style_config()
@@ -300,6 +303,5 @@ def dae_errors_thesis(dt, num_nodes, problem_name, journal="BUW_thesis", return_
     handles, labels = ax_flatten[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.03), ncol=4)
 
-    filename = "data" + "/" + f"{problem_name}" + "/" + f"dae_errors_{num_nodes=}_{dt=}.png"
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
-    plt.close(fig)
+    plot_name = f"dae_errors_{num_nodes=}_{dt=}"
+    save_fig(plt, plot_name, problem_name)

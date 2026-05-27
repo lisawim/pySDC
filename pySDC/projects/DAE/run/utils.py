@@ -78,7 +78,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_MIN-SR-S": "purple",
         "constrainedDAE_MIN-SR-FLEX": "darkgrey",
         "constrainedDAE_Picard": "dodgerblue",
-        "constrainedDAE_DOPRI5": "darkmagenta",
+        "constrainedDAE_DOPRI5": "lightpink",
         "embeddedDAE_EE": "black",
         "embeddedDAE_IE": "firebrick",
         "embeddedDAE_LU": "green",

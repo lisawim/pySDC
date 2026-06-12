@@ -28,15 +28,24 @@ def my_setup_mpl(fontsize: int = 16) -> None:
     plt.rcParams["ytick.labelsize"] = fontsize
     plt.rcParams['legend.fontsize'] = fontsize
     plt.rcParams['axes.titlesize'] = fontsize
+    plt.rcParams['axes.linewidth'] = 0.8
 
+    plt.rcParams["xtick.major.width"] = 0.7
+    plt.rcParams["ytick.major.width"] = 0.7
+    plt.rcParams["xtick.minor.width"] = 0.7
+    plt.rcParams["ytick.minor.width"] = 0.7
+    plt.rcParams["xtick.major.size"] = 2.5
+    plt.rcParams["ytick.major.size"] = 2.5
+    plt.rcParams["xtick.minor.size"] = 1
+    plt.rcParams["ytick.minor.size"] = 1
     plt.rcParams['xtick.minor.visible'] = False
     plt.rcParams['ytick.minor.visible'] = False
 
-    plt.rcParams['lines.linewidth'] = 1.3
+    plt.rcParams['lines.linewidth'] = 1.5
     plt.rcParams["lines.solid_capstyle"] = "round"
     plt.rcParams["lines.markeredgewidth"] = 0.6
     plt.rcParams["lines.markeredgecolor"] = "black"
-    plt.rcParams["lines.markersize"] = 3.8
+    plt.rcParams["lines.markersize"] = 4.0
 
     # sets fig.tight_layout()
     plt.rcParams["figure.autolayout"] = True
@@ -64,7 +73,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "constrainedDAE_MIN-SR-S": "mediumorchid",
         "constrainedDAE_MIN-SR-FLEX": "darkgrey",
         "constrainedDAE_Picard": "dodgerblue",
-        "constrainedDAE_DOPRI5": "darkmagenta",
+        "constrainedDAE_DOPRI5": "lightpink",
         "embeddedDAE_IE": "royalblue",
         "embeddedDAE_LU": "green",
         "embeddedDAE_MIN-SR-NS": "plum",
@@ -152,8 +161,8 @@ def set_specific_setup(description, dt, num_nodes, problem_name, QI, **kwargs):
 
         description["problem_params"] = {
             "nvars": kwargs.get("nvars", 256),
-            "newton_tol": 1e-14,
-            "newton_maxiter": 10,
+            "newton_tol": newton_tol(dt),# tol_ref=2e-12),
+            "newton_maxiter": 7,
         }
         if not QI.startswith("RadauIIA"):
             description["problem_params"]["spectral"] = kwargs.get("spectral", True)

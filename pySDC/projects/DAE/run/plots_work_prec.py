@@ -69,7 +69,7 @@ def get_ylabel_based_on_metric(metric_key: str, type: str = "step") -> str:
         if type == "step":
             return r"$L_\infty$ error"
         elif type == "iter":
-            return r"$L_\infty$ error after iteration $k$"
+            return r"LTE $||u(t_1) - u^k_{M,t_1}||_{\infty}$"
 
 
 def get_sorted_handles_and_labels(
@@ -179,10 +179,6 @@ def plots_work_vs_error(
         **kwargs,
     )
 
-    # sdc_keys, baseline_keys = default_keys_for_comparison()
-
-    # plot_speedup_vs_error(all_stats, problem_name, sdc_keys, baseline_keys, metric_key, **kwargs)
-
 
 def plot_work_vs_error_single(
     all_stats: dict[str, dict[str, list[float]]],
@@ -212,7 +208,7 @@ def plot_work_vs_error_single(
         Name of the journal to obtain specified scale and height for figsize.
     """
 
-    plot_names = {"LINEAR-TEST": "Fig4", "ANDREWS-SQUEEZER": "Fig8", "REACTION-DIFFUSION": "Fig11"}
+    plot_names = {"LINEAR-TEST": "Fig4.png", "ANDREWS-SQUEEZER": "Fig8.png", "REACTION-DIFFUSION": "Fig11.png"}
 
     figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
 
@@ -222,6 +218,7 @@ def plot_work_vs_error_single(
 
     my_setup_mpl(fontsize=5)
     plt.rcParams['axes.linewidth'] = 0.45
+    plt.rcParams['patch.linewidth'] = 0.3
 
     colors, markers, _ = my_plot_style_config()
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -239,8 +236,8 @@ def plot_work_vs_error_single(
             marker=markers[key],
             color=colors[key],
             linewidth=1.0,
-            markersize=2.7,
-            markeredgewidth=0.5,
+            markersize=2.9,
+            markeredgewidth=0.4,
             label=label,
         )
 
@@ -251,6 +248,9 @@ def plot_work_vs_error_single(
 
     ax.set_xlabel("wall-clock time in s")
     ax.set_ylabel(ylabel)
+
+    ax.set_xlim((6e-1, 2e4))
+    ax.set_ylim((5e-15, 5e-9))
 
     ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
     ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
@@ -264,7 +264,7 @@ def plot_work_vs_error_single(
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    fig.savefig(filename, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -304,7 +304,7 @@ def plot_work_vs_error_sdc_radau(
         Indicates if half-explicit RK method using Dormand & Prince coefficients should be used.
     """
 
-    plot_names = {"LINEAR-TEST": "Fig5", "ANDREWS-SQUEEZER": "Fig9", "REACTION-DIFFUSION": "Fig12"}
+    plot_names = {"LINEAR-TEST": "Fig5.png", "ANDREWS-SQUEEZER": "Fig9.png", "REACTION-DIFFUSION": "Fig12.png"}
 
     figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
 
@@ -314,6 +314,7 @@ def plot_work_vs_error_sdc_radau(
 
     my_setup_mpl(fontsize=5)
     plt.rcParams['axes.linewidth'] = 0.45
+    plt.rcParams['patch.linewidth'] = 0.3
     colors, markers, sweeper_labels = my_plot_style_config()
 
     fig, axs = plt.subplots(1, 1, figsize=figsize)
@@ -349,8 +350,8 @@ def plot_work_vs_error_sdc_radau(
                     marker=markers[key],
                     color=colors[key],
                     linewidth=1.0,
-                    markersize=2.7,
-                    markeredgewidth=0.5,
+                    markersize=2.9,
+                    markeredgewidth=0.4,
                     label=label,
                 )
 
@@ -361,6 +362,9 @@ def plot_work_vs_error_sdc_radau(
 
     axs.set_xlabel("wall-clock time in s")
     axs.set_ylabel(ylabel)
+
+    axs.set_xlim((5e-1, 2e4))
+    axs.set_ylim((1e-15, 1e-4))
 
     axs.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
     axs.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
@@ -374,7 +378,7 @@ def plot_work_vs_error_sdc_radau(
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    fig.savefig(filename, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -700,8 +704,8 @@ if __name__ == "__main__":
     """
 
     config_linear = get_configs(problem_name="REACTION-DIFFUSION", config_type="work_precision")
-    filename = "results_experiment_6_6.pkl"
-    qDelta_best = ["LU", "MIN-SR-S", "MIN-SR-FLEX"]
+    filename = "results_experiment_6_reaction_diffusion.pkl"
+    qDelta_best = ["LU", "MIN-SR-S"]
     include_dopri = False
     plots_work_vs_error(
         filename=filename,

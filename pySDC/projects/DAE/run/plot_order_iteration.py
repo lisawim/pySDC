@@ -156,6 +156,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
     hook_class = [LogGlobalErrorDiffVar, LogGlobalErrorAlgVar]
 
     my_setup_mpl(fontsize=7.5)
+    plt.rcParams['patch.linewidth'] = 0.3
 
     offsets = [0.7, 0.45, 0.6, 0.55, 0.55, 0.5, 0.45]
 
@@ -261,7 +262,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
 
         handles, labels = axs[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.04), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.04), ncol=3)
 
         plot_name = "Fig3" if QI == "MIN-SR-NS" else f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
         # plot_name = f"order_iteration_linear_{num_nodes=}_{sweeper_type}_{QI}"
@@ -269,7 +270,7 @@ def plot_order_linear(num_nodes=3, sweeper_type="constrainedDAE", journal="Sprin
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
+        fig.savefig(filename, dpi=500, bbox_inches="tight")
         plt.close(fig)
 
 
@@ -289,7 +290,6 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
 
     QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-NS", "Picard"]
     maxiter = 2 * num_nodes - 1
-    nsweeps = maxiter
     e_tol = -1
 
     kwargs = {"e_tol": e_tol}
@@ -301,6 +301,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
     hook_class = [LogGlobalErrorMechanicalVars]
 
     my_setup_mpl(fontsize=8)
+    plt.rcParams['patch.linewidth'] = 0.3
 
     offsets_pos = [0.8, 0.1, 0.6, 0.25, 0.55, 0.5, 0.45]
     offsets_vel = [0.15, 0.57, 0.6, 0.55, 0.55, 0.5, 0.35]
@@ -474,7 +475,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.02), ncol=3)
 
         plot_name = "Fig6" if QI == "MIN-SR-NS" else f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
         # plot_name = f"order_iteration_andrews_{num_nodes=}_{sweeper_type}_{QI}"
@@ -482,7 +483,7 @@ def plot_order_andrews(num_nodes=3, sweeper_type="constrainedDAE", journal="Spri
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
+        fig.savefig(filename, dpi=500, bbox_inches="tight")
         plt.close(fig)
 
 
@@ -500,9 +501,8 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
     markers = ["o", "^", "h", "s", "d", "H", "*", "v", "D", "<", ">", "o", "^"]
     linestyles = ["solid", "dotted"]
 
-    QI_list = ["IE", "LU", "MIN-SR-S", "MIN-SR-FLEX"]
+    QI_list = ["IE", "LU", "MIN-SR-S"]
     maxiter = 2 * num_nodes - 1
-    nsweeps = maxiter
     e_tol = -1
 
     kwargs = {"e_tol": e_tol}
@@ -515,6 +515,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
     hook_class = [LogGlobalErrorConcentrations]
 
     my_setup_mpl(fontsize=8)
+    plt.rcParams['patch.linewidth'] = 0.3
 
     offsets = [0.18, 0.18, 0.2, 0.25, 0.3, 0.3, 0.35]
 
@@ -653,7 +654,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
 
         handles, labels = ax_flatten[0].get_legend_handles_labels()
 
-        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.02), ncol=3)
 
         ax_flatten[3].remove()
 
@@ -663,7 +664,7 @@ def plot_order_reaction_diffusion(num_nodes=3, sweeper_type="constrainedDAE", jo
         file_path = Path(filename)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        fig.savefig(filename, dpi=400, bbox_inches="tight")
+        fig.savefig(filename, dpi=500, bbox_inches="tight")
         plt.close(fig)
 
         plot_name = f"abs_g_order_{num_nodes=}_{sweeper_type}_{QI}.png"

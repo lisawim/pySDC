@@ -107,6 +107,7 @@ def plot_manifold_value_vs_iteration(
 
     my_setup_mpl(fontsize=5)
     plt.rcParams['axes.linewidth'] = 0.45
+    plt.rcParams['patch.linewidth'] = 0.3
     colors, markers, sweeper_labels = my_plot_style_config()
 
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -141,8 +142,8 @@ def plot_manifold_value_vs_iteration(
                 color=colors[key],
                 marker=markers[key],
                 linewidth=1.0,
-                markersize=2.7,
-                markeredgewidth=0.5,
+                markersize=2.9,
+                markeredgewidth=0.4,
                 label=label,
             )
 
@@ -169,7 +170,7 @@ def plot_manifold_value_vs_iteration(
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    fig.savefig(filename, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 

@@ -588,6 +588,7 @@ def plot_algebraic_error_vs_iteration(
 
     my_setup_mpl(fontsize=5)
     plt.rcParams['axes.linewidth'] = 0.45
+    plt.rcParams['patch.linewidth'] = 0.3
     colors, markers, sweeper_labels = my_plot_style_config()
 
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -624,8 +625,8 @@ def plot_algebraic_error_vs_iteration(
                 color=colors[key],
                 marker=markers[key],
                 linewidth=1.0,
-                markersize=2.7,
-                markeredgewidth=0.5,
+                markersize=2.9,
+                markeredgewidth=0.4,
                 label=label,
             )
 
@@ -648,14 +649,14 @@ def plot_algebraic_error_vs_iteration(
     ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
     ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
 
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.35), ncol=3)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.55, -0.35), ncol=3)
 
     plot_name = f"Fig7.png"
     filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400, bbox_inches="tight")
+    fig.savefig(filename, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 

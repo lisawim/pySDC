@@ -384,7 +384,7 @@ def compute_QI_coefficients(Q_coefficients: dict, QI_list: list):
 #     plt.close(fig)
 
 
-def plot_spectral_radius_and_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing", format="eps"):
+def plot_spectral_radius_and_evd(problem_name="LINEAR-TEST", journal="Springer_Scientific_Computing"):
     figsize = figsize_by_journal(journal, scale=1.9, ratio=0.6)
 
     sweeper_type = "constrainedDAE"
@@ -498,12 +498,12 @@ def plot_spectral_radius_and_evd(problem_name="LINEAR-TEST", journal="Springer_S
 
     fig.subplots_adjust(bottom=0.22)
 
-    plot_name = f"Fig2.{format}"
+    plot_name = f"Fig2.png"
     filename = "data" + "/" + f"{problem_name}" + "/" + plot_name
     file_path = Path(filename)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(filename, dpi=400)
+    fig.savefig(filename, dpi=500)
     plt.close(fig)
 
 

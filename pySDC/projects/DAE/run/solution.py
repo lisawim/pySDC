@@ -124,7 +124,7 @@ def plot_solution_andrews(
     ax.plot(t, q4, label=r"$\Phi$")  # label=r"$q_4$")
     ax.plot(t, q5, label=r"$\delta$")  # label=r"$q_5$")
     ax.plot(t, q6, label=r"$\Omega$")  # label=r"$q_6$")
-    ax.plot(t, q7, label=r"$\varepsilon$")
+    ax.plot(t, q7, label=r"$\tilde{\varepsilon}$")
 
     ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"solution $q$")
@@ -137,7 +137,7 @@ def plot_solution_andrews(
 
         out = Path("data") / problem_name / f"{filename}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out, dpi=400, bbox_inches="tight")
+        fig.savefig(out, dpi=500, bbox_inches="tight")
 
         if not return_ax:
             plt.close(fig)

@@ -35,8 +35,7 @@ if __name__ == "__main__":
     equations of index one'.
     """
 
-    format = "png"
-    plot_spectral_radius_and_evd(format=format)  # Figure 2
+    plot_spectral_radius_and_evd()  # Figure 2
     plot_order_linear()  # Figure 3
     make_work_precision_plots()  # Figures 4, 5, 8, 9, 11, 12
     plot_order_andrews()  # Figure 6

@@ -43,7 +43,7 @@ def get_linestyles():
 def save_fig(plot, plot_name, problem_name):
     out = Path("data") / problem_name / f"{plot_name}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    plot.savefig(out, dpi=400, bbox_inches="tight")
+    plot.savefig(out, dpi=600, bbox_inches="tight", pad_inches=0.01)
     plot.close()
 
 
@@ -352,9 +352,11 @@ def plot_wallclocktime_vs_accuracy(
         metric_key = "all_max_global_error"
         y_of = lambda st: max(st.e_global_steps)
 
-    figsize = figsize_by_journal(journal, scale=0.6, ratio=0.65)
+    figsize = figsize_by_journal(journal, scale=0.35, ratio=0.6)
 
-    my_setup_mpl(fontsize=6)
+    my_setup_mpl(fontsize=2.6)
+    plt.rcParams['axes.linewidth'] = 0.27
+    plt.rcParams['patch.linewidth'] = 0.2
     colors, markers, _ = my_plot_style_config()
 
     fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -399,13 +401,15 @@ def plot_wallclocktime_vs_accuracy(
                     color=colors[key],
                     marker=markers[key],
                     linestyle="solid" if sweeper_type == "constrainedDAE" else "dashdot",
+                    linewidth=0.7,
+                    markersize=1.5,
+                    markeredgewidth=0.2,
                     label=label,
                 )
 
     used_nodes_sorted = sorted(used_nodes_all)
-    ax.tick_params(axis="both", which="minor", bottom=True, left=False)
-    ax.tick_params(axis="x", which="minor", bottom=True, length=2.0, width=0.6)
-    ax.tick_params(axis="y", which="minor", left=False)
+    ax.tick_params(axis="both", which="major", length=2.0, width=0.27)
+    ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.0, width=0.27)
     ax.set_xlabel(r"wall-clock time in s (one run per $M$)")
 
     if used_nodes_sorted:
@@ -423,9 +427,6 @@ def plot_wallclocktime_vs_accuracy(
     ax.yaxis.set_major_locator(LogLocator(base=10))
     ax.yaxis.set_major_formatter(LogFormatterMathtext(base=10))
 
-    # ax.tick_params(axis="x", which="minor", bottom=True, length=2)
-    # ax.tick_params(axis="y", which="minor", left=False)
-
     ax.grid(which="major", axis="x", linewidth=0.35, alpha=0.3)
     ax.grid(which="minor", axis="x", linewidth=0.15, alpha=0.10)
     ax.grid(which="major", axis="y", linewidth=0.35, alpha=0.35)
@@ -434,7 +435,7 @@ def plot_wallclocktime_vs_accuracy(
     ax.set_ylabel(ylabel)
 
     handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.58, 0.05), ncol=3)  # ncol=2
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.11), ncol=2)
 
     plot_name = plot_names[problem_name]
     save_fig(plt, plot_name, problem_name)
@@ -481,8 +482,9 @@ def plot_time_to_accuracy(
 
     plot_names = {"LINEAR-TEST": "Fig3", "ANDREWS-SQUEEZER": "Fig7", "REACTION-DIFFUSION": "Fig9"}
 
-    figsize = figsize_by_journal(journal, scale=0.9, ratio=0.9)
-    my_setup_mpl(fontsize=9)
+    figsize = figsize_by_journal(journal, scale=0.72, ratio=0.83)
+    my_setup_mpl(fontsize=5.3)
+    plt.rcParams['axes.linewidth'] = 0.55
     colors, markers, sweeper_labels = my_plot_style_config()
     linestyles = get_linestyles()
 
@@ -538,11 +540,12 @@ def plot_time_to_accuracy(
         ax.set_xscale("log", base=10)
         ax.set_yscale("log", base=10)
 
-        # ax.grid(linewidth=0.5, alpha=0.35, which="major", axis="both")
         ax.grid(which="major", axis="x", linewidth=0.45, alpha=0.3)
         ax.grid(which="minor", axis="x", linewidth=0.25, alpha=0.10)
         ax.grid(which="major", axis="y", linewidth=0.45, alpha=0.35)
-        ax.tick_params(axis="both", which="minor", bottom=True, left=False)
+
+        ax.tick_params(axis="both", which="major", length=2.5, width=0.55)
+        ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.5, width=0.55)
 
     axs_flatten = sync_xlim(axs_flatten)
     axs_flatten = sync_ylim(axs_flatten)
@@ -552,7 +555,7 @@ def plot_time_to_accuracy(
             ax.set_ylim(top=1.5e0)
 
     handles, labels = axs_flatten[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=3)  # ncol=len(qi_all)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=len(qi_all))
 
     plot_name = plot_names[problem_name]
     save_fig(plt, plot_name, problem_name)
@@ -801,8 +804,8 @@ def plot_quantity_over_time(
             ax.set_ylim((1e-2, 1e0))
     elif problem_name == "REACTION-DIFFUSION":
         if quantity == "number_iterations":
-            # ax.set_ylim((10, 26))
-            ax.set_ylim((1, 10))
+            ax.set_ylim((10, 26))
+            # ax.set_ylim((1, 10))
         elif quantity == "error":
             ax.set_ylim((1e-15, 1e-4))
         elif quantity == "increment":
@@ -819,7 +822,7 @@ def plot_quantity_over_time(
 
         out = Path("data") / problem_name / f"{quantity}_over_time_{num_nodes=}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out, dpi=400, bbox_inches="tight")
+        fig.savefig(out, dpi=500, bbox_inches="tight")
 
         if not return_ax:
             plt.close(fig)
@@ -875,11 +878,11 @@ def plot_impact_of_jumps_on_runtime_andrews(
             line.set_linewidth(2.0)
 
         for spine in ax_obj.spines.values():
-            spine.set_linewidth(1.0)
+            spine.set_linewidth(1.2)
 
-    ax[0].tick_params(axis="both", which="major", width=1.0, length=6.0)
-    ax[1].tick_params(axis="both", which="major", width=1.0, length=6.0)
-    ax[1].tick_params(axis="both", which="minor", width=1.0, length=3.5)
+    ax[0].tick_params(axis="both", which="major", width=1.2, length=6.0)
+    ax[1].tick_params(axis="both", which="major", width=1.2, length=6.0)
+    ax[1].tick_params(axis="both", which="minor", width=1.2, length=3.5)
 
     ax[0].legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=7)
     ax[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=3)
@@ -894,7 +897,7 @@ def plot_impact_of_jumps_on_runtime_andrews(
 
     out = Path("data") / problem_name / "Fig5.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=400, bbox_inches="tight")
+    fig.savefig(out, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
 

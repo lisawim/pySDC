@@ -249,9 +249,6 @@ def plot_work_vs_error_single(
     ax.set_xlabel("wall-clock time in s")
     ax.set_ylabel(ylabel)
 
-    ax.set_xlim((6e-1, 2e4))
-    ax.set_ylim((5e-15, 5e-9))
-
     ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
     ax.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)
 
@@ -362,9 +359,6 @@ def plot_work_vs_error_sdc_radau(
 
     axs.set_xlabel("wall-clock time in s")
     axs.set_ylabel(ylabel)
-
-    axs.set_xlim((5e-1, 2e4))
-    axs.set_ylim((1e-15, 1e-4))
 
     axs.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
     axs.grid(axis="both", which="minor", linewidth=0.2, alpha=0.15)

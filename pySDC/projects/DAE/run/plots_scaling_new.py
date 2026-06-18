@@ -64,8 +64,7 @@ def compute_factors_one_step(
     sweepers: list[str],
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
-    ref_QI: str = "LU",
-    ref_num_nodes: int = 5,
+    ref_QI: str = "IE",
     **kwargs: Any,
 ) -> tuple[
     dict[str, dict[str, dict[int, float]]],
@@ -76,7 +75,6 @@ def compute_factors_one_step(
     assert ref_QI in QI_serial_methods, f"Reference QI {ref_QI} must be in QI_serial_methods."
 
     factors = {}
-    factors_par_vs_par = {}
     num_processes_by_ref = {}
 
     for sweeper_type_ser in sweepers:
@@ -85,12 +83,6 @@ def compute_factors_one_step(
         key_ref = f"{sweeper_type_ser_eff}_{ref_QI}"
 
         if key_ref not in all_stats:
-            continue
-        if ref_num_nodes not in all_stats[key_ref]:
-            continue
-
-        timings_ref = all_stats[key_ref][ref_num_nodes].t_cpu_one_step
-        if timings_ref is None:
             continue
 
         factors.setdefault(key_ref, {})
@@ -106,6 +98,10 @@ def compute_factors_one_step(
                 factors[key_ref].setdefault(key_par, {})
 
                 for num_nodes, stats_par in sorted(all_stats[key_par].items()):
+                    timings_ref = all_stats[key_ref][num_nodes].t_cpu_one_step
+                    if timings_ref is None:
+                        continue
+
                     timings_par = stats_par.t_cpu_one_step
                     if timings_par is None:
                         continue
@@ -116,30 +112,7 @@ def compute_factors_one_step(
 
         num_processes_by_ref[key_ref] = sorted(available_parallel_nodes)
 
-    # parallel vs. parallel
-    parallel_keys = []
-    for sweeper_type_par in sweepers:
-        for QI_par in QI_parallel_methods:
-            key_par = f"{sweeper_type_par}_{QI_par}"
-            if key_par in all_stats:
-                parallel_keys.append(key_par)
-
-    for key_par_1, key_par_2 in combinations(parallel_keys, 2):
-        factors_par_vs_par.setdefault(key_par_1, {})
-        factors_par_vs_par[key_par_1].setdefault(key_par_2, {})
-
-        num_processes_1 = sorted(all_stats[key_par_1].keys())
-
-        for num_nodes in num_processes_1:
-            if num_nodes not in all_stats[key_par_2]:
-                continue
-
-            timings_1 = all_stats[key_par_1][num_nodes].t_cpu_one_step
-            timings_2 = all_stats[key_par_2][num_nodes].t_cpu_one_step
-
-            factors_par_vs_par[key_par_1][key_par_2][num_nodes] = timings_1[-1] / timings_2[-1]
-
-    return factors, factors_par_vs_par, num_processes_by_ref
+    return factors, num_processes_by_ref
 
 
 def plots_scaling(
@@ -150,8 +123,7 @@ def plots_scaling(
     sweepers: list[str],
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
-    ref_QI: str = "LU",
-    ref_num_nodes: int = 5,
+    ref_QI: str = "IE",
     nodes_to_plot: list[int] = range(2, 9),
     num_nodes_per_figure: list[int] = [2, 3, 4, 5],
     filename: str = None,
@@ -208,8 +180,8 @@ def plots_scaling(
         with open(path, "rb") as f:
             all_stats = dill.load(f)
 
-        factors, factors_par_vs_par, num_processes_by_key_ser = compute_factors_one_step(
-            all_stats, sweepers, QI_serial_methods, QI_parallel_methods, **kwargs
+        factors, num_processes_by_key_ser = compute_factors_one_step(
+            all_stats, sweepers, QI_serial_methods, QI_parallel_methods, ref_QI=ref_QI, **kwargs
         )
 
         metric_key = get_metric_key(problem_name=problem_name)
@@ -237,12 +209,10 @@ def plots_scaling(
         print_speedup_for_one_step(
             problem_name=problem_name,
             factors=factors,
-            factors_par_vs_par=factors_par_vs_par,
             sweepers=sweepers,
             nodes_to_plot=nodes_to_plot,
             ref_QI=ref_QI,
             QI_parallel_methods=QI_parallel_methods,
-            ref_num_nodes=ref_num_nodes,
             verbose=verbose,
         )
 
@@ -262,7 +232,7 @@ def plots_scaling(
         #     )
 
         for num_nodes in nodes_to_plot:
-            for quantity in ["walltime", "error", "increment"]:
+            for quantity in ["walltime", "error", "increment", "number_iterations"]:
                 plot_quantity_over_time(
                     all_stats=all_stats,
                     dt=dt,
@@ -408,9 +378,9 @@ def plot_wallclocktime_vs_accuracy(
                 )
 
     used_nodes_sorted = sorted(used_nodes_all)
-    ax.tick_params(axis="both", which="major", length=2.0, width=0.27)
+    ax.tick_params(axis="both", which="major", length=1.7, width=0.27)
     ax.tick_params(axis="both", which="minor", bottom=True, left=False, length=1.0, width=0.27)
-    ax.set_xlabel(r"wall-clock time in s (one run per $M$)")
+    ax.set_xlabel(r"wall-clock time in s (one run per $M$)", labelpad=2)
 
     if used_nodes_sorted:
         ax.set_xticks(used_nodes_sorted)
@@ -435,7 +405,7 @@ def plot_wallclocktime_vs_accuracy(
     ax.set_ylabel(ylabel)
 
     handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.11), ncol=2)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.11), ncol=3)
 
     plot_name = plot_names[problem_name]
     save_fig(plt, plot_name, problem_name)
@@ -483,8 +453,9 @@ def plot_time_to_accuracy(
     plot_names = {"LINEAR-TEST": "Fig3", "ANDREWS-SQUEEZER": "Fig7", "REACTION-DIFFUSION": "Fig9"}
 
     figsize = figsize_by_journal(journal, scale=0.72, ratio=0.83)
-    my_setup_mpl(fontsize=5.3)
+    my_setup_mpl(fontsize=6.3)
     plt.rcParams['axes.linewidth'] = 0.55
+    plt.rcParams['patch.linewidth'] = 0.4
     colors, markers, sweeper_labels = my_plot_style_config()
     linestyles = get_linestyles()
 
@@ -515,16 +486,16 @@ def plot_time_to_accuracy(
                     continue
 
                 label = sweeper_labels[sweeper_type] + "-" + f"{QI}"
-                # print(f"Plotting {label} for M={num_nodes} with {len(times)} points.")
+                print(f"Plotting {label} for M={num_nodes} with {len(times)} points.")
                 axs_flatten[n].plot(
                     times,
                     e_vals,
                     color=colors[key],
-                    marker=markers[key],
-                    markersize=3.8 if sweeper_type == "constrainedDAE" else 2.5,
-                    markeredgewidth=0.8 if sweeper_type == "constrainedDAE" else 0.5,
-                    markeredgecolor=colors[key],
-                    markerfacecolor="none",
+                    marker=".",
+                    markersize=4.5,# if sweeper_type == "constrainedDAE" else 2.5,
+                    markeredgewidth=0.4,# if sweeper_type == "constrainedDAE" else 0.5,
+                    # markeredgecolor=colors[key],
+                    # markerfacecolor="none",
                     linestyle=linestyles[sweeper_type],
                     linewidth=1.0,
                     label=label,
@@ -555,7 +526,7 @@ def plot_time_to_accuracy(
             ax.set_ylim(top=1.5e0)
 
     handles, labels = axs_flatten[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=len(qi_all))
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.02), ncol=4)
 
     plot_name = plot_names[problem_name]
     save_fig(plt, plot_name, problem_name)
@@ -569,12 +540,10 @@ def get_method_label_from_key(key: str) -> str:
 def print_speedup_for_one_step(
     problem_name: str,
     factors: dict,
-    factors_par_vs_par: dict,
     sweepers: list[str],
     QI_parallel_methods: list[str],
     nodes_to_plot: list[int] = None,
-    ref_QI: str = "LU",
-    ref_num_nodes: int = 5,
+    ref_QI: str = "IE",
     filename_stem: str = "speedup_one_step",
     verbose: bool = False,
 ):
@@ -596,7 +565,7 @@ def print_speedup_for_one_step(
         "  factor = 1   => both methods have the same runtime",
         "  factor < 1   => parallel method is slower",
         "",
-        f"Fixed serial reference: {ref_QI} with M={ref_num_nodes}",
+        f"Fixed serial reference: {ref_QI}",
         "",
         "For ANDREWS-SQUEEZER the speedup factors are computed based on the timings",
         "at the final time step, i.e., at Tend = 0.03.",
@@ -620,7 +589,7 @@ def print_speedup_for_one_step(
             continue
 
         label_ref = get_method_label(sweeper_type_ser_eff, ref_QI)
-        header = f"Reference serial method: {label_ref} with M={ref_num_nodes}"
+        header = f"Reference serial method: {label_ref}"
         if verbose:
             print(header)
         lines.append(header)
@@ -654,12 +623,12 @@ def print_speedup_for_one_step(
                     if factor >= 1.0:
                         line = (
                             f"  M=P={num_nodes}: {label_par} is {factor:.3f}x faster "
-                            f"than {label_ref} with M={ref_num_nodes}."
+                            f"than {label_ref}."
                         )
                     else:
                         line = (
                             f"  M=P={num_nodes}: {label_par} is {1.0 / factor:.3f}x slower "
-                            f"than {label_ref} with M={ref_num_nodes}."
+                            f"than {label_ref}."
                         )
 
                     if verbose:
@@ -669,53 +638,6 @@ def print_speedup_for_one_step(
                 if verbose:
                     print("")
                 lines.append("")
-
-    # --------------------------------------------------
-    # Section 2: parallel vs. parallel
-    # --------------------------------------------------
-    section = "=== Parallel vs. parallel ==="
-    if verbose:
-        print(f"\n{section}")
-    lines.append(section)
-    lines.append("")
-
-    for key_par_1, comparisons in factors_par_vs_par.items():
-        label_1 = get_method_label_from_key(key_par_1)
-
-        for key_par_2, factor_dict in comparisons.items():
-            if not factor_dict:
-                continue
-
-            label_2 = get_method_label_from_key(key_par_2)
-
-            subheader = f"Comparison: {label_1} vs. {label_2}"
-            if verbose:
-                print(subheader)
-            lines.append(subheader)
-            lines.append("")
-
-            for num_nodes, factor in sorted(factor_dict.items()):
-                if num_nodes > nodes_to_plot[-1]:
-                    continue
-
-                if factor >= 1.0:
-                    line = (
-                        f"  M=P={num_nodes}: {label_1} is {factor:.3f}x faster "
-                        f"than {label_2}."
-                    )
-                else:
-                    line = (
-                        f"  M=P={num_nodes}: {label_1} is {1.0 / factor:.3f}x slower "
-                        f"than {label_2}."
-                    )
-
-                if verbose:
-                    print(line)
-                lines.append(line)
-
-            if verbose:
-                print("")
-            lines.append("")
 
     # --------------------------------------------------
     # Save report
@@ -758,9 +680,9 @@ def plot_quantity_over_time(
     _, Tend = choose_time_step_sizes(problem_name=problem_name)
     t = [i * dt for i in range(1, int(Tend / dt) + 1)]
 
-    colors, _, _ = my_plot_style_config()
+    colors, markers, _ = my_plot_style_config()
 
-    qi_all = QI_parallel_methods + QI_serial_methods
+    qi_all = QI_parallel_methods + ["IE"]#QI_serial_methods
     qi_all = [qi for qi in qi_all if qi in SDC_METHODS]
 
     created_fig = ax is None
@@ -783,15 +705,18 @@ def plot_quantity_over_time(
                 continue
 
             label = get_method_label(sweeper_type, QI)
+            if quantity == "number_iterations":
+                print(num_nodes, key, np.mean(y_of(stats)), " mean iterations", np.sum(y_of(stats)), " total iterations")
             ax.plot(
                 t, 
                 y_of(stats),
                 color=colors[key],
                 linewidth=1.0,
                 label=label,
+                # marker=markers[key],
                 linestyle="solid" if sweeper_type == "constrainedDAE" else "dashdot",
             )
-
+    print()
     ax.set_xlabel(r"time $t$")
 
     ylabel = "wall-clock time in s" if quantity == "walltime" else f"{quantity}"
@@ -804,7 +729,8 @@ def plot_quantity_over_time(
             ax.set_ylim((1e-2, 1e0))
     elif problem_name == "REACTION-DIFFUSION":
         if quantity == "number_iterations":
-            ax.set_ylim((10, 26))
+            ax.set_ylim((1, 26))
+            # ax.set_ylim((10, 26))
             # ax.set_ylim((1, 10))
         elif quantity == "error":
             ax.set_ylim((1e-15, 1e-4))
@@ -850,6 +776,7 @@ def plot_impact_of_jumps_on_runtime_andrews(
     
     figsize = figsize_by_journal(journal, scale=1.3, ratio=1.0)
     my_setup_mpl(fontsize=13)
+    plt.rcParams["patch.linewidth"] = 0.55
 
     qi_all = QI_parallel_methods + QI_serial_methods
     qi_all = [qi for qi in qi_all if qi in SDC_METHODS]
@@ -989,15 +916,13 @@ def plot_achieved_newton_tolerance_and_iterations(
     plt.close(fig)
 
 
-
-
 def make_plots():
     global_comm = MPI.COMM_WORLD
     
     # Plots for LINEAR-TEST
     print("\nGenerating plots for LINEAR-TEST...\n")
     config_linear = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
-    filename = None#"results_scaling_dt=0.05_linear_#6.pkl"
+    filename = "results_scaling_dt=0.05_linear_#7.pkl"
     plots_scaling(
         global_comm=global_comm, filename=filename, **config_linear
     )
@@ -1012,12 +937,12 @@ def make_plots():
     # )
 
     # Plots for REACTION-DIFFUSION
-    # print("\nGenerating plots for REACTION-DIFFUSION...\n")
-    # config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
-    # filename = "results_scaling_dt=0.05_reaction_diffusion_#9.pkl"
-    # plots_scaling(
-    #     global_comm=global_comm, filename=filename, **config_reacdiff
-    # )
+    print("\nGenerating plots for REACTION-DIFFUSION...\n")
+    config_reacdiff = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
+    filename = "results_scaling_dt=0.05_reaction_diffusion_#14.pkl"
+    plots_scaling(
+        global_comm=global_comm, filename=filename, **config_reacdiff
+    )
 
 
 

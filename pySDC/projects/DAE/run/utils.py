@@ -66,7 +66,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
     """
 
     colors = {
-        "constrainedDAE_EE": "forestgreen",
+        "constrainedDAE_EE": "lightgreen",
         "constrainedDAE_IE": "gold",
         "constrainedDAE_LU": "orange",
         "constrainedDAE_MIN-SR-NS": "firebrick",
@@ -88,9 +88,9 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "fullyImplicitDAE_RadauIIA7": "black",
         "fullyImplicitDAE_RadauIIA9": "lightskyblue",
         "semiImplicitDAE_EE": "palevioletred",
-        "semiImplicitDAE_IE": "yellow",
+        "semiImplicitDAE_IE": "lightskyblue",
         "semiImplicitDAE_LU": "royalblue",
-        "semiImplicitDAE_MIN-SR-NS": "mediumseagreen",
+        "semiImplicitDAE_MIN-SR-NS": "seagreen",
         "semiImplicitDAE_MIN-SR-S": "saddlebrown",
         "semiImplicitDAE_MIN-SR-FLEX": "lightskyblue",
         "semiImplicitDAE_Picard": "darkmagenta",

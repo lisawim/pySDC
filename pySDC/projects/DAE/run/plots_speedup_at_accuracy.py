@@ -248,7 +248,7 @@ def plot_speedups_and_efficiencies(
     plot_names = {"LINEAR-TEST": "Fig4", "REACTION-DIFFUSION": "Fig10"}
 
     figsize = figsize_by_journal(journal, scale=0.65, ratio=0.45)
-    fontsize = 5.0
+    fontsize = 4.0
 
     my_setup_mpl(fontsize=fontsize)
     plt.rcParams['axes.linewidth'] = 0.3
@@ -336,7 +336,10 @@ def plot_speedups_and_efficiencies(
     axs[1].set_ylabel("efficiency")
     ymax = max(s_max)
     ymin = min(s_min)
-    axs[0].set_ylim(max(1.0, ymin - 0.4), ymax + 0.4)
+    if problem_name == "REACTION-DIFFUSION":
+        axs[0].set_ylim(max(1.0, ymin - 0.4), ymax + 0.4)
+    else:
+        axs[0].set_ylim(bottom=0.87)
 
     handles, labels = axs[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.07), ncol=2)

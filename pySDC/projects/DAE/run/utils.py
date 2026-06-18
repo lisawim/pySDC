@@ -98,7 +98,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
 
     markers = {
         "constrainedDAE_EE": "D",
-        "constrainedDAE_IE": "o",
+        "constrainedDAE_IE": "*",
         "constrainedDAE_LU": "X",
         "constrainedDAE_MIN-SR-NS": "^",
         "constrainedDAE_MIN-SR-S": "X",
@@ -122,7 +122,7 @@ def my_plot_style_config() -> tuple[dict[str, str], dict[str, str], dict[str, st
         "semiImplicitDAE_IE": "d",
         "semiImplicitDAE_LU": "8",
         "semiImplicitDAE_MIN-SR-NS": "s",
-        "semiImplicitDAE_MIN-SR-S": "o",
+        "semiImplicitDAE_MIN-SR-S": "v",
         "semiImplicitDAE_MIN-SR-FLEX": "H",
         "semiImplicitDAE_Picard": "D",
     }

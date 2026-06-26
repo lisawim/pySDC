@@ -69,7 +69,7 @@ def get_ylabel_based_on_metric(metric_key: str, type: str = "step") -> str:
         if type == "step":
             return r"$L_\infty$ error"
         elif type == "iter":
-            return r"$L_\infty$ error after iteration $k$"
+            return r"LTE $||u(t_1) - u^k_{M,t_1}||_{\infty}$"
 
 
 def get_sorted_handles_and_labels(

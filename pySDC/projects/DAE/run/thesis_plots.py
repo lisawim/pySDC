@@ -65,7 +65,7 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     convergence_plot_thesis(dt=dt, num_nodes=num_nodes, along="iterations", journal=journal)
     increment_plot_different_sweepers_thesis(dt=dt, num_nodes=num_nodes, journal=journal)
 
-    # Section 6.2
+    # # Section 6.2
     problem_name2 = "ANDREWS-SQUEEZER"
     dt_list_andrews, _ = choose_time_step_sizes(problem_name2)
     dt_andrews = dt_list_andrews[0]
@@ -84,7 +84,7 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     config_linear_scaling = get_configs(problem_name="LINEAR-TEST", config_type="scaling")
     filename = "results_scaling_dt=0.05_linear_thesis.pkl"
     plots_scaling(
-        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_linear_scaling
+        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, ref_QI="IE", **config_linear_scaling
     )
     
     # Plots for LINEAR-TEST
@@ -92,7 +92,7 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     config_linear_speedup_acc = get_configs(problem_name="LINEAR-TEST", config_type="speedup_at_accuracy")
     filename = "results_speedup_at_acc_dt=0.05_linear_thesis.pkl"
     plots_speedup_at_accuracy(
-        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_linear_speedup_acc
+        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, ref_QI="IE", **config_linear_speedup_acc
     )
 
     # Section 6.4
@@ -111,6 +111,7 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
         filename=filename,
         nodes_to_plot=nodes_to_plot,
         journal=journal,
+        ref_QI="EE",
         **config_andrews_scaling,
     )
 
@@ -139,13 +140,13 @@ def make_plots_for_chapter_num_results(journal="BUW_thesis"):
     config_reacdiff_scaling = get_configs(problem_name="REACTION-DIFFUSION", config_type="scaling")
     filename = "results_scaling_dt=0.05_reaction_diffusion_thesis.pkl"
     plots_scaling(
-        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_reacdiff_scaling
+        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, ref_QI="IE", **config_reacdiff_scaling
     )
 
     config_reacdiff_speedup_acc = get_configs(problem_name="REACTION-DIFFUSION", config_type="speedup_at_accuracy")
     filename = "results_speedup_at_acc_dt=0.05_reaction_diffusion_thesis.pkl"
     plots_speedup_at_accuracy(
-        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, **config_reacdiff_speedup_acc
+        global_comm=MPI.COMM_WORLD, filename=filename, journal=journal, ref_QI="IE", **config_reacdiff_speedup_acc
     )
 
 
@@ -159,5 +160,5 @@ def make_plots_for_chapter_num_results_SE(journal="BUW_thesis"):
 if __name__ == "__main__":
     # make_plots_for_chapter_application()
     # make_plots_for_chapter_test_problems()
-    # make_plots_for_chapter_num_results()
-    make_plots_for_chapter_num_results_SE()
+    make_plots_for_chapter_num_results()
+    # make_plots_for_chapter_num_results_SE()

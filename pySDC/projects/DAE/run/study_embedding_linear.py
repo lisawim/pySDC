@@ -538,7 +538,7 @@ def convergence_plot_thesis(dt, num_nodes, along="iterations", QI="MIN-SR-NS", j
 
     figsize = figsize_by_journal(journal, scale=0.7, ratio=0.83)
 
-    my_setup_mpl(fontsize=5)
+    my_setup_mpl(fontsize=6.0)
     fig, axs = plt.subplots(2, 2, figsize=figsize)
     ax_flatten = axs.flatten()
 

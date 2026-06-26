@@ -62,8 +62,8 @@ def get_configs(problem_name: str, config_type: str) -> dict:
             ],
             "problem_name": problem_name,
             "sweepers": ["constrainedDAE", "semiImplicitDAE"],
-            "QI_serial_methods": ["LU", "DOPRI5", "RadauIIA5", "RadauIIA7"],
-            "QI_parallel_methods": ["MIN-SR-NS", "MIN-SR-S", "MIN-SR-FLEX"],
+            "QI_serial_methods": ["IE", "EE", "LU"],
+            "QI_parallel_methods": ["MIN-SR-NS", "MIN-SR-S"],
             "dt": None,
         }
 
@@ -75,8 +75,8 @@ def get_configs(problem_name: str, config_type: str) -> dict:
         #     config["hook_class"] += [LogAchievedNewtonTolerancePostStep]
 
         if problem_name == "REACTION-DIFFUSION":
-            config["QI_serial_methods"] = ["LU", "RadauIIA5", "RadauIIA7"]
-            config["QI_parallel_methods"] = ["MIN-SR-S", "MIN-SR-FLEX"]
+            config["QI_serial_methods"] = ["IE", "LU"]
+            config["QI_parallel_methods"] = ["MIN-SR-S"]
 
         dt_index_by_problem = {
             "ANDREWS-SQUEEZER": 0,

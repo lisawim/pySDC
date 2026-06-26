@@ -21,8 +21,7 @@ def compute_speedups(
     sweepers: list[str],
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
-    ref_QI: str = "LU",
-    ref_num_nodes: int = 5,
+    ref_QI: str = "IE",
     **kwargs: Any,
 ) -> tuple[
     dict[str, dict[str, dict[int, float]]],
@@ -33,15 +32,15 @@ def compute_speedups(
     assert ref_QI in QI_serial_methods, f"Reference QI {ref_QI} must be in QI_serial_methods."
 
     speedups = {}
+    efficiencies = {}
     num_processes_by_ref = {}
 
     for sweeper_type_ser in sweepers:
         sweeper_type_ser_eff = set_correct_sweeper_type(sweeper_type_ser, ref_QI)
         key_ref = f"{sweeper_type_ser_eff}_{ref_QI}"
 
-        t_ref = all_stats[key_ref][ref_num_nodes].t_wall_stop_at_acc
-
         speedups.setdefault(key_ref, {})
+        efficiencies.setdefault(key_ref, {})
 
         available_parallel_nodes = set()
 
@@ -53,19 +52,26 @@ def compute_speedups(
                     continue
 
                 speedups[key_ref].setdefault(key_par, {})
+                efficiencies[key_ref].setdefault(key_par, {})
 
                 for num_nodes, stats_par in sorted(all_stats[key_par].items()):
+                    t_ref = all_stats[key_ref][num_nodes].t_wall_stop_at_acc
+
                     t_par = stats_par.t_wall_stop_at_acc
                     if t_par is None:
                         continue
 
                     s = t_ref / t_par
                     speedups[key_ref][key_par][num_nodes] = s
+
+                    e = s / num_nodes
+                    efficiencies[key_ref][key_par][num_nodes] = e
+
                     available_parallel_nodes.add(num_nodes)
 
         num_processes_by_ref[key_ref] = sorted(available_parallel_nodes)
 
-    return speedups, num_processes_by_ref
+    return speedups, efficiencies, num_processes_by_ref
 
 
 def split_method_key(key: str) -> tuple[str, str]:
@@ -86,6 +92,7 @@ def plots_speedup_at_accuracy(
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
     stop_at_accuracy_for_speedup: bool,
+    ref_QI: str = "IE",
     nodes_to_plot: list[int] = range(2, 9),
     filename: str = None,
     **kwargs: Any,
@@ -142,18 +149,20 @@ def plots_speedup_at_accuracy(
         with open(path, "rb") as f:
             all_stats = dill.load(f)
 
-        speedups, num_processes_by_ref = compute_speedups(
-            all_stats, sweepers, QI_serial_methods, QI_parallel_methods, **kwargs
+        speedups, efficiencies, num_processes_by_ref = compute_speedups(
+            all_stats, sweepers, QI_serial_methods, QI_parallel_methods, ref_QI=ref_QI, **kwargs
         )
 
-        plot_speedups(
+        plot_speedups_and_efficiencies(
             problem_name,
             speedups,
+            efficiencies,
             num_processes_by_ref,
             sweepers,
             QI_serial_methods,
             QI_parallel_methods,
             nodes_to_plot=nodes_to_plot,
+            ref_QI=ref_QI,
             **kwargs,
         )
 
@@ -181,14 +190,15 @@ def plots_speedup_at_accuracy(
         # )
 
 
-def plot_speedups(
+def plot_speedups_and_efficiencies(
     problem_name: str,
     speedups: dict[str, dict[str, dict[int, float]]],
+    efficiencies: dict[str, dict[str, dict[int, float]]],
     num_processes_by_ref: dict[str, list[int]],
     sweepers: list[str],
     QI_serial_methods: list[str],
     QI_parallel_methods: list[str],
-    ref_QI: str = "LU",
+    ref_QI: str = "IE",
     nodes_to_plot: list[int] = None,
     journal: str = "SIAM_Scientific_Computing",
     **kwargs: Any,
@@ -224,16 +234,13 @@ def plot_speedups(
         Name of the journal to obtain specified scale and height for figsize.
     """
 
-    if problem_name != "ANDREWS-SQUEEZER":
-        figsize = figsize_by_journal(journal, scale=0.45, ratio=0.6)
-        fontsize = 4
-    else:
-        figsize = figsize_by_journal(journal, scale=0.49, ratio=0.55)
-        fontsize = 6
+    figsize = figsize_by_journal(journal, scale=0.65, ratio=0.45)
+    fontsize = 5.5
 
     my_setup_mpl(fontsize=fontsize)
+    plt.rcParams["axes.linewidth"] = 0.5
     colors, markers, _ = my_plot_style_config()
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    fig, axs = plt.subplots(1, 2, figsize=figsize)
 
     s_min, s_max = [], []
     for sweeper_type_ser in sweepers:
@@ -257,52 +264,71 @@ def plot_speedups(
                     continue
 
                 s_map = speedups[key_ref][key_par]
+                e_map = efficiencies[key_ref][key_par]
 
                 xs = [n for n in nodes if n in s_map]
 
                 used_nodes_all.update(xs)
                 ys_s = [s_map[n] for n in xs]
+                ys_e = [e_map[n] for n in xs]
 
                 s_min.append(min(ys_s))
                 s_max.append(max(ys_s))
 
                 label = get_method_label(sweeper_type_par, QI_par)
-                ax.semilogx(
+                axs[0].semilogx(
                     xs,
                     ys_s,
                     color=colors[key_par],
                     marker=markers[key_par],
                     label=label,
-                    linewidth=0.8,
+                    linewidth=0.9,
                     linestyle="solid" if sweeper_type_par == "constrainedDAE" else "dashdot",
-                    markersize=2.2,
-                    markeredgewidth=0.3,
+                    markersize=3.0,
+                    markeredgewidth=0.35,
+                )
+                print(f"Plotted speedup for {key_par}: {ys_s}")
+                axs[1].semilogx(
+                    xs,
+                    ys_e,
+                    color=colors[key_par],
+                    marker=markers[key_par],
+                    label=label,
+                    linewidth=0.9,
+                    linestyle="solid" if sweeper_type_par == "constrainedDAE" else "dashdot",
+                    markersize=3.0,
+                    markeredgewidth=0.35,
                 )
                 print(f"Plotted maximum speedup for {key_par}: {max(ys_s)}")
 
-    for spine in ax.spines.values():
-        spine.set_linewidth(0.5)
-
-    ax.tick_params(axis="both", which="major", length=2.5, width=0.4)
-
     used_nodes_sorted = sorted(used_nodes_all)
-    ax.set_xlabel(r"number of $\mathtt{MPI}$ processes")
-    print(f"Used nodes for plotting: {used_nodes_sorted}")
-    # ax.set_xscale("log", base=2)
-    ax.set_xscale("linear")
-    ax.set_xticks(used_nodes_sorted)
-    ax.set_xticklabels(used_nodes_sorted)
-    ax.grid(axis="both", which="major", linewidth=0.35, alpha=0.5)
+    for ax in axs:
+        ax.tick_params(axis="both", which="major", length=2.0, width=0.3)
 
-    ax.set_xlim((nodes[0] - 0.06, nodes[-1] + 0.06))
-    ax.set_yscale("linear")
-    ax.set_ylabel("speedup")
+        ax.set_xlabel(r"number of $\mathtt{MPI}$ processes")
+
+        ax.set_xscale("linear")
+        ax.set_xticks(used_nodes_sorted)
+        ax.set_xticklabels(used_nodes_sorted)
+        ax.grid(axis="both", which="major", linewidth=0.3, alpha=0.5)
+
+        ax.set_yscale("linear")
+
+        ax.tick_params(axis="both", which="minor", bottom=True, left=False)
+
+        ax.set_xlim((nodes[0] - 0.12, nodes[-1] + 0.12))
+
+    axs[0].set_ylabel("speedup")
+    axs[1].set_ylabel("efficiency")
     ymax = max(s_max)
     ymin = min(s_min)
-    ax.set_ylim(max(1.0, ymin - 0.4), ymax + 0.4)
-    ax.tick_params(axis="both", which="minor", bottom=True, left=False)
+    if problem_name == "REACTION-DIFFUSION":
+        axs[0].set_ylim(max(1.0, ymin - 0.4), ymax + 0.4)
+    else:
+        axs[0].set_ylim(bottom=0.87)
 
-    fig.legend(loc="upper center", bbox_to_anchor=(0.58, 0.08), ncol=2)
+    handles, labels = axs[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.58, 0.08), ncol=2)
 
     plot_name = "speedup_at_accuracy"
     save_fig(plt, plot_name, problem_name)

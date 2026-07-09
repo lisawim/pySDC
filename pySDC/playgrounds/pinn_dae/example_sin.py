@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from pySDC.playgrounds.pinn_dae.models import NeuralNet
+from pySDC.playgrounds.pinn_dae.models.sinus_model import NeuralNet
 
 
 # Trainingsdaten: y = sin(x)
@@ -11,12 +11,16 @@ y = torch.sin(x)
 
 model = NeuralNet()
 
-print(list(model.parameters()))
+print(len(list(model.parameters())))
+for param in list(model.parameters()):
+    print(param.size())
 
 # Definiere loss function: Wie stark Vorhersage und echte Werte abweichen
 loss_fn = nn.MSELoss()
 
-# Optimierer verändert die Gewichte
+# Optimierer verändert die Gewichte mit Lernrate lr=0.01
+# Optimierer vor dem Training initialisieren, da Informationen aus vorherigen
+# Läufen gespeichert werden (z.B. Momentum)
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 # Training
@@ -33,7 +37,7 @@ for epoch in range(2000):
 
 
 m = nn.Linear(20, 30)
-input = torch.randn(20, 128)#torch.randn(128, 20)
+input = torch.randn(128, 20)
 print(input.size())
 output = m(input)
 print(output.size())

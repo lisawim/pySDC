@@ -40,19 +40,24 @@ def figsize_by_journal(journal, scale, ratio):  # pragma: no cover
     """
     # store text width in points here, get this from LaTeX using \the\textwidth
     textwidths = {
+        'BUW_thesis': 413.95082,
         'JSC_beamer': 426.79135,
         'Springer_Numerical_Algorithms': 338.58778,
         'Springer_proceedings': 347.12354,
         'JSC_thesis': 434.26027,
         'TUHH_thesis': 426.79135,
+        'SIAM_Scientific_Computing': 370.38374,
+        'Springer_Scientific_Computing': 495.02,
         'Nature_CS': 372.0,
     }
     # store text height in points here, get this from LaTeX using \the\textheight
     textheights = {
+        'BUW_thesis': 620.22894,
         'JSC_beamer': 214.43411,
         'JSC_thesis': 635.5,
         'TUHH_thesis': 631.65118,
         'Springer_proceedings': 549.13828,
+        'SIAM_Scientific_Computing': 598.0,
         'Nature_CS': 552.69478,
     }
     assert (

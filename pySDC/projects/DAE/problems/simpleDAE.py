@@ -171,7 +171,8 @@ class SimpleDAE(ProblemDAE):
             The reference solution as mesh object containing three components.
         """
         me = self.dtype_u(self.init)
-        me.diff[:2] = (np.exp(t), np.exp(t))
+        me.diff[0] = np.exp(t)
+        me.diff[1] = np.exp(t)
         me.alg[0] = -np.exp(t) / (2 - t)
         return me
 
@@ -191,7 +192,8 @@ class SimpleDAE(ProblemDAE):
         """
 
         me = self.dtype_u(self.init)
-        me.diff[:2] = (np.exp(t), np.exp(t))
+        me.diff[0] = np.exp(t)
+        me.diff[1] = np.exp(t)
         me.alg[0] = (np.exp(t) * (t - 3)) / ((2 - t) ** 2)
         return me
 
@@ -221,10 +223,9 @@ class SimpleDAEConstrained(SimpleDAE):
         u1, u2, z = u.diff[0], u.diff[1], u.alg[0]
 
         f = self.dtype_f(self.init)
-        f.diff[:2] = (
-            (self.a - 1 / (2 - t)) * u1 + (2 - t) * self.a * z + (3 - t) / (2 - t) * np.exp(t),
-            (1 - self.a) / (t - 2) * u1 - u2 + (self.a - 1) * z + 2 * np.exp(t),
-        )
+        f.diff[0] = (self.a - 1 / (2 - t)) * u1 + (2 - t) * self.a * z + ((3 - t) / (2 - t)) * np.exp(t)
+        f.diff[1] = ((self.a - 1) / (2 - t)) * u1 - u2 + (self.a - 1) * z + 2 * np.exp(t)
+
         f.alg[0] = self.algebraic_constraints(u, t)
         self.work_counters["rhs"]()
         return f
@@ -234,13 +235,9 @@ class SimpleDAEConstrained(SimpleDAE):
         Here, the algebraic equations are the hidden constraints which are obtained by
         differentiating the "real" algebraic equations of the index-two problem.
         """
-        u1, u2, z = u.diff[0], u.diff[1], u.alg[0]
-        # f_eval = self.eval_f(u, t)
-        # print(f_eval)
-        f1 = (self.a - 1 / (2 - t)) * u1 + (2 - t) * self.a * z + (3 - t) / (2 - t) * np.exp(t)
-        f2 = (1 - self.a) / (t - 2) * u1 - u2 + (self.a - 1) * z + 2 * np.exp(t)
-        # g = (t + 2) * u1 + (t**2 - 4) * u2 - (t**2 + t - 2) * np.exp(t)
-        g = (t + 2) * f1 + (t**2 - 4) * f2 - (t**2 + t - 2) * np.exp(t)
+        u1, u2 = u.diff[0], u.diff[1]
+
+        g = (t + 2) * u1 + (t**2 - 4) * u2 + (2 - t - t**2) * np.exp(t)
         return g
     
     def g(self, factor, u, t, rhs):
@@ -267,8 +264,8 @@ class SimpleDAEConstrained(SimpleDAE):
         u1, u2, z = u.diff[0], u.diff[1], u.alg[0]
         rhs_u1, rhs_u2 = rhs.diff[0], rhs.diff[1]
 
-        f_u1 = (self.a - 1 / (2 - t)) * u1 + (2 - t) * self.a * z + (3 - t) / (2 - t) * np.exp(t)
-        f_u2 = (1 - self.a) / (t - 2) * u1 - u2 + (self.a - 1) * z + 2 * np.exp(t)
+        f_u1 = (self.a - 1 / (2 - t)) * u1 + (2 - t) * self.a * z + ((3 - t) / (2 - t)) * np.exp(t)
+        f_u2 = ((self.a - 1) / (2 - t)) * u1 - u2 + (self.a - 1) * z + 2 * np.exp(t)
 
         g1 = u1 - factor * f_u1 - rhs_u1
         g2 = u2 - factor * f_u2 - rhs_u2
@@ -292,9 +289,9 @@ class SimpleDAEConstrained(SimpleDAE):
 
         return np.array(
             [
-                [1 - factor * (self.a - 1 / (2 - t)), 0, -factor * (2 - t) * self.a],
-                [-factor * (1 - self.a) / (t - 2), 1 + factor, -factor * (self.a - 1)],
-                [(t + 2) * (self.a - 1 / (2 - t)) + (t ** 2 - 4) * (1 - self.a) / (t - 2), -(t**2 - 4), (t + 2) * (2 - t) * self.a + (t ** 2 - 4) * (self.a - 1)],
+                [1 - factor * (self.a - 1 / (2 - t)), 0.0, -factor * (2 - t) * self.a],
+                [-factor * ((self.a - 1) / (2 - t)), 1 + factor, -factor * (self.a - 1)],
+                [t + 2, t**2 - 4, 0.0],
             ]
         )
     
@@ -326,7 +323,7 @@ class SimpleDAEConstrained(SimpleDAE):
         res = 99
         while n < self.newton_maxiter:
             # Form the function g(u), such that the solution to the nonlinear problem is a root of g
-            g = self.g(factor, u, t, rhs)
+            g = self.g(factor=factor, u=u, t=t, rhs=rhs)
 
             # If g is close to 0, then we are done
             res = np.linalg.norm(g, np.inf)
@@ -334,7 +331,7 @@ class SimpleDAEConstrained(SimpleDAE):
                 break
 
             # Inverse of dg
-            dg = self.dg(factor, t)
+            dg = self.dg(factor=factor, t=t)
 
             # Newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g)
@@ -525,8 +522,8 @@ class SimpleDAEConstrainedIndexOne(SimpleDAEConstrained):
             # Newton update: u1 = u0 - g/dg
             dx = np.linalg.solve(dg, g)
 
-            u.diff[0] -= rhs[0]
-            u.diff[1] -= rhs[1]
+            u.diff[0] -= dx[0]
+            u.diff[1] -= dx[1]
             u.alg[0] -= dx[2]
 
             n += 1
@@ -589,24 +586,18 @@ class SimpleDAEConstrainedHalfExplicit(SimpleDAEConstrained):
         u.diff[:] = y
         u.alg[:] = z
 
-        rhs = self.eval_f(u, t)
-        return rhs.diff[:]
+        f = self.eval_f(u, t)
+        return f.diff[:]
     
     def eval_g(self, y, t):
-        """
-        Evaluate only the algebraic constraint g(y).
-        For index-2 Hessenberg DAEs, this should depend only on y.
-        """
-        u = self.dtype_u(self.init)
-        u.diff[:] = y
+        g = (t + 2) * y[0] + (t**2 - 4) * y[1] - (t**2 + t - 2) * np.exp(t)
+        return g
 
-        rhs = self.eval_f(u, t)
-        return rhs.alg[:]
+    def dg(self, t, factor):
+        dg = (t + 2) * factor * (2 - t) * self.a + (t ** 2 - 4) * factor * (self.a - 1)
+        return dg
     
-    # def dg(self, t):
-
-    
-    def solve_system(self, h, z_guess, t):
+    def solve_system(self, rhs, factor, u0, t, t_c):
         r"""
         Newton's method to solve the linear system.
 
@@ -632,22 +623,21 @@ class SimpleDAEConstrainedHalfExplicit(SimpleDAEConstrained):
         res = 99
         while n < self.newton_maxiter:
             # Form the function h(u), such that the solution to the nonlinear problem is a root of g
-            h = self.eval_g(y=rhs.diff[:], t=t)
+            f = self.eval_f(u, t_c)
+            g = self.eval_g(rhs.diff[:] + factor * f.diff[:], t)
 
             # If g is close to 0, then we are done
-            res = np.linalg.norm(h, np.inf)
+            res = abs(g)
             if res < self.newton_tol:
                 break
 
             # Inverse of dg
-            dh = self.dg(t=t)
+            dg = self.dg(t=t, factor=factor)
 
             # Newton update: u1 = u0 - g/dg
-            dx = np.linalg.solve(dh, h)
+            dx = dg ** (-1) * g
 
-            u.diff[0] -= rhs[0]
-            u.diff[1] -= rhs[1]
-            u.alg[0] -= dx[2]
+            u.alg[0] -= dx
 
             n += 1
             self.work_counters["newton"]()
@@ -662,7 +652,6 @@ class SimpleDAEConstrainedHalfExplicit(SimpleDAEConstrained):
                 raise ProblemError(msg)
             else:
                 self.logger.warning(msg)
-
         solution = self.dtype_u(self.init)
-        solution[:] = u[:]
-        return solution
+        solution[:].alg[:] = u[:].alg[:]
+        return solution[:].alg[:]

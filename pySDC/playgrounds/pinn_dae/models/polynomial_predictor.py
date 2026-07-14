@@ -250,7 +250,7 @@ class MaclaurinCoefficientNet(nn.Module):
         """
 
         coeffs = []
-        print(f"{self.is_diff=}")
+
         for j in range(self.degree + 1):
             c_j = 1 if self.is_diff else self.lambda_d / self.lambda_a
             c_j *= (2.0 * self.lambda_d) ** j / math.factorial(j)

@@ -48,6 +48,7 @@ def figsize_by_journal(journal, scale, ratio):  # pragma: no cover
         'Springer_Scientific_Computing': 495.02,
         'SIAM_Scientific_Computing': 370.38374,
         'Nature_CS': 372.0,
+        'CPC': 468.3324,
     }
     # store text height in points here, get this from LaTeX using \the\textheight
     textheights = {
@@ -57,6 +58,7 @@ def figsize_by_journal(journal, scale, ratio):  # pragma: no cover
         'Springer_proceedings': 549.13828,
         'SIAM_Scientific_Computing': 598.0,
         'Nature_CS': 552.69478,
+        'CPC': 637.31475,
     }
     assert (
         journal in textwidths.keys()
@@ -74,6 +76,16 @@ def figsize_by_journal(journal, scale, ratio):  # pragma: no cover
 
 
 def setup_mpl(font_size=8, reset=False):
+    """
+    Set the matplotlib rcParams for publication plots, with LaTeX for text if `latex` is found, and close all figures.
+
+    Args:
+        font_size (int): Font size in points
+        reset (bool): Restore the rcParams from import time before applying the style
+
+    Returns:
+        None
+    """
     if reset:
         mpl.rcParams.update(default_mpl_params)
 
@@ -124,12 +136,36 @@ def setup_mpl(font_size=8, reset=False):
 
 
 def newfig(textwidth, scale, ratio=0.6180339887):
+    """
+    Clear the current figure and create a new figure with one axis, sized with `figsize`.
+
+    Args:
+        textwidth (float): Textwidth in your LaTeX file in points
+        scale (float): The width of the figure relative to the textwidth
+        ratio (float): The height of the figure relative to its width
+
+    Returns:
+        matplotlib.figure.Figure: The figure
+        matplotlib.axes.Axes: The axis
+    """
     plt.clf()
     fig, ax = plt.subplots(figsize=figsize(textwidth, scale, ratio))
     return fig, ax
 
 
 def savefig(filename, save_pdf=True, save_pgf=True, save_png=True):
+    """
+    Save the current figure with a tight bounding box in the chosen formats, then close it.
+
+    Args:
+        filename (str): Path without extension, which is added for each format
+        save_pdf (bool): Save as pdf
+        save_pgf (bool): Save as pgf, only done if `latex` is found
+        save_png (bool): Save as png
+
+    Returns:
+        None
+    """
     if save_pgf and shutil.which('latex'):
         plt.savefig('{}.pgf'.format(filename), bbox_inches='tight')
     if save_pdf:

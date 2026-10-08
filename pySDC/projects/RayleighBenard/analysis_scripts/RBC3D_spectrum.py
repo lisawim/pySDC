@@ -12,11 +12,12 @@ def plot_spectrum(res, dt, config_name, ax, **plotting_params):  # pragma: no co
 
     spectrum = data['avg_spectrum']
     k = data['k']
+    markevery = res // 6
     ax.loglog(
         k[spectrum > 1e-16],
         spectrum[spectrum > 1e-16],
         **{**get_plotting_style(config_name), **plotting_params},
-        markevery=5,
+        markevery=markevery,
     )
     ax.set_xlabel('$k$')
     ax.set_ylabel(r'$\|\hat{u}_x\|$')
@@ -50,30 +51,48 @@ def plot_spectra_Ra1e6():  # pragma: no cover
     savefig(fig, 'RBC3D_spectrum_Ra1e6')
 
 
-def plot_all_spectra():  # pragma: no cover
-    fig, ax = plt.subplots(figsize=figsize(scale=1, ratio=0.6))
+def plot_all_spectra(ax=None):  # pragma: no cover
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize(scale=1, ratio=0.6))
+    else:
+        fig = None
 
-    Ras = ['1e5', '1e6', '1e7']
-    dts = [0.06, 0.01, 0.005]
-    res = [32, 64, 128]
+    Ras = ['1e5', '1e6', '1e7', '1e8']
+    dts = [0.06, 0.01, 0.005, 0.0005]
+    res = [32, 64, 128, 256]
     colors = [
         'tab:blue',
         'tab:orange',
         'tab:green',
+        'tab:red',
     ]
-    markers = ['x', 'o', '.']
+    markers = ['x', 'o', '<', '.']
 
     for Ra, dt, _res, color, marker in zip(Ras, dts, res, colors, markers, strict=True):
         config = f'RBC3DG4R4SDC23Ra{Ra}'
         plot_spectrum(_res, dt, config, ax, label=f'$Ra$={Ra}', color=color, marker=marker)
 
     ax.legend(frameon=False)
-    savefig(fig, 'RBC3D_all_spectra')
+    if fig is not None:
+        savefig(fig, 'RBC3D_all_spectra')
+
+
+def plot_microscopic_verification():  # pragma: no cover
+    from pySDC.projects.RayleighBenard.analysis_scripts.RBC3D_order import compare_order
+
+    fig, axs = plt.subplots(1, 2, figsize=figsize(scale=1, ratio=0.45))
+    plot_all_spectra(axs[0])
+    compare_order(1e5, axs[1])
+    for ax in axs:
+        ax.set_box_aspect(1)
+    fig.tight_layout()
+    savefig(fig, 'RBC3D_microscopic_verification')
 
 
 if __name__ == '__main__':
-    plot_spectra_Ra1e5()
+    # plot_spectra_Ra1e5()
     # plot_spectra_Ra1e6()
     # plot_all_spectra()
+    plot_microscopic_verification()
 
     plt.show()
